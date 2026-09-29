@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/2 Utilities (domain ignorant)/">
     <Project Path="AaxDecrypter/AaxDecrypter.csproj" />
+    <Project Path="AudioPlayer/AudioPlayer.csproj" />
   </Folder>
   <Folder Name="/3 Domain Internal Utilities (db ignorant)/">
     <Project Path="AudibleUtilities/AudibleUtilities.csproj" />
@@ -64,6 +65,7 @@
     <Project Path="_Tests/ApplicationServices.Tests/ApplicationServices.Tests.csproj" />
     <Project Path="_Tests/AssertionHelper/AssertionHelper.csproj" />
     <Project Path="_Tests/AudibleUtilities.Tests/AudibleUtilities.Tests.csproj" />
+    <Project Path="_Tests/AudioPlayer.Tests/AudioPlayer.Tests.csproj" />
     <Project Path="_Tests/FileLiberator.Tests/FileLiberator.Tests.csproj" />
     <Project Path="_Tests/FileManager.Tests/FileManager.Tests.csproj" />
     <Project Path="_Tests/LibationCli.Tests/LibationCli.Tests.csproj" />
