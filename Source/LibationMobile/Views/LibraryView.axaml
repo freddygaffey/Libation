@@ -24,6 +24,22 @@
 		<Style Selector="Button.filter:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="Transparent" />
 		</Style>
+
+		<!-- The list is only for scrolling; rows are buttons, so drop ListBox's own selection look. -->
+		<Style Selector="ListBox.books ListBoxItem">
+			<Setter Property="Padding" Value="0" />
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="ListBox.books ListBoxItem:selected /template/ ContentPresenter, ListBox.books ListBoxItem:pointerover /template/ ContentPresenter, ListBox.books ListBoxItem:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<!-- The row itself: no hover box (there is no hover on a phone), and a light press tint. -->
+		<Style Selector="Button.row:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.row:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Hairline}" />
+		</Style>
 	</UserControl.Styles>
 
 	<Grid RowDefinitions="Auto,Auto,Auto,*">
@@ -31,7 +47,7 @@
 		<Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="20,16,8,4">
 			<TextBlock Classes="bookTitle" Text="Library" FontSize="30" VerticalAlignment="Center" />
 			<Panel Grid.Column="1" Width="48" Height="48">
-				<ProgressBar IsIndeterminate="True" IsVisible="{Binding Library.IsSyncing}" Width="24" VerticalAlignment="Center" Foreground="{StaticResource Lamp}" />
+				<ProgressBar IsIndeterminate="True" IsVisible="{Binding Library.IsSyncing}" MinWidth="0" Width="28" VerticalAlignment="Center" Foreground="{StaticResource Lamp}" />
 				<Button Classes="transport" Width="48" Height="48" Command="{Binding Library.SyncCommand}" IsVisible="{Binding !Library.IsSyncing}"
 					ToolTip.Tip="Refresh library">
 					<PathIcon Data="{StaticResource IconRefresh}" Width="20" Height="20" />
@@ -74,13 +90,14 @@
 				Text="Tap the arrow next to a book in All to download it and listen offline." />
 		</StackPanel>
 
-		<ScrollViewer Grid.Row="3">
-			<ItemsControl ItemsSource="{Binding Library.Books}">
-				<ItemsControl.ItemTemplate>
+		<!-- ListBox virtualizes: only rows on screen are built, which matters for libraries of hundreds of books. -->
+		<ListBox Grid.Row="3" Classes="books" ItemsSource="{Binding Library.Books}" SelectionMode="Single" Background="Transparent">
+				<ListBox.ItemTemplate>
 					<DataTemplate x:DataType="vm:BookItemViewModel">
 						<Grid ColumnDefinitions="*,Auto,Auto">
 							<Button
 								Grid.Column="0"
+								Classes="row"
 								Background="Transparent"
 								HorizontalAlignment="Stretch"
 								HorizontalContentAlignment="Stretch"
@@ -152,8 +169,7 @@
 							<Border Grid.ColumnSpan="3" Height="1" VerticalAlignment="Bottom" Margin="20,0,0,0" Background="{StaticResource Hairline}" />
 						</Grid>
 					</DataTemplate>
-				</ItemsControl.ItemTemplate>
-			</ItemsControl>
-		</ScrollViewer>
+				</ListBox.ItemTemplate>
+		</ListBox>
 	</Grid>
 </UserControl>

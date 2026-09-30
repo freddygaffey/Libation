@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.Input;
 using LibationMobile.Services;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,8 +25,35 @@ public partial class BookItemViewModel : ObservableObject
 	public string Title => Book.Title;
 	public string Author => Book.Authors;
 
-	[ObservableProperty]
+	private readonly Func<CatalogBook, Task<byte[]?>> loadCoverBytes;
 	private Bitmap? cover;
+	private bool coverRequested;
+
+	/// <summary>
+	/// Loaded the first time a row on screen asks for it, and decoded off the UI thread. A library can hold
+	/// hundreds of books; decoding every cover up front froze the app.
+	/// </summary>
+	public Bitmap? Cover
+	{
+		get
+		{
+			if (!coverRequested)
+			{
+				coverRequested = true;
+				_ = LoadCoverAsync();
+			}
+			return cover;
+		}
+	}
+
+	private async Task LoadCoverAsync()
+	{
+		var bitmap = await Task.Run(async () => await loadCoverBytes(Book) is byte[] bytes ? NowPlayingViewModel.LoadCover(bytes, 160) : null);
+		if (bitmap is null)
+			return;
+		cover = bitmap;
+		OnPropertyChanged(nameof(Cover));
+	}
 
 	[ObservableProperty]
 	[NotifyPropertyChangedFor(nameof(IsNotDownloaded), nameof(IsDownloading), nameof(IsDownloaded))]
@@ -52,10 +78,11 @@ public partial class BookItemViewModel : ObservableObject
 
 	internal CancellationTokenSource? DownloadCancellation { get; set; }
 
-	public BookItemViewModel(CatalogBook book, DownloadState state)
+	public BookItemViewModel(CatalogBook book, DownloadState state, Func<CatalogBook, Task<byte[]?>> loadCoverBytes)
 	{
 		Book = book;
 		this.state = state;
+		this.loadCoverBytes = loadCoverBytes;
 	}
 
 	/// <summary>How far through the book, and how long is left at the given speed.</summary>
@@ -85,8 +112,10 @@ public partial class LibraryViewModel : ObservableObject
 	private readonly MobileSettings settings;
 	private List<BookItemViewModel> allBooks = [];
 
-	/// <summary>The books shown, after the All / Downloaded filter.</summary>
-	public ObservableCollection<BookItemViewModel> Books { get; } = new();
+	/// <summary>The books shown, after the All / Downloaded filter. Replaced as a whole when the filter changes.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsDownloadedEmpty))]
+	private IReadOnlyList<BookItemViewModel> books = [];
 
 	[ObservableProperty]
 	[NotifyPropertyChangedFor(nameof(ShowAll))]
@@ -112,7 +141,6 @@ public partial class LibraryViewModel : ObservableObject
 		this.account = account;
 		this.downloader = downloader;
 		this.settings = settings;
-		Books.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsDownloadedEmpty));
 	}
 
 	partial void OnShowDownloadedOnlyChanged(bool value) => ApplyFilter();
@@ -155,7 +183,7 @@ public partial class LibraryViewModel : ObservableObject
 		}
 	}
 
-	[RelayCommand]
+	[RelayCommand(AllowConcurrentExecutions = true)]
 	private async Task Download(BookItemViewModel item)
 	{
 		if (item.State != DownloadState.NotDownloaded)
@@ -243,27 +271,16 @@ public partial class LibraryViewModel : ObservableObject
 		allBooks = books
 			.Select(b => existing.TryGetValue(b.Asin, out var item) && item.Book == b
 				? item
-				: new BookItemViewModel(b, catalog.IsDownloaded(b.Asin) ? DownloadState.Downloaded : DownloadState.NotDownloaded))
+				: new BookItemViewModel(b, catalog.IsDownloaded(b.Asin) ? DownloadState.Downloaded : DownloadState.NotDownloaded, catalog.GetCoverAsync))
 			.ToList();
 		foreach (var item in allBooks)
 			RefreshItem(item);
 		ApplyFilter();
 		OnPropertyChanged(nameof(IsLibraryEmpty));
-		_ = LoadCoversAsync(allBooks);
 	}
 
 	private void ApplyFilter()
 	{
-		var visible = ShowDownloadedOnly ? allBooks.Where(b => b.State != DownloadState.NotDownloaded) : allBooks;
-		Books.Clear();
-		foreach (var item in visible)
-			Books.Add(item);
-	}
-
-	private async Task LoadCoversAsync(IEnumerable<BookItemViewModel> items)
-	{
-		foreach (var item in items.Where(i => i.Cover is null).ToList())
-			if (await catalog.GetCoverAsync(item.Book) is byte[] bytes)
-				item.Cover = NowPlayingViewModel.LoadCover(bytes, 160);
+		Books = ShowDownloadedOnly ? allBooks.Where(b => b.State != DownloadState.NotDownloaded).ToList() : allBooks;
 	}
 }

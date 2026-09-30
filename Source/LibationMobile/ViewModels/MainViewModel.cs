@@ -198,13 +198,14 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	#region Library and playback
 
 	/// <summary>Tapping a title: play it if downloaded, otherwise start downloading it.</summary>
-	[RelayCommand]
+	[RelayCommand(AllowConcurrentExecutions = true)]
 	private async Task OpenBook(BookItemViewModel item)
 	{
 		switch (item.State)
 		{
 			case DownloadState.NotDownloaded:
-				await Library.DownloadCommand.ExecuteAsync(item);
+				// Start it and return, so this command is not busy (and every row disabled) for the whole download.
+				_ = Library.DownloadCommand.ExecuteAsync(item);
 				return;
 			case DownloadState.Downloading:
 				return;
