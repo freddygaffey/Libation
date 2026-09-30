@@ -105,6 +105,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			OnPropertyChanged(nameof(SpeedText));
 			OnPropertyChanged(nameof(RemainingText));
 			OnPropertyChanged(nameof(ChapterRemainingText));
+			UpdateMediaSession();
 		}
 	}
 
@@ -150,6 +151,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		timer.Start();
 		Update();
 		StartAnnotations(annotations);
+		StartMediaSession();
 	}
 
 	/// <param name="annotations">Audible position, bookmarks and clips. Null plays without syncing.</param>
@@ -226,14 +228,18 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		clipEnd = null;
 		player.Seek(target);
 		Update();
+		UpdateMediaSession();
 	}
 
 	private void Update()
 	{
 		if (disposed)
 			return;
+		var wasPlaying = IsPlaying;
 		IsPlaying = player.IsPlaying;
 		Position = player.Position;
+		if (IsPlaying != wasPlaying)
+			UpdateMediaSession();
 		UpdateCurrentChapter();
 		UpdateAnnotations();
 		if (IsPlaying && DateTime.UtcNow - lastSaved > SaveInterval)
@@ -298,6 +304,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		disposed = true;
 		timer.Stop();
 		statusTimer?.Stop();
+		StopMediaSession();
 		SavePosition();
 		PushPosition();
 		player.Dispose();
