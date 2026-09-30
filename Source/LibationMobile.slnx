@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Mobile/">
+    <Project Path="LibationMobile/LibationMobile.csproj" />
+    <Project Path="LibationMobile.Android/LibationMobile.Android.csproj" />
+  </Folder>
+  <Folder Name="/Shared/">
+    <Project Path="AudioPlayer/AudioPlayer.csproj" />
+  </Folder>
+</Solution>

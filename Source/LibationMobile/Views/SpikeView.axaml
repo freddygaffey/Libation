@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="LibationMobile.Views.SpikeView">
+	<StackPanel Margin="24,64,24,24" Spacing="16">
+		<TextBlock Text="Audio engine spike" FontSize="24" FontWeight="Bold" />
+		<TextBlock Name="fileLbl" TextWrapping="Wrap" />
+		<StackPanel Orientation="Horizontal" Spacing="8">
+			<Button Name="play1" Content="Play 1x" />
+			<Button Name="play3" Content="3x" />
+			<Button Name="play10" Content="10x" />
+			<Button Name="stopBtn" Content="Stop" />
+		</StackPanel>
+		<TextBlock Name="statusLbl" TextWrapping="Wrap" FontFamily="monospace" />
+	</StackPanel>
+</UserControl>
