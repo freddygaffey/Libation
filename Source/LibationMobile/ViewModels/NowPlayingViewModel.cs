@@ -121,7 +121,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	private DateTime lastSaved = DateTime.MinValue;
 	private bool disposed;
 
-	private NowPlayingViewModel(LocalBook book, AudioFilePlayer player, IReadOnlyList<Chapter> chapters, MobileSettings settings)
+	private NowPlayingViewModel(LocalBook book, AudioFilePlayer player, IReadOnlyList<Chapter> chapters, MobileSettings settings, AudibleAnnotations? annotations)
 	{
 		Book = book;
 		this.player = player;
@@ -138,14 +138,16 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) => Update());
 		timer.Start();
 		Update();
+		StartAnnotations(annotations);
 	}
 
-	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings)
+	/// <param name="annotations">Audible position, bookmarks and clips. Null plays without syncing.</param>
+	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings, AudibleAnnotations? annotations = null)
 	{
 		var chapters = await AudioFileChapters.ReadAsync(book.Path);
 		var player = await Task.Run(() => new AudioFilePlayer(AudioBackend.OpenSource(book.Path), AudioBackend.CreateOutput));
 		settings.LastBookId = book.Id;
-		return new NowPlayingViewModel(book, player, chapters, settings);
+		return new NowPlayingViewModel(book, player, chapters, settings, annotations);
 	}
 
 	[RelayCommand]
@@ -155,6 +157,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		{
 			player.Pause();
 			SavePosition();
+			PushPosition();
 		}
 		else
 			player.Play();
@@ -209,6 +212,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public void Seek(TimeSpan target)
 	{
 		target = target < TimeSpan.Zero ? TimeSpan.Zero : target > Duration ? Duration : target;
+		clipEnd = null;
 		player.Seek(target);
 		Update();
 	}
@@ -220,6 +224,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		IsPlaying = player.IsPlaying;
 		Position = player.Position;
 		UpdateCurrentChapter();
+		UpdateAnnotations();
 		if (IsPlaying && DateTime.UtcNow - lastSaved > SaveInterval)
 			SavePosition();
 	}
@@ -281,7 +286,9 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			return;
 		disposed = true;
 		timer.Stop();
+		statusTimer?.Stop();
 		SavePosition();
+		PushPosition();
 		player.Dispose();
 		Cover?.Dispose();
 		GC.SuppressFinalize(this);

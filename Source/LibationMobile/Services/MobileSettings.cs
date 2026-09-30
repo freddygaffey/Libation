@@ -20,6 +20,8 @@ public class MobileSettings
 	{
 		public float Speed { get; set; } = DEFAULT_SPEED;
 		public Dictionary<string, TimeSpan> Positions { get; set; } = new();
+		/// <summary>When each position was saved, to compare with the one Audible holds from other devices.</summary>
+		public Dictionary<string, DateTimeOffset> PositionTimes { get; set; } = new();
 		public string? LastBookId { get; set; }
 		public string? RegionName { get; set; }
 	}
@@ -61,15 +63,26 @@ public class MobileSettings
 		lock (locker)
 		{
 			state.Positions[bookId] = position;
+			state.PositionTimes[bookId] = DateTimeOffset.UtcNow;
 			Save();
 		}
+	}
+
+	/// <summary>When the position was last saved on this device. Null if never, or saved before this was recorded.</summary>
+	public DateTimeOffset? GetPositionTime(string bookId)
+	{
+		lock (locker)
+			return state.PositionTimes.TryGetValue(bookId, out var time) ? time : null;
 	}
 
 	public void RemovePosition(string bookId)
 	{
 		lock (locker)
+		{
+			state.PositionTimes.Remove(bookId);
 			if (state.Positions.Remove(bookId))
 				Save();
+		}
 	}
 
 	private static State Load(string path)

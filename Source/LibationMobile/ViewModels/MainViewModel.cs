@@ -38,6 +38,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 {
 	private readonly MobileSettings settings;
 	private readonly AudibleAccount account;
+	private readonly AudibleAnnotations annotations;
 
 	public LibraryViewModel Library { get; }
 	public IReadOnlyList<string> RegionNames { get; } = AudibleAccount.Regions.Select(r => r.DisplayName).ToList();
@@ -73,6 +74,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	{
 		settings = new MobileSettings(Path.Combine(dataDirectory, "settings.json"));
 		account = new AudibleAccount(Path.Combine(dataDirectory, "audible-identity.json"), settings);
+		annotations = new AudibleAnnotations(account);
 		var catalog = new LibraryCatalog(dataDirectory);
 		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog), settings);
 		SelectedRegionIndex = Math.Max(0, AudibleAccount.Regions.ToList().FindIndex(r => r.Name == "us"));
@@ -268,6 +270,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			case Page.NowPlaying when NowPlaying is { IsChapterListOpen: true }:
 				NowPlaying.IsChapterListOpen = false;
 				return true;
+			case Page.NowPlaying when NowPlaying is { IsAnnotationListOpen: true }:
+				NowPlaying.IsAnnotationListOpen = false;
+				return true;
 			case Page.NowPlaying:
 				CurrentPage = Page.Library;
 				Library.RefreshProgress();
@@ -299,7 +304,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		NowPlaying = null;
 		try
 		{
-			NowPlaying = await NowPlayingViewModel.OpenAsync(await Library.ToLocalBookAsync(item), settings);
+			NowPlaying = await NowPlayingViewModel.OpenAsync(await Library.ToLocalBookAsync(item), settings, annotations);
 			if (showNowPlaying)
 				CurrentPage = Page.NowPlaying;
 			return true;
@@ -323,6 +328,21 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		{
 			case "signin":
 				await SignInCommand.ExecuteAsync(null);
+				break;
+			case "benchsonic":
+				// How long Sonic takes to speed up 30s of 44.1 kHz stereo at 10x. It must be well under 3s to play in real time.
+				var sonic = new AudioPlayer.Sonic(44100, 2) { Speed = 10f };
+				var input = new float[4096];
+				for (var i = 0; i < input.Length; i++)
+					input[i] = (float)Math.Sin(i * 0.02) * 0.5f;
+				var output = new float[8192];
+				var watch = System.Diagnostics.Stopwatch.StartNew();
+				for (var frames = 0; frames < 30 * 44100; frames += input.Length / 2)
+				{
+					sonic.Write(input);
+					while (sonic.Read(output) > 0) { }
+				}
+				Console.WriteLine($"LIBATION_TEST benchsonic: 30s of audio at 10x took {watch.ElapsedMilliseconds} ms (budget 3000 ms)");
 				break;
 			case "importdefault":
 				TypeDefaultCredential();

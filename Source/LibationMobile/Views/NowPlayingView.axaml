@@ -19,6 +19,20 @@
 		<Style Selector="ListBox.chapters ListBoxItem:selected /template/ ContentPresenter, ListBox.chapters ListBoxItem:pointerover /template/ ContentPresenter, ListBox.chapters ListBoxItem:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="Transparent" />
 		</Style>
+		<Style Selector="Button.labelled">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="Foreground" Value="{StaticResource Paper}" />
+			<Setter Property="MinWidth" Value="58" />
+			<Setter Property="Height" Value="48" />
+			<Setter Property="Padding" Value="4,2" />
+			<Setter Property="HorizontalContentAlignment" Value="Center" />
+		</Style>
+		<Style Selector="Button.labelled:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.labelled:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Hairline}" />
+		</Style>
 		<Style Selector="TextBlock.chapterTitle">
 			<Setter Property="Foreground" Value="{StaticResource Paper}" />
 		</Style>
@@ -33,17 +47,38 @@
 	<Panel>
 	<Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="24,4,24,20">
 
-		<!-- Down chevron: Now Playing slides over the library, so "back" points down. -->
-		<Button
-			Grid.Row="0"
-			Classes="transport"
-			Width="48"
-			Height="48"
-			Margin="-12,0,0,0"
-			HorizontalAlignment="Left"
-			Command="{Binding $parent[UserControl;1].((vm:MainViewModel)DataContext).GoToLibraryCommand}">
-			<PathIcon Data="{StaticResource IconChevronDown}" />
-		</Button>
+		<Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+			<!-- Down chevron: Now Playing slides over the library, so "back" points down. -->
+			<Button
+				Classes="transport"
+				Width="48"
+				Height="48"
+				Margin="-12,0,0,0"
+				Command="{Binding $parent[UserControl;1].((vm:MainViewModel)DataContext).GoToLibraryCommand}">
+				<PathIcon Data="{StaticResource IconChevronDown}" />
+			</Button>
+			<!-- Kept in the user's Audible account, so they show up in the official app too. -->
+			<StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,-8,0">
+				<Button Classes="labelled" Command="{Binding AddBookmarkCommand}">
+					<StackPanel Spacing="2">
+						<PathIcon Data="{StaticResource IconBookmark}" Width="18" Height="18" />
+						<TextBlock Text="Bookmark" FontSize="10" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="labelled" Command="{Binding AddClipCommand}">
+					<StackPanel Spacing="2">
+						<PathIcon Data="{StaticResource IconClip}" Width="18" Height="18" />
+						<TextBlock Text="Clip 30s" FontSize="10" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="labelled" Command="{Binding ShowAnnotationsCommand}">
+					<StackPanel Spacing="2">
+						<PathIcon Data="{StaticResource IconBookmarks}" Width="18" Height="18" />
+						<TextBlock Text="Saved" FontSize="10" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+			</StackPanel>
+		</Grid>
 
 		<Border
 			Grid.Row="1"
@@ -70,6 +105,11 @@
 					<PathIcon Grid.Column="1" Data="{StaticResource IconChapters}" Width="20" Height="20" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
 				</Grid>
 			</Button>
+			<!-- What just happened: a bookmark added, or the position moved to match another device. -->
+			<Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasStatus}" Margin="0,4,0,0">
+				<TextBlock Classes="muted" Text="{Binding StatusMessage}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+				<Button Grid.Column="1" Classes="quiet" Content="Undo" Padding="8,2" IsVisible="{Binding CanUndoSync}" Command="{Binding UndoSyncCommand}" />
+			</Grid>
 		</StackPanel>
 
 		<StackPanel Grid.Row="3" Margin="0,12,0,0">
@@ -161,6 +201,52 @@
 							<TextBlock Grid.Column="2" Classes="muted" Text="{Binding LengthText}" FontSize="13" VerticalAlignment="Center" />
 						</Grid>
 					</Button>
+				</DataTemplate>
+			</ListBox.ItemTemplate>
+		</ListBox>
+	</Grid>
+
+	<!-- Bookmarks and clips from the user's Audible account. -->
+	<Grid RowDefinitions="Auto,*" Background="{StaticResource Ink}" IsVisible="{Binding IsAnnotationListOpen}">
+		<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
+			<Button Classes="transport" Width="48" Height="48" Command="{Binding HideAnnotationsCommand}" ToolTip.Tip="Close">
+				<PathIcon Data="{StaticResource IconChevronDown}" />
+			</Button>
+			<TextBlock Grid.Column="1" Classes="bookTitle" Text="Bookmarks and clips" FontSize="22" VerticalAlignment="Center" Margin="4,0,0,0" />
+		</Grid>
+		<StackPanel Grid.Row="1" Margin="24,32,24,0" Spacing="10" IsVisible="{Binding !HasAnnotations}">
+			<TextBlock Classes="bookTitle" Text="Nothing saved in this book yet" FontSize="18" />
+			<TextBlock Classes="muted" TextWrapping="Wrap"
+				Text="While listening, tap Bookmark to mark your place, or Clip to keep the last 30 seconds. They are saved to your Audible account." />
+		</StackPanel>
+		<ListBox Grid.Row="1" Classes="chapters" ItemsSource="{Binding Annotations}" Background="Transparent" IsVisible="{Binding HasAnnotations}">
+			<ListBox.ItemTemplate>
+				<DataTemplate x:DataType="vm:AnnotationRowViewModel">
+					<Grid ColumnDefinitions="*,Auto">
+						<Button Classes="row" Background="Transparent" CornerRadius="0" Padding="24,14,8,14" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+							Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).OpenAnnotationCommand}" CommandParameter="{Binding}">
+							<Grid ColumnDefinitions="28,*" ColumnSpacing="8">
+								<Panel VerticalAlignment="Center">
+									<PathIcon Data="{StaticResource IconClip}" Width="16" Height="16" Foreground="{StaticResource Lamp}" IsVisible="{Binding IsClip}" />
+									<PathIcon Data="{StaticResource IconBookmark}" Width="16" Height="16" Foreground="{StaticResource Lamp}" IsVisible="{Binding !IsClip}" />
+								</Panel>
+								<StackPanel Grid.Column="1">
+									<TextBlock Text="{Binding Title}" FontSize="15" TextTrimming="CharacterEllipsis" />
+									<TextBlock Classes="muted" Text="{Binding DetailText}" FontSize="12" TextWrapping="Wrap" />
+								</StackPanel>
+							</Grid>
+						</Button>
+						<Button Grid.Column="1" Classes="transport" Width="40" Height="48" Margin="0,0,12,0" ToolTip.Tip="More">
+							<PathIcon Data="{StaticResource IconMore}" Width="18" Height="18" Foreground="{StaticResource Dust}" />
+							<Button.Flyout>
+								<MenuFlyout Placement="BottomEdgeAlignedRight">
+									<MenuItem Header="Delete"
+										Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).DeleteAnnotationCommand}" CommandParameter="{Binding}" />
+								</MenuFlyout>
+							</Button.Flyout>
+						</Button>
+						<Border Grid.ColumnSpan="2" Height="1" VerticalAlignment="Bottom" Margin="24,0,0,0" Background="{StaticResource Hairline}" />
+					</Grid>
 				</DataTemplate>
 			</ListBox.ItemTemplate>
 		</ListBox>
