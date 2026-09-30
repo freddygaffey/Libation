@@ -18,7 +18,8 @@ public partial class ChapterRowViewModel(int number, Chapter chapter) : Observab
 {
 	public Chapter Chapter { get; } = chapter;
 	public int Number { get; } = number;
-	public string Title => Chapter.Title;
+	// Titles embedded in Audible files often carry stray spaces.
+	public string Title { get; } = chapter.Title.Trim();
 	public string LengthText { get; } = NowPlayingViewModel.FormatTime(chapter.Duration);
 
 	/// <summary>The chapter playing now.</summary>
@@ -38,7 +39,9 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public const double MAX_SPEED = AudioFilePlayer.MAX_SPEED;
 	private const double SPEED_STEP = 0.1;
 
-	private static readonly TimeSpan SkipInterval = TimeSpan.FromSeconds(30);
+	private TimeSpan SkipInterval => TimeSpan.FromSeconds(settings.SkipSeconds);
+	/// <summary>The number shown inside the skip buttons.</summary>
+	public string SkipText => settings.SkipSeconds.ToString();
 	private static readonly TimeSpan RestartChapterThreshold = TimeSpan.FromSeconds(3);
 	private static readonly TimeSpan FinishedThreshold = TimeSpan.FromSeconds(30);
 	private static readonly TimeSpan SaveInterval = TimeSpan.FromSeconds(10);
@@ -174,7 +177,11 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			PushPosition();
 		}
 		else
+		{
+			// Ask Audible first (it notes what this device knew before playing), then start without waiting.
+			_ = SyncPositionAsync(whilePlaying: true);
 			player.Play();
+		}
 		Update();
 	}
 
@@ -227,6 +234,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	{
 		target = target < TimeSpan.Zero ? TimeSpan.Zero : target > Duration ? Duration : target;
 		clipEnd = null;
+		lastLocalActivity = DateTimeOffset.UtcNow;
 		player.Seek(target);
 		Update();
 		UpdateMediaSession();

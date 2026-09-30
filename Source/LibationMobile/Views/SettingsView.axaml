@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             x:Class="LibationMobile.Views.SettingsView"
+             x:DataType="vm:MainViewModel"
+             Background="{StaticResource Ink}">
+
+	<UserControl.Styles>
+		<Style Selector="Button.choice">
+			<Setter Property="Background" Value="{StaticResource Slate}" />
+			<Setter Property="Foreground" Value="{StaticResource Paper}" />
+			<Setter Property="Padding" Value="14,10" />
+			<Setter Property="Margin" Value="0,0,8,0" />
+			<Setter Property="MinWidth" Value="56" />
+			<Setter Property="HorizontalContentAlignment" Value="Center" />
+			<Setter Property="CornerRadius" Value="6" />
+		</Style>
+		<Style Selector="Button.choice.selected">
+			<Setter Property="Background" Value="{StaticResource Lamp}" />
+			<Setter Property="Foreground" Value="{StaticResource Ink}" />
+		</Style>
+		<Style Selector="Button.choice:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="{Binding $parent[Button].Background}" />
+			<Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}" />
+		</Style>
+		<Style Selector="TextBlock.section">
+			<Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
+			<Setter Property="FontSize" Value="20" />
+			<Setter Property="Margin" Value="0,28,0,10" />
+		</Style>
+		<Style Selector="TextBlock.setting">
+			<Setter Property="FontSize" Value="15" />
+			<Setter Property="Margin" Value="0,8,0,8" />
+		</Style>
+	</UserControl.Styles>
+
+	<Grid RowDefinitions="Auto,*">
+		<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
+			<Button Classes="transport" Width="48" Height="48" Command="{Binding GoToLibraryCommand}" ToolTip.Tip="Close settings">
+				<PathIcon Data="{StaticResource IconChevronDown}" />
+			</Button>
+			<TextBlock Grid.Column="1" Classes="bookTitle" Text="Settings" FontSize="22" VerticalAlignment="Center" Margin="4,0,0,0" />
+		</Grid>
+
+		<ScrollViewer Grid.Row="1">
+			<StackPanel Margin="24,0,24,32" DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel">
+
+				<TextBlock Classes="section" Text="Playback" Margin="0,8,0,10" />
+				<TextBlock Classes="setting" Text="Skip back and forward by" />
+				<StackPanel Orientation="Horizontal">
+					<Button Classes="choice" Classes.selected="{Binding IsSkip10}" Content="10 s" Command="{Binding SetSkipCommand}" CommandParameter="10" />
+					<Button Classes="choice" Classes.selected="{Binding IsSkip15}" Content="15 s" Command="{Binding SetSkipCommand}" CommandParameter="15" />
+					<Button Classes="choice" Classes.selected="{Binding IsSkip30}" Content="30 s" Command="{Binding SetSkipCommand}" CommandParameter="30" />
+					<Button Classes="choice" Classes.selected="{Binding IsSkip60}" Content="60 s" Command="{Binding SetSkipCommand}" CommandParameter="60" />
+				</StackPanel>
+				<TextBlock Classes="setting" Text="A new clip starts as the last" Margin="0,20,0,8" />
+				<StackPanel Orientation="Horizontal">
+					<Button Classes="choice" Classes.selected="{Binding IsClip15}" Content="15 s" Command="{Binding SetClipCommand}" CommandParameter="15" />
+					<Button Classes="choice" Classes.selected="{Binding IsClip30}" Content="30 s" Command="{Binding SetClipCommand}" CommandParameter="30" />
+					<Button Classes="choice" Classes.selected="{Binding IsClip45}" Content="45 s" Command="{Binding SetClipCommand}" CommandParameter="45" />
+				</StackPanel>
+
+				<TextBlock Classes="section" Text="Speed" />
+				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+					Text="Books are sped up evenly for now. The choice of speed-up method, and how strongly it favours the important sounds, will appear here when it is ready." />
+
+				<TextBlock Classes="section" Text="Sync" />
+				<Grid ColumnDefinitions="*,Auto">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Sync position with Audible" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="Pick up where you stopped on another device, and let other devices pick up from here." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding SyncPosition}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Margin="0,12,0,0"
+					Text="Bookmarks and clips are kept on this phone." />
+
+				<TextBlock Classes="section" Text="Downloads" />
+				<Grid ColumnDefinitions="*,Auto">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="High quality" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="Better sound and larger files. Applies to books you download from now on." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding HighQualityDownloads}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+
+				<TextBlock Classes="section" Text="Account" />
+				<TextBlock Classes="muted" FontSize="13" Text="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).AccountText}" />
+				<Button Classes="quiet" Content="Sign out" Margin="0,12,0,0" Padding="14,10"
+					Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).SignOutCommand}" />
+			</StackPanel>
+		</ScrollViewer>
+	</Grid>
+</UserControl>

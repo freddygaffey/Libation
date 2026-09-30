@@ -33,7 +33,7 @@ public class BookDownloader
 	/// <param name="progress">Reports 0 to 1.</param>
 	public async Task DownloadAsync(Api api, CatalogBook book, IProgress<double> progress, CancellationToken token)
 	{
-		var license = await api.GetDownloadLicenseAsync(book.Asin, DownloadQuality.High);
+		var license = await api.GetDownloadLicenseAsync(book.Asin, settings.HighQualityDownloads ? DownloadQuality.High : DownloadQuality.Normal);
 		// Needed later to report the listening position for this book.
 		if (license.Acr is string acr)
 			settings.SetContentReference(book.Asin, acr);

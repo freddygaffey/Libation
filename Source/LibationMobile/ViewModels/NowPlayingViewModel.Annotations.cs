@@ -26,14 +26,19 @@ public class AnnotationRowViewModel
 	/// <summary>Where it is, and for a clip how long.</summary>
 	public string DetailText { get; }
 
+	/// <summary>What the listener wrote about it, if anything.</summary>
+	public string? Note { get; }
+	public bool HasNote => !string.IsNullOrWhiteSpace(Note);
+
 	public AnnotationRowViewModel(LocalAnnotation local, string? chapterTitle)
-		: this(local.Start, local.End, local.Title, chapterTitle) => Local = local;
+		: this(local.Start, local.End, local.Title, local.Note, chapterTitle) => Local = local;
 
 	public AnnotationRowViewModel(IRecord server, string? chapterTitle)
-		: this(server.Start, (server as Clip)?.End, (server as Clip)?.Title, chapterTitle) => Server = server;
+		: this(server.Start, (server as Clip)?.End, (server as Clip)?.Title, (server as IRangeAnnotation)?.Text, chapterTitle) => Server = server;
 
-	private AnnotationRowViewModel(TimeSpan start, TimeSpan? end, string? title, string? chapterTitle)
+	private AnnotationRowViewModel(TimeSpan start, TimeSpan? end, string? title, string? note, string? chapterTitle)
 	{
+		Note = note;
 		Start = start;
 		End = end;
 		Title = !string.IsNullOrWhiteSpace(title) ? title : end is null ? "Bookmark" : "Clip";
@@ -42,10 +47,65 @@ public class AnnotationRowViewModel
 	}
 }
 
+/// <summary>Choosing where a new clip starts and ends, and what to call it.</summary>
+public partial class ClipEditorViewModel : ObservableObject
+{
+	public static readonly TimeSpan MinimumLength = TimeSpan.FromSeconds(1);
+	/// <summary>Audible's limit, kept so clips stay compatible with it.</summary>
+	public static readonly TimeSpan MaximumLength = TimeSpan.FromSeconds(45);
+
+	private readonly TimeSpan bookDuration;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(RangeText), nameof(StartText))]
+	private TimeSpan start;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(RangeText), nameof(EndText))]
+	private TimeSpan end;
+
+	[ObservableProperty]
+	private string? title;
+
+	[ObservableProperty]
+	private string? note;
+
+	public string StartText => NowPlayingViewModel.FormatTime(Start);
+	public string EndText => NowPlayingViewModel.FormatTime(End);
+	public string RangeText => $"{(End - Start).TotalSeconds:0} seconds";
+
+	/// <param name="heardUpTo">Where playback was: the clip starts out as the 30 seconds before it.</param>
+	public ClipEditorViewModel(TimeSpan heardUpTo, TimeSpan bookDuration, TimeSpan initialLength)
+	{
+		this.bookDuration = bookDuration;
+		end = heardUpTo;
+		start = heardUpTo - initialLength < TimeSpan.Zero ? TimeSpan.Zero : heardUpTo - initialLength;
+		if (end - start < MinimumLength)
+			end = Min(start + initialLength, bookDuration);
+	}
+
+	/// <summary>Move the start by a number of seconds, keeping the clip between its shortest and longest.</summary>
+	[RelayCommand]
+	private void NudgeStart(string seconds)
+		=> Start = Clamp(Start + TimeSpan.FromSeconds(double.Parse(seconds, System.Globalization.CultureInfo.InvariantCulture)), Max(TimeSpan.Zero, End - MaximumLength), End - MinimumLength);
+
+	[RelayCommand]
+	private void NudgeEnd(string seconds)
+		=> End = Clamp(End + TimeSpan.FromSeconds(double.Parse(seconds, System.Globalization.CultureInfo.InvariantCulture)), Start + MinimumLength, Min(bookDuration, Start + MaximumLength));
+
+	/// <summary>Set the length by moving the start; the end stays where the listener stopped.</summary>
+	[RelayCommand]
+	private void SetLength(string seconds)
+		=> Start = Max(TimeSpan.Zero, End - TimeSpan.FromSeconds(double.Parse(seconds, System.Globalization.CultureInfo.InvariantCulture)));
+
+	private static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
+	private static TimeSpan Max(TimeSpan a, TimeSpan b) => a > b ? a : b;
+	private static TimeSpan Clamp(TimeSpan value, TimeSpan min, TimeSpan max) => value < min ? min : value > max ? max : value;
+}
+
 // Position sync with Audible, and bookmarks and clips. See AudibleAnnotations for why the two differ.
 public partial class NowPlayingViewModel
 {
-	private static readonly TimeSpan ClipLength = TimeSpan.FromSeconds(30);
 	/// <summary>How often the position goes to Audible while playing. It is also sent on pause and on leaving the book.</summary>
 	private static readonly TimeSpan RemoteSaveInterval = TimeSpan.FromMinutes(1);
 	/// <summary>A position from another device only wins if it is newer than ours by more than clock jitter, and actually elsewhere.</summary>
@@ -79,6 +139,12 @@ public partial class NowPlayingViewModel
 	private DateTime lastRemoteSave = DateTime.UtcNow;
 	private TimeSpan positionBeforeSync;
 	private TimeSpan? clipEnd;
+	/// <summary>How often to ask Audible for a newer position while paused.</summary>
+	private static readonly TimeSpan RemoteCheckInterval = TimeSpan.FromSeconds(30);
+	private DateTime lastRemoteCheck = DateTime.UtcNow;
+	private bool syncInProgress;
+	/// <summary>When the listener last played or moved in this book on this device, which saving alone does not capture.</summary>
+	private DateTimeOffset? lastLocalActivity;
 
 	private void StartAnnotations(AudibleAnnotations? service, LocalAnnotations? local)
 	{
@@ -92,13 +158,24 @@ public partial class NowPlayingViewModel
 
 	#region Position
 
-	/// <summary>Jump to where another device left off, if that is more recent than what this device has.</summary>
-	private async Task SyncPositionAsync()
+	/// <summary>
+	/// Jump to where another device left off, if that is more recent than anything done here.
+	/// Checked when a book opens, on pressing play, on returning to the app, and now and then while paused.
+	/// </summary>
+	/// <param name="whilePlaying">Apply the result even if playback has started, for the check made on pressing play.</param>
+	private async Task SyncPositionAsync(bool whilePlaying = false)
 	{
-		if (annotations is null)
+		if (annotations is null || syncInProgress || !settings.SyncPosition)
 			return;
 
+		// What "here" knew before asking: playback during the request must not make this device look newer.
+		var localTime = settings.GetPositionTime(Book.Id);
+		var hasLocalPosition = settings.GetPosition(Book.Id) is TimeSpan local && local > TimeSpan.Zero;
+		var activity = lastLocalActivity;
+		lastRemoteCheck = DateTime.UtcNow;
+
 		RemotePosition? remote;
+		syncInProgress = true;
 		try
 		{
 			remote = await annotations.GetPositionAsync(Book.Id);
@@ -108,7 +185,11 @@ public partial class NowPlayingViewModel
 			// Offline, or Audible is unreachable: carry on from the position saved on this device.
 			return;
 		}
-		if (disposed || remote is null)
+		finally
+		{
+			syncInProgress = false;
+		}
+		if (disposed || remote is null || (player.IsPlaying && !whilePlaying))
 			return;
 
 		// A position at the very start means "not started there", not "rewind to the beginning".
@@ -117,12 +198,11 @@ public partial class NowPlayingViewModel
 
 		// A position saved here with no record of when (from before times were kept) must not lose to Audible's:
 		// its age is unknown, and moving away from it loses the listener's place.
-		var hasLocalPosition = settings.GetPosition(Book.Id) is TimeSpan local && local > TimeSpan.Zero;
-		var localTime = settings.GetPositionTime(Book.Id);
-		if (hasLocalPosition && localTime is null)
+		if (hasLocalPosition && localTime is null && activity is null)
 			return;
 
-		var newer = remote.Updated > (localTime ?? DateTimeOffset.MinValue) + SyncTimeMargin;
+		var lastHere = new[] { localTime, activity }.Max() ?? DateTimeOffset.MinValue;
+		var newer = remote.Updated > lastHere + SyncTimeMargin;
 		var elsewhere = (remote.Position - Position).Duration() > SyncMinimumDistance;
 		if (!newer || !elsewhere)
 			return;
@@ -131,6 +211,27 @@ public partial class NowPlayingViewModel
 		Seek(remote.Position);
 		SavePosition();
 		ShowStatus($"Moved to {FormatTime(remote.Position)}, where you left off on another device.", canUndoSync: true);
+	}
+
+	/// <summary>
+	/// The app came back to the front, or the listener asked for a refresh: another device may have moved on,
+	/// or added bookmarks, since.
+	/// </summary>
+	/// <summary>Pick up a change made on the settings page.</summary>
+	public void SettingsChanged() => OnPropertyChanged(nameof(SkipText));
+
+	public void RefreshFromAudible()
+	{
+		if (!player.IsPlaying)
+			_ = SyncPositionAsync();
+		_ = LoadServerAnnotationsAsync();
+	}
+
+	/// <summary>The app is leaving the front: make sure Audible has the latest position.</summary>
+	public void OnAppBackgrounded()
+	{
+		SavePosition();
+		PushPosition();
 	}
 
 	[RelayCommand]
@@ -146,7 +247,7 @@ public partial class NowPlayingViewModel
 	/// <summary>Send the position to Audible. Failures are ignored: the next one replaces it.</summary>
 	private void PushPosition()
 	{
-		if (annotations is not { } service)
+		if (annotations is not { } service || !settings.SyncPosition)
 			return;
 		lastRemoteSave = DateTime.UtcNow;
 		var position = player.Position;
@@ -175,24 +276,75 @@ public partial class NowPlayingViewModel
 		ShowStatus($"Bookmark added at {FormatTime(at)}.");
 	}
 
-	/// <summary>Save what was just heard: the last 30 seconds up to now.</summary>
+	/// <summary>The clip being made, while its editor is open.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsClipEditorOpen))]
+	private ClipEditorViewModel? clipEditor;
+
+	public bool IsClipEditorOpen => ClipEditor is not null;
+
+	private TimeSpan positionBeforeClip;
+	private bool wasPlayingBeforeClip;
+
+	/// <summary>Start a clip ending where the listener is now. Playback pauses while it is set up.</summary>
 	[RelayCommand]
 	private void AddClip()
 	{
-		var end = Position;
-		var start = end - ClipLength < TimeSpan.Zero ? TimeSpan.Zero : end - ClipLength;
-		if (end - start < TimeSpan.FromSeconds(1))
+		if (Position < ClipEditorViewModel.MinimumLength)
 		{
 			ShowStatus("Play a little first, then clip what you just heard.");
 			return;
 		}
-		SaveAnnotation(start, end);
-		ShowStatus($"Clipped the last {(end - start).TotalSeconds:0} seconds.");
+		wasPlayingBeforeClip = player.IsPlaying;
+		if (wasPlayingBeforeClip)
+			PlayPause();
+		positionBeforeClip = Position;
+		ClipEditor = new ClipEditorViewModel(Position, Duration, TimeSpan.FromSeconds(settings.ClipSeconds));
 	}
 
-	private void SaveAnnotation(TimeSpan start, TimeSpan? end)
+	/// <summary>Hear exactly what would be saved.</summary>
+	[RelayCommand]
+	private void PreviewClip()
 	{
-		localAnnotations?.Add(Book.Id, start, end);
+		if (ClipEditor is not { } editor)
+			return;
+		Seek(editor.Start);
+		clipEnd = editor.End;
+		if (!player.IsPlaying)
+			PlayPause();
+	}
+
+	[RelayCommand]
+	private void SaveClip()
+	{
+		if (ClipEditor is not { } editor)
+			return;
+		SaveAnnotation(editor.Start, editor.End, Clean(editor.Title), Clean(editor.Note));
+		CloseClipEditor();
+		ShowStatus($"Clip saved, {(editor.End - editor.Start).TotalSeconds:0} seconds.");
+	}
+
+	[RelayCommand]
+	private void CancelClip() => CloseClipEditor();
+
+	/// <summary>Back to where the listener was, playing again if they were.</summary>
+	private void CloseClipEditor()
+	{
+		if (ClipEditor is null)
+			return;
+		ClipEditor = null;
+		if (player.IsPlaying)
+			PlayPause();
+		Seek(positionBeforeClip);
+		if (wasPlayingBeforeClip)
+			PlayPause();
+	}
+
+	private static string? Clean(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+
+	private void SaveAnnotation(TimeSpan start, TimeSpan? end, string? title = null, string? note = null)
+	{
+		localAnnotations?.Add(Book.Id, start, end, title, note);
 		ShowAnnotationRows();
 
 		// Also offer it to Audible's annotation server, which keeps it only for some books.
@@ -201,7 +353,7 @@ public partial class NowPlayingViewModel
 			{
 				try
 				{
-					await service.TryAddToServerAsync(Book.Id, start, end);
+					await service.TryAddToServerAsync(Book.Id, start, end, title, note);
 				}
 				catch (Exception)
 				{
@@ -307,8 +459,14 @@ public partial class NowPlayingViewModel
 			if (player.IsPlaying)
 				PlayPause();
 		}
-		if (IsPlaying && DateTime.UtcNow - lastRemoteSave > RemoteSaveInterval)
-			PushPosition();
+		if (IsPlaying)
+		{
+			lastLocalActivity = DateTimeOffset.UtcNow;
+			if (DateTime.UtcNow - lastRemoteSave > RemoteSaveInterval)
+				PushPosition();
+		}
+		else if (DateTime.UtcNow - lastRemoteCheck > RemoteCheckInterval)
+			_ = SyncPositionAsync();
 	}
 
 	private void ShowStatus(string message, bool canUndoSync = false)

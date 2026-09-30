@@ -32,7 +32,23 @@ public partial class App : Application
 		if (mainViewModel is null)
 		{
 			mainViewModel = new MainViewModel(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-			_ = StartAsync(mainViewModel);
+			var vm = mainViewModel;
+			_ = StartAsync(vm);
+
+			// Coming back from the background is when another device is most likely to have moved on.
+			if (this.TryGetFeature<IActivatableLifetime>() is { } activation)
+			{
+				activation.Activated += (_, e) =>
+				{
+					if (e.Kind == ActivationKind.Background)
+						vm.OnAppResumed();
+				};
+				activation.Deactivated += (_, e) =>
+				{
+					if (e.Kind == ActivationKind.Background)
+						vm.OnAppBackgrounded();
+				};
+			}
 		}
 		return new MainView { DataContext = mainViewModel };
 	}

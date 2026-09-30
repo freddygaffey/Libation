@@ -9,7 +9,7 @@ using System.Threading;
 namespace LibationMobile.Services;
 
 /// <summary>A bookmark (no <paramref name="End"/>) or clip saved on this device.</summary>
-public record LocalAnnotation(Guid Id, TimeSpan Start, TimeSpan? End, string? Title, DateTimeOffset Created);
+public record LocalAnnotation(Guid Id, TimeSpan Start, TimeSpan? End, string? Title, DateTimeOffset Created, string? Note = null);
 
 /// <summary>
 /// Bookmarks and clips kept on the device, per book. They work offline and for every book, which Audible's
@@ -33,9 +33,9 @@ public class LocalAnnotations
 			return books.TryGetValue(bookId, out var list) ? list.OrderBy(a => a.Start).ToList() : [];
 	}
 
-	public LocalAnnotation Add(string bookId, TimeSpan start, TimeSpan? end = null, string? title = null)
+	public LocalAnnotation Add(string bookId, TimeSpan start, TimeSpan? end = null, string? title = null, string? note = null)
 	{
-		var annotation = new LocalAnnotation(Guid.NewGuid(), start, end, title, DateTimeOffset.UtcNow);
+		var annotation = new LocalAnnotation(Guid.NewGuid(), start, end, title, DateTimeOffset.UtcNow, note);
 		lock (locker)
 		{
 			if (!books.TryGetValue(bookId, out var list))

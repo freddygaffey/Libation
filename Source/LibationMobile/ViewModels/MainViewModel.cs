@@ -17,7 +17,8 @@ public enum Page
 	SignIn,
 	Browser,
 	Library,
-	NowPlaying
+	NowPlaying,
+	Settings
 }
 
 /// <summary>Amazon's sign-in page, shown in the app. Completed with the URL Amazon redirects to after sign-in, or null if cancelled.</summary>
@@ -45,7 +46,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public IReadOnlyList<string> RegionNames { get; } = AudibleAccount.Regions.Select(r => r.DisplayName).ToList();
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsSignInPage), nameof(IsBrowserPage), nameof(IsLibraryPage), nameof(IsNowPlayingPage), nameof(ShowMiniPlayer))]
+	[NotifyPropertyChangedFor(nameof(IsSignInPage), nameof(IsBrowserPage), nameof(IsLibraryPage), nameof(IsNowPlayingPage), nameof(IsSettingsPage), nameof(ShowMiniPlayer))]
 	private Page currentPage = Page.Library;
 
 	[ObservableProperty]
@@ -68,6 +69,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public bool IsBrowserPage => CurrentPage == Page.Browser;
 	public bool IsLibraryPage => CurrentPage == Page.Library;
 	public bool IsNowPlayingPage => CurrentPage == Page.NowPlaying;
+	public bool IsSettingsPage => CurrentPage == Page.Settings;
+	public SettingsViewModel Settings { get; }
 	public bool ShowMiniPlayer => NowPlaying is not null && CurrentPage == Page.Library;
 	public string AccountText => $"Audible {AudibleAccount.DisplayNameOf(settings.RegionName)}";
 
@@ -76,9 +79,16 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		settings = new MobileSettings(Path.Combine(dataDirectory, "settings.json"));
 		account = new AudibleAccount(Path.Combine(dataDirectory, "audible-identity.json"), settings);
 		annotations = new AudibleAnnotations(account, settings);
+		Settings = new SettingsViewModel(settings, () => NowPlaying?.SettingsChanged());
 		localAnnotations = new LocalAnnotations(Path.Combine(dataDirectory, "annotations.json"));
 		var catalog = new LibraryCatalog(dataDirectory);
-		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings);
+		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations);
+		// The refresh button refreshes everything Audible holds, including the loaded book's position and bookmarks.
+		Library.SyncCommand.PropertyChanged += (_, e) =>
+		{
+			if (e.PropertyName == nameof(Library.SyncCommand.IsRunning) && !Library.SyncCommand.IsRunning)
+				NowPlaying?.RefreshFromAudible();
+		};
 		SelectedRegionIndex = Math.Max(0, AudibleAccount.Regions.ToList().FindIndex(r => r.Name == "us"));
 	}
 
@@ -206,6 +216,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	}
 
 	[RelayCommand]
+	private void ShowSettings() => CurrentPage = Page.Settings;
+
+	[RelayCommand]
 	private void SignOut()
 	{
 		NowPlaying?.Dispose();
@@ -272,6 +285,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			case Page.NowPlaying when NowPlaying is { IsChapterListOpen: true }:
 				NowPlaying.IsChapterListOpen = false;
 				return true;
+			case Page.NowPlaying when NowPlaying is { IsClipEditorOpen: true }:
+				NowPlaying.CancelClipCommand.Execute(null);
+				return true;
 			case Page.NowPlaying when NowPlaying is { IsAnnotationListOpen: true }:
 				NowPlaying.IsAnnotationListOpen = false;
 				return true;
@@ -279,14 +295,30 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				CurrentPage = Page.Library;
 				Library.RefreshProgress();
 				return true;
+			case Page.Settings:
+				CurrentPage = Page.Library;
+				return true;
 			default:
 				return false;
 		}
 	}
 
+	/// <summary>The app came back to the front: pick up anything that changed on other devices.</summary>
+	public void OnAppResumed()
+	{
+		if (!account.IsSignedIn)
+			return;
+		NowPlaying?.RefreshFromAudible();
+		_ = Library.RefreshPositionsAsync(force: false);
+	}
+
+	/// <summary>The app is leaving the front: save and report where the listener is.</summary>
+	public void OnAppBackgrounded() => NowPlaying?.OnAppBackgrounded();
+
 	/// <summary>Keep the playing book's library row in step with playback, not just with the last save.</summary>
 	partial void OnNowPlayingChanged(NowPlayingViewModel? oldValue, NowPlayingViewModel? newValue)
 	{
+		Library.PlayingBookId = newValue?.Book.Id;
 		if (oldValue is not null)
 			oldValue.PropertyChanged -= NowPlaying_PropertyChanged;
 		if (newValue is not null)
@@ -400,7 +432,12 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			np.AddBookmarkCommand.Execute(null);
 			Log($"add bookmark: status='{np.StatusMessage}' rows={np.Annotations.Count}");
 			np.AddClipCommand.Execute(null);
-			Log($"add clip: status='{np.StatusMessage}' rows={np.Annotations.Count}");
+			np.ClipEditor!.Title = "Test clip";
+			np.ClipEditor.Note = "Made by the annotation test.";
+			np.ClipEditor.SetLengthCommand.Execute("15");
+			Log($"clip editor: {np.ClipEditor.StartText} to {np.ClipEditor.EndText}, {np.ClipEditor.RangeText}");
+			np.SaveClipCommand.Execute(null);
+			Log($"save clip: status='{np.StatusMessage}' rows={np.Annotations.Count}");
 			foreach (var row in np.Annotations)
 				Log($"  row: {row.Title} | {row.DetailText}");
 			foreach (var row in np.Annotations.Where(r => r.Start >= testStart - TimeSpan.FromMinutes(1) && r.Start <= testStart + TimeSpan.FromMinutes(1)).ToList())

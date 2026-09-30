@@ -110,7 +110,16 @@ public partial class LibraryViewModel : ObservableObject
 	private readonly AudibleAccount account;
 	private readonly BookDownloader downloader;
 	private readonly MobileSettings settings;
+	private readonly AudibleAnnotations annotations;
 	private List<BookItemViewModel> allBooks = [];
+	private DateTime lastPositionRefresh = DateTime.MinValue;
+
+	/// <summary>Returning to the app refreshes positions at most this often. The refresh button always does.</summary>
+	private static readonly TimeSpan PositionRefreshInterval = TimeSpan.FromMinutes(2);
+	private static readonly TimeSpan SyncTimeMargin = TimeSpan.FromSeconds(5);
+
+	/// <summary>The book loaded in the player, whose position the player itself keeps in step.</summary>
+	public string? PlayingBookId { get; set; }
 
 	/// <summary>The books shown, after the All / Downloaded filter. Replaced as a whole when the filter changes.</summary>
 	[ObservableProperty]
@@ -135,8 +144,9 @@ public partial class LibraryViewModel : ObservableObject
 	public bool IsLibraryEmpty => IsLoaded && !IsSyncing && allBooks.Count == 0;
 	public bool IsDownloadedEmpty => IsLoaded && ShowDownloadedOnly && Books.Count == 0 && allBooks.Count > 0;
 
-	public LibraryViewModel(LibraryCatalog catalog, AudibleAccount account, BookDownloader downloader, MobileSettings settings)
+	public LibraryViewModel(LibraryCatalog catalog, AudibleAccount account, BookDownloader downloader, MobileSettings settings, AudibleAnnotations annotations)
 	{
+		this.annotations = annotations;
 		this.catalog = catalog;
 		this.account = account;
 		this.downloader = downloader;
@@ -159,6 +169,29 @@ public partial class LibraryViewModel : ObservableObject
 		IsLoaded = true;
 		if (allBooks.Count == 0)
 			await SyncAsync();
+		else
+			_ = RefreshPositionsAsync(force: true);
+	}
+
+	/// <summary>
+	/// Take each book's position from Audible where it is newer than this device's, so rows show what was
+	/// listened to elsewhere and a book opens in the right place.
+	/// </summary>
+	public async Task RefreshPositionsAsync(bool force)
+	{
+		if (allBooks.Count == 0 || !settings.SyncPosition || (!force && DateTime.UtcNow - lastPositionRefresh < PositionRefreshInterval))
+			return;
+		lastPositionRefresh = DateTime.UtcNow;
+		try
+		{
+			var remote = await annotations.GetPositionsAsync(allBooks.Select(b => b.Book.Asin));
+			if (settings.MergeRemotePositions(remote, SyncTimeMargin, skip: asin => asin == PlayingBookId) > 0)
+				RefreshProgress();
+		}
+		catch (Exception)
+		{
+			// Offline: rows keep showing the positions saved on this device.
+		}
 	}
 
 	[RelayCommand]
@@ -172,6 +205,7 @@ public partial class LibraryViewModel : ObservableObject
 		{
 			var api = await account.GetApiAsync();
 			SetBooks(await catalog.SyncAsync(api));
+			await RefreshPositionsAsync(force: true);
 		}
 		catch (Exception ex)
 		{

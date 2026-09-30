@@ -68,7 +68,7 @@
 				<Button Classes="labelled" Command="{Binding AddClipCommand}">
 					<StackPanel Spacing="2">
 						<PathIcon Data="{StaticResource IconClip}" Width="18" Height="18" />
-						<TextBlock Text="Clip 30s" FontSize="10" HorizontalAlignment="Center" />
+						<TextBlock Text="Clip" FontSize="10" HorizontalAlignment="Center" />
 					</StackPanel>
 				</Button>
 				<Button Classes="labelled" Command="{Binding ShowAnnotationsCommand}">
@@ -131,7 +131,7 @@
 			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding SkipBackCommand}">
 				<Panel>
 					<PathIcon Data="{StaticResource IconSkipBack}" Width="30" Height="30" />
-					<TextBlock Text="30" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4,0,0" />
+					<TextBlock Text="{Binding SkipText}" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4,0,0" />
 				</Panel>
 			</Button>
 			<Button Classes="transport play" HorizontalAlignment="Center" Command="{Binding PlayPauseCommand}">
@@ -143,7 +143,7 @@
 			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding SkipForwardCommand}">
 				<Panel>
 					<PathIcon Data="{StaticResource IconSkipForward}" Width="30" Height="30" />
-					<TextBlock Text="30" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4,0,0" />
+					<TextBlock Text="{Binding SkipText}" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4,0,0" />
 				</Panel>
 			</Button>
 			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding NextChapterCommand}" IsEnabled="{Binding HasChapters}">
@@ -217,7 +217,7 @@
 		<StackPanel Grid.Row="1" Margin="24,32,24,0" Spacing="10" IsVisible="{Binding !HasAnnotations}">
 			<TextBlock Classes="bookTitle" Text="Nothing saved in this book yet" FontSize="18" />
 			<TextBlock Classes="muted" TextWrapping="Wrap"
-				Text="While listening, tap Bookmark to mark your place, or Clip to keep the last 30 seconds. They are saved on this phone." />
+				Text="While listening, tap Bookmark to mark your place, or Clip to keep what you just heard. They are saved on this phone." />
 		</StackPanel>
 		<ListBox Grid.Row="1" Classes="chapters" ItemsSource="{Binding Annotations}" Background="Transparent" IsVisible="{Binding HasAnnotations}">
 			<ListBox.ItemTemplate>
@@ -233,6 +233,7 @@
 								<StackPanel Grid.Column="1">
 									<TextBlock Text="{Binding Title}" FontSize="15" TextTrimming="CharacterEllipsis" />
 									<TextBlock Classes="muted" Text="{Binding DetailText}" FontSize="12" TextWrapping="Wrap" />
+									<TextBlock Text="{Binding Note}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0" IsVisible="{Binding HasNote}" />
 								</StackPanel>
 							</Grid>
 						</Button>
@@ -250,6 +251,58 @@
 				</DataTemplate>
 			</ListBox.ItemTemplate>
 		</ListBox>
+	</Grid>
+
+	<!-- New clip: where it starts and ends, and what to call it. -->
+	<Grid RowDefinitions="Auto,*,Auto" Background="{StaticResource Ink}" IsVisible="{Binding IsClipEditorOpen}">
+		<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
+			<Button Classes="transport" Width="48" Height="48" Command="{Binding CancelClipCommand}" ToolTip.Tip="Discard clip">
+				<PathIcon Data="{StaticResource IconChevronDown}" />
+			</Button>
+			<TextBlock Grid.Column="1" Classes="bookTitle" Text="New clip" FontSize="22" VerticalAlignment="Center" Margin="4,0,0,0" />
+		</Grid>
+		<ScrollViewer Grid.Row="1">
+			<StackPanel Margin="24,8,24,16" Spacing="6" DataContext="{Binding ClipEditor}" x:DataType="vm:ClipEditorViewModel">
+				<TextBlock Text="{Binding RangeText}" FontFamily="{StaticResource DisplayFont}" FontWeight="Light" FontSize="40" />
+				<StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+					<Button Classes="quiet" Content="15 s" Padding="12,8" Margin="0,0,8,0" Command="{Binding SetLengthCommand}" CommandParameter="15" />
+					<Button Classes="quiet" Content="30 s" Padding="12,8" Margin="0,0,8,0" Command="{Binding SetLengthCommand}" CommandParameter="30" />
+					<Button Classes="quiet" Content="45 s" Padding="12,8" Command="{Binding SetLengthCommand}" CommandParameter="45" />
+				</StackPanel>
+
+				<Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="4">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Classes="muted" Text="Starts at" FontSize="12" />
+						<TextBlock Text="{Binding StartText}" FontSize="18" />
+					</StackPanel>
+					<Button Grid.Column="1" Classes="quiet" Content="−5" MinWidth="48" Padding="8,10" HorizontalContentAlignment="Center" Command="{Binding NudgeStartCommand}" CommandParameter="-5" />
+					<Button Grid.Column="2" Classes="quiet" Content="−1" MinWidth="48" Padding="8,10" HorizontalContentAlignment="Center" Command="{Binding NudgeStartCommand}" CommandParameter="-1" />
+					<Button Grid.Column="3" Classes="quiet" Content="+1" MinWidth="48" Padding="8,10" HorizontalContentAlignment="Center" Command="{Binding NudgeStartCommand}" CommandParameter="1" />
+					<Button Grid.Column="4" Classes="quiet" Content="+5" MinWidth="48" Padding="8,10" HorizontalContentAlignment="Center" Command="{Binding NudgeStartCommand}" CommandParameter="5" />
+				</Grid>
+				<Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="4" Margin="0,8,0,0">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Classes="muted" Text="Ends at" FontSize="12" />
+						<TextBlock Text="{Binding EndText}" FontSize="18" />
+					</StackPanel>
+					<Button Grid.Column="1" Classes="quiet" Content="−5" MinWidth="48" Padding="8,10" HorizontalContentAlignment="Center" Command="{Binding NudgeEndCommand}" CommandParameter="-5" />
+					<Button Grid.Column="2" Classes="quiet" Content="−1" MinWidth="48" Padding="8,10" HorizontalContentAlignment="Center" Command="{Binding NudgeEndCommand}" CommandParameter="-1" />
+					<Button Grid.Column="3" Classes="quiet" Content="+1" MinWidth="48" Padding="8,10" HorizontalContentAlignment="Center" Command="{Binding NudgeEndCommand}" CommandParameter="1" />
+					<Button Grid.Column="4" Classes="quiet" Content="+5" MinWidth="48" Padding="8,10" HorizontalContentAlignment="Center" Command="{Binding NudgeEndCommand}" CommandParameter="5" />
+				</Grid>
+				<TextBlock Classes="muted" Text="A clip can be up to 45 seconds." FontSize="12" Margin="0,4,0,12" />
+
+				<TextBlock Classes="muted" Text="Title" FontSize="12" />
+				<TextBox Text="{Binding Title}" PlaceholderText="Optional" MaxLength="100" />
+				<TextBlock Classes="muted" Text="Note" FontSize="12" Margin="0,10,0,0" />
+				<TextBox Text="{Binding Note}" PlaceholderText="Optional" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="88" MaxLength="1000" />
+			</StackPanel>
+		</ScrollViewer>
+		<Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="12" Margin="24,8,24,20">
+			<Button Classes="quiet" Content="Play clip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,14" Command="{Binding PreviewClipCommand}" />
+			<Button Grid.Column="1" Content="Save clip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,14"
+				Background="{StaticResource Lamp}" Foreground="{StaticResource Ink}" FontWeight="SemiBold" Command="{Binding SaveClipCommand}" />
+		</Grid>
 	</Grid>
 	</Panel>
 </UserControl>

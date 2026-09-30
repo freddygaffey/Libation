@@ -34,22 +34,36 @@ public class AudibleAnnotations
 		this.settings = settings;
 	}
 
+	/// <summary>Audible accepts this many books in one position request.</summary>
+	private const int POSITIONS_PER_REQUEST = 50;
+
 	/// <summary>Where the book was last heard. Null if Audible has no position for it.</summary>
 	public async Task<RemotePosition?> GetPositionAsync(string asin)
+		=> (await GetPositionsAsync([asin])).GetValueOrDefault(asin);
+
+	/// <summary>Where each of these books was last heard. Books Audible has no position for are left out.</summary>
+	public async Task<Dictionary<string, RemotePosition>> GetPositionsAsync(IEnumerable<string> asins)
 	{
 		var api = await account.GetApiAsync();
-		var response = await api.AdHocAuthenticatedGetAsync($"/1.0/annotations/lastpositions?asins={asin}");
-		response.EnsureSuccessStatusCode();
+		var positions = new Dictionary<string, RemotePosition>();
+		foreach (var batch in asins.Chunk(POSITIONS_PER_REQUEST))
+		{
+			var response = await api.AdHocAuthenticatedGetAsync($"/1.0/annotations/lastpositions?asins={string.Join(',', batch)}");
+			response.EnsureSuccessStatusCode();
 
-		var heard = JObject.Parse(await response.Content.ReadAsStringAsync())
-			.SelectToken("asin_last_position_heard_annots[0].last_position_heard");
-		if (heard?.Value<string>("status") != "Exists" || heard.Value<long?>("position_ms") is not long ms)
-			return null;
+			foreach (var entry in JObject.Parse(await response.Content.ReadAsStringAsync())["asin_last_position_heard_annots"] ?? new JArray())
+			{
+				var heard = entry["last_position_heard"];
+				if (entry.Value<string>("asin") is not string asin || heard?.Value<string>("status") != "Exists" || heard.Value<long?>("position_ms") is not long ms)
+					continue;
 
-		// "2026-09-30 12:33:04.122", in UTC with no zone.
-		var updated = DateTimeOffset.TryParse(heard.Value<string>("last_updated"), CultureInfo.InvariantCulture,
-			DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed) ? parsed : DateTimeOffset.MinValue;
-		return new RemotePosition(TimeSpan.FromMilliseconds(ms), updated);
+				// "2026-09-30 12:33:04.122", in UTC with no zone.
+				var updated = DateTimeOffset.TryParse(heard.Value<string>("last_updated"), CultureInfo.InvariantCulture,
+					DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed) ? parsed : DateTimeOffset.MinValue;
+				positions[asin] = new RemotePosition(TimeSpan.FromMilliseconds(ms), updated);
+			}
+		}
+		return positions;
 	}
 
 	/// <summary>Tell Audible where this book was last heard, so the official app and other devices pick up from here.</summary>
@@ -91,12 +105,12 @@ public class AudibleAnnotations
 	}
 
 	/// <summary>Try to add a bookmark or clip on the older server. Returns normally whether or not the server keeps it.</summary>
-	public async Task TryAddToServerAsync(string asin, TimeSpan start, TimeSpan? end)
+	public async Task TryAddToServerAsync(string asin, TimeSpan start, TimeSpan? end, string? title = null, string? note = null)
 	{
 		var api = await account.GetApiAsync();
 		var builder = new AnnotationBuilder();
 		if (end is TimeSpan clipEnd)
-			builder.AddClip((long)start.TotalMilliseconds, (long)clipEnd.TotalMilliseconds);
+			builder.AddClip((long)start.TotalMilliseconds, (long)clipEnd.TotalMilliseconds, title, note);
 		else
 			builder.AddBookmark((long)start.TotalMilliseconds);
 		await api.CreateRecordsAsync(asin, builder);
