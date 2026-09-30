@@ -280,11 +280,9 @@ namespace LibationWinForms.Dialogs
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.ClientSize = new System.Drawing.Size(484, 361);
 			this.Controls.Add(this.layoutPanel);
-			this.KeyPreview = true;
 			this.MinimumSize = new System.Drawing.Size(420, 400);
 			this.Name = "PlayerDialog";
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-			this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.PlayerDialog_KeyDown);
 			this.layoutPanel.ResumeLayout(false);
 			this.layoutPanel.PerformLayout();
 			((System.ComponentModel.ISupportInitialize)(this.positionTbar)).EndInit();

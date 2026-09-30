@@ -112,30 +112,35 @@ public partial class PlayerDialog : Form
 			viewModel.CurrentChapter = chapter;
 	}
 
-	private void PlayerDialog_KeyDown(object? sender, KeyEventArgs e)
+	/// <summary>
+	/// Handled here rather than in KeyDown because a focused button consumes the arrow keys for focus
+	/// navigation before any KeyDown event is raised.
+	/// </summary>
+	protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
 	{
-		if (ActiveControl is ComboBox)
-			return;
-
-		switch (e.KeyCode)
+		if (ActiveControl is not ComboBox)
 		{
-			case Keys.Space:
-				viewModel.PlayPause();
-				break;
-			case Keys.Left:
-				viewModel.SkipBack();
-				break;
-			case Keys.Right:
-				viewModel.SkipForward();
-				break;
-			case Keys.Escape:
-				Close();
-				break;
-			default:
-				return;
+			switch (keyData)
+			{
+				case Keys.Space:
+					viewModel.PlayPause();
+					return true;
+				case Keys.Left:
+					viewModel.SkipBack();
+					return true;
+				case Keys.Right:
+					viewModel.SkipForward();
+					return true;
+			}
 		}
-		// Stop the focused button or track bar from also handling the key.
-		e.SuppressKeyPress = true;
+
+		if (keyData == Keys.Escape)
+		{
+			Close();
+			return true;
+		}
+
+		return base.ProcessCmdKey(ref msg, keyData);
 	}
 
 	private void PlayerDialog_FormClosed(object? sender, FormClosedEventArgs e)

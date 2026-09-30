@@ -172,7 +172,6 @@ public class PlayerViewModel : ReactiveObject, IDisposable
 		position = position < TimeSpan.Zero ? TimeSpan.Zero : position > Duration ? Duration : position;
 		player.Seek(position);
 		UpdatePosition();
-		SavePosition();
 	}
 
 	private Chapter? ChapterAt(TimeSpan position)
@@ -227,8 +226,7 @@ public class PlayerViewModel : ReactiveObject, IDisposable
 
 		updateTimer.Dispose();
 		player.PlaybackEnded -= Player_PlaybackEnded;
-		if (player.Position > TimeSpan.Zero && player.Position < Duration - FinishedThreshold)
-			SavePosition();
+		SavePosition();
 		Configuration.Instance.PlayerSpeed = player.Speed;
 		player.Dispose();
 		GC.SuppressFinalize(this);
