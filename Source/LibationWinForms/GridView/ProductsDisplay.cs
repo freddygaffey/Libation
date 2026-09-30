@@ -5,6 +5,7 @@ using FileLiberator;
 using LibationFileManager;
 using LibationFileManager.Templates;
 using LibationUiBase.GridView;
+using LibationUiBase.Player;
 using LibationWinForms.Dialogs;
 using LibationWinForms.SeriesView;
 using System;
@@ -118,6 +119,29 @@ public partial class ProductsDisplay : UserControl
 		}
 	}
 
+	private PlayerDialog? playerDialog;
+	private async Task PlayAsync(LibraryBook libraryBook)
+	{
+		// One book plays at a time. Closing the dialog saves its position and releases the audio device.
+		playerDialog?.Close();
+
+		try
+		{
+			var viewModel = await PlayerViewModel.CreateAsync(libraryBook);
+			playerDialog = new PlayerDialog(viewModel);
+			playerDialog.Show(this);
+			viewModel.PlayPause();
+		}
+		catch (InvalidOperationException ex)
+		{
+			MessageBox.Show(this, ex.Message, "Cannot play audiobook", MessageBoxButtons.OK, MessageBoxIcon.Information);
+		}
+		catch (Exception ex)
+		{
+			MessageBoxLib.ShowAdminAlert(this, "Error opening the audiobook for playback", "Cannot play audiobook", ex);
+		}
+	}
+
 	#endregion
 
 	#region Cell Context Menu
@@ -125,6 +149,21 @@ public partial class ProductsDisplay : UserControl
 	private void productsGrid_CellContextMenuStripNeeded(GridEntry[] entries, ContextMenuStrip ctxMenu)
 	{
 		var ctx = new GridContextMenu(entries, '&');
+		#region Play (Single book only)
+
+		if (entries.Length == 1 && entries[0] is LibraryBookEntry playEntry)
+		{
+			var playMenuItem = new ToolStripMenuItem()
+			{
+				Text = ctx.PlayText,
+				Enabled = ctx.PlayEnabled
+			};
+			playMenuItem.Click += async (_, _) => await PlayAsync(playEntry.LibraryBook);
+			ctxMenu.Items.Add(playMenuItem);
+			ctxMenu.Items.Add(new ToolStripSeparator());
+		}
+
+		#endregion
 		#region Liberate all Episodes (Single series only)
 
 		if (entries.Length == 1 && entries[0] is SeriesEntry seriesEntry)

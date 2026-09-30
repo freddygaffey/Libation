@@ -18,6 +18,7 @@
   <ItemGroup>
 	<ProjectReference Include="..\ApplicationServices\ApplicationServices.csproj" />
 	<ProjectReference Include="..\AppScaffolding\AppScaffolding.csproj" />
+	<ProjectReference Include="..\AudioPlayer\AudioPlayer.csproj" />
 	<ProjectReference Include="..\FileLiberator\FileLiberator.csproj" />
   </ItemGroup>
 

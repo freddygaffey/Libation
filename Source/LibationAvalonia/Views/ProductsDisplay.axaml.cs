@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -16,6 +16,7 @@ using LibationFileManager;
 using LibationFileManager.Templates;
 using LibationUiBase.Forms;
 using LibationUiBase.GridView;
+using LibationUiBase.Player;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
@@ -289,6 +290,20 @@ public partial class ProductsDisplay : UserControl
 		}
 
 
+		#region Play (Single book only)
+
+		if (entries.Length == 1 && entries[0] is LibraryBookEntry playEntry)
+		{
+			args.ContextMenuItems.Add(new MenuItem
+			{
+				Header = ctx.PlayText,
+				IsEnabled = ctx.PlayEnabled,
+				Command = ReactiveCommand.CreateFromTask(() => PlayAsync(playEntry.LibraryBook))
+			});
+			args.ContextMenuItems.Add(new Separator());
+		}
+
+		#endregion
 		#region Liberate all Episodes (Single series only)
 
 		if (entries.Length == 1 && entries[0] is SeriesEntry seriesEntry)
@@ -670,6 +685,32 @@ public partial class ProductsDisplay : UserControl
 	{
 		if (sender is Control panel && panel.DataContext is LibraryBookEntry lbe && lbe.LastDownload?.IsValid is true)
 			lbe.LastDownload.OpenReleaseUrl();
+	}
+
+	private PlayerDialog? playerDialog;
+	private async Task PlayAsync(LibraryBook libraryBook)
+	{
+		if (this.GetParentWindow() is not Window window)
+			return;
+
+		// One book plays at a time. Closing the dialog saves its position and releases the audio device.
+		playerDialog?.Close();
+
+		try
+		{
+			var viewModel = await PlayerViewModel.CreateAsync(libraryBook);
+			playerDialog = new PlayerDialog(viewModel);
+			playerDialog.Show(window);
+			viewModel.PlayPause();
+		}
+		catch (InvalidOperationException ex)
+		{
+			await MessageBox.Show(window, ex.Message, "Cannot play audiobook", MessageBoxButtons.OK, MessageBoxIcon.Information);
+		}
+		catch (Exception ex)
+		{
+			await MessageBox.ShowAdminAlert(window, "Error opening the audiobook for playback", "Cannot play audiobook", ex);
+		}
 	}
 
 	public async void Cover_Click(object sender, Avalonia.Input.TappedEventArgs args)

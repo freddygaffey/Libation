@@ -118,6 +118,9 @@ public partial class Configuration
 	[Description("Book display font size")]
 	public float GridFontScaleFactor { get => float.Min(2, float.Max(0.5f, GetNonString(defaultValue: 1f))); set => SetNonString(value); }
 
+	[Description("Audiobook player speed")]
+	public float PlayerSpeed { get => float.Min(10, float.Max(0.5f, GetNonString(defaultValue: 1f))); set => SetNonString(value); }
+
 	[Description("Check for new Libation versions at startup")]
 	public bool CheckForUpgradesAtStartup { get => GetNonString(defaultValue: true); set => SetNonString(value); }
 

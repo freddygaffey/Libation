@@ -27,6 +27,7 @@ Each one tests the source project of the same name:
 |---------|--------|
 | `ApplicationServices.Tests` | Library commands and queries, Audiobookshelf upload |
 | `AudibleUtilities.Tests` | Audible API wrappers, accounts, and token storage |
+| `AudioPlayer.Tests` | Speed change (Sonic) and audio file decoding |
 | `FileLiberator.Tests` | Download, decrypt, and conversion steps |
 | `FileManager.Tests` | Paths, filename templates, and file utilities |
 | `LibationFileManager.Tests` | Configuration, settings, upgrades, and naming templates |

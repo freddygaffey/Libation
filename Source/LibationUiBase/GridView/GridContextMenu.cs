@@ -16,6 +16,7 @@ public delegate void LiberateClickedHandler(object? sender, System.Collections.G
 public class GridContextMenu
 {
 	public string CopyCellText => $"{Accelerator}Copy Cell Contents";
+	public string PlayText => "Play";
 	public string LiberateEpisodesText => $"{Accelerator}Liberate All Episodes";
 	public string SetDownloadedText => $"Mark as '{Accelerator}Downloaded'";
 	public string SetNotDownloadedText => $"Mark as 'Download {Accelerator}Pending'";
@@ -38,6 +39,7 @@ public class GridContextMenu
 	public string ViewBookmarksText => $"View {Accelerator}Bookmarks/Clips";
 	public string ViewSeriesText => GridEntries[0].Liberate?.IsSeries is true ? "View All Episodes in Series" : "View All Books in Series";
 
+	public bool PlayEnabled => LibraryBookEntries.Length == 1 && LibraryBookEntries[0].Book?.AudioExists is true;
 	public bool LiberateEpisodesEnabled => GridEntries.OfType<SeriesEntry>().Any(sEntry => sEntry.Children.Any(c => c.Liberate?.BookStatus is LiberatedStatus.NotLiberated or LiberatedStatus.PartialDownload));
 	public bool SetDownloadedEnabled => LibraryBookEntries.Any(ge => ge.Book?.UserDefinedItem.BookStatus != LiberatedStatus.Liberated || ge.Liberate?.IsSeries is true);
 	public bool SetNotDownloadedEnabled => LibraryBookEntries.Any(ge => ge.Book?.UserDefinedItem.BookStatus != LiberatedStatus.NotLiberated || ge.Liberate?.IsSeries is true);

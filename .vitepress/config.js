@@ -91,6 +91,10 @@ export default defineConfig({
             link: "/docs/features/audio-file-formats",
           },
           {
+            text: "Audiobook Player",
+            link: "/docs/features/audiobook-player",
+          },
+          {
             text: "Audiobookshelf Auto-Upload",
             link: "/docs/features/audiobookshelf",
           },

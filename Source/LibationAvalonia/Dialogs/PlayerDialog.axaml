@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="340"
+        x:Class="LibationAvalonia.Dialogs.PlayerDialog"
+		xmlns:player="clr-namespace:LibationUiBase.Player;assembly=LibationUiBase"
+		x:DataType="player:PlayerViewModel"
+		MinWidth="420" MinHeight="340"
+		Width="480" Height="340"
+		Title="{Binding Title, StringFormat='Playing: {0}'}">
+
+	<Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="8">
+
+		<StackPanel Grid.Row="0">
+			<TextBlock Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+			<TextBlock Text="{Binding Authors}" Opacity="0.7" TextTrimming="CharacterEllipsis" />
+		</StackPanel>
+
+		<ComboBox
+			Grid.Row="1"
+			HorizontalAlignment="Stretch"
+			IsVisible="{Binding HasChapters}"
+			ItemsSource="{Binding Chapters}"
+			SelectedItem="{Binding CurrentChapter}">
+			<ComboBox.ItemTemplate>
+				<DataTemplate>
+					<TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+				</DataTemplate>
+			</ComboBox.ItemTemplate>
+		</ComboBox>
+
+		<Slider
+			Grid.Row="2"
+			Name="positionSlider"
+			Minimum="0"
+			Maximum="{Binding DurationSeconds}"
+			Value="{Binding PositionSeconds}" />
+
+		<Grid Grid.Row="3" ColumnDefinitions="*,*">
+			<TextBlock Grid.Column="0" Text="{Binding ElapsedText}" />
+			<TextBlock Grid.Column="1" Text="{Binding RemainingText}" HorizontalAlignment="Right" ToolTip.Tip="Time remaining at the current speed" />
+		</Grid>
+
+		<StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+			<Button Content="Prev" Command="{Binding PreviousChapter}" IsEnabled="{Binding HasChapters}" ToolTip.Tip="Previous chapter" />
+			<Button Content="-30s" Command="{Binding SkipBack}" ToolTip.Tip="Back 30 seconds (Left arrow)" />
+			<Button Name="playPauseButton" MinWidth="72" HorizontalContentAlignment="Center" Command="{Binding PlayPause}" ToolTip.Tip="Play or pause (Space)">
+				<Panel>
+					<TextBlock Text="Play" IsVisible="{Binding !IsPlaying}" />
+					<TextBlock Text="Pause" IsVisible="{Binding IsPlaying}" />
+				</Panel>
+			</Button>
+			<Button Content="+30s" Command="{Binding SkipForward}" ToolTip.Tip="Forward 30 seconds (Right arrow)" />
+			<Button Content="Next" Command="{Binding NextChapter}" IsEnabled="{Binding HasChapters}" ToolTip.Tip="Next chapter" />
+		</StackPanel>
+
+		<Grid Grid.Row="5" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+			<TextBlock Grid.Column="0" Text="Speed" VerticalAlignment="Center" />
+			<Slider
+				Grid.Column="1"
+				Minimum="{x:Static player:PlayerViewModel.MinSpeed}"
+				Maximum="{x:Static player:PlayerViewModel.MaxSpeed}"
+				SmallChange="0.1"
+				LargeChange="0.5"
+				TickFrequency="0.1"
+				IsSnapToTickEnabled="True"
+				Value="{Binding Speed}" />
+			<TextBlock Grid.Column="2" Text="{Binding SpeedText}" VerticalAlignment="Center" MinWidth="40" TextAlignment="Right" />
+		</Grid>
+
+		<WrapPanel Grid.Row="6" Name="speedPresetsPanel" HorizontalAlignment="Center" />
+
+		<Grid Grid.Row="7" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+			<TextBlock Grid.Column="0" Text="Volume" VerticalAlignment="Center" />
+			<Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding Volume}" />
+		</Grid>
+	</Grid>
+</Window>
