@@ -4,36 +4,45 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibationMobile.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace LibationMobile.ViewModels;
 
-/// <summary>A bookmark or clip in the list.</summary>
-public class AnnotationRowViewModel(IRecord record, string? chapterTitle)
+/// <summary>A bookmark or clip in the list: saved on this device, or found on Audible's annotation server.</summary>
+public class AnnotationRowViewModel
 {
-	public IRecord Record { get; } = record;
-	public bool IsClip => Record is Clip;
-	public TimeSpan Start => Record.Start;
-	public TimeSpan? End => (Record as Clip)?.End;
+	/// <summary>Set for one saved on this device.</summary>
+	public LocalAnnotation? Local { get; }
+	/// <summary>Set for one that exists only on Audible's server, e.g. made in another app.</summary>
+	public IRecord? Server { get; }
 
-	public string Title => Record is Clip clip
-		? string.IsNullOrWhiteSpace(clip.Title) ? "Clip" : clip.Title
-		: "Bookmark";
-
+	public TimeSpan Start { get; }
+	public TimeSpan? End { get; }
+	public bool IsClip => End is not null;
+	public string Title { get; }
 	/// <summary>Where it is, and for a clip how long.</summary>
-	public string DetailText
+	public string DetailText { get; }
+
+	public AnnotationRowViewModel(LocalAnnotation local, string? chapterTitle)
+		: this(local.Start, local.End, local.Title, chapterTitle) => Local = local;
+
+	public AnnotationRowViewModel(IRecord server, string? chapterTitle)
+		: this(server.Start, (server as Clip)?.End, (server as Clip)?.Title, chapterTitle) => Server = server;
+
+	private AnnotationRowViewModel(TimeSpan start, TimeSpan? end, string? title, string? chapterTitle)
 	{
-		get
-		{
-			var where = NowPlayingViewModel.FormatTime(Start) + (chapterTitle is null ? "" : $" in {chapterTitle}");
-			return End is TimeSpan end ? $"{where}, {(end - Start).TotalSeconds:0}s" : where;
-		}
+		Start = start;
+		End = end;
+		Title = !string.IsNullOrWhiteSpace(title) ? title : end is null ? "Bookmark" : "Clip";
+		var where = NowPlayingViewModel.FormatTime(start) + (chapterTitle is null ? "" : $" in {chapterTitle}");
+		DetailText = end is TimeSpan clipEnd ? $"{where}, {(clipEnd - start).TotalSeconds:0}s" : where;
 	}
 }
 
-// Position sync, bookmarks and clips, all kept in the user's Audible account.
+// Position sync with Audible, and bookmarks and clips. See AudibleAnnotations for why the two differ.
 public partial class NowPlayingViewModel
 {
 	private static readonly TimeSpan ClipLength = TimeSpan.FromSeconds(30);
@@ -42,6 +51,8 @@ public partial class NowPlayingViewModel
 	/// <summary>A position from another device only wins if it is newer than ours by more than clock jitter, and actually elsewhere.</summary>
 	private static readonly TimeSpan SyncTimeMargin = TimeSpan.FromSeconds(5);
 	private static readonly TimeSpan SyncMinimumDistance = TimeSpan.FromSeconds(10);
+	/// <summary>Two annotations this close together, of the same kind, are the same one seen in two places.</summary>
+	private static readonly TimeSpan SameAnnotationTolerance = TimeSpan.FromSeconds(1);
 	private static readonly TimeSpan StatusDuration = TimeSpan.FromSeconds(6);
 
 	public ObservableCollection<AnnotationRowViewModel> Annotations { get; } = new();
@@ -62,55 +73,46 @@ public partial class NowPlayingViewModel
 	private bool canUndoSync;
 
 	private AudibleAnnotations? annotations;
+	private LocalAnnotations? localAnnotations;
+	private IReadOnlyList<IRecord> serverAnnotations = [];
 	private DispatcherTimer? statusTimer;
 	private DateTime lastRemoteSave = DateTime.UtcNow;
 	private TimeSpan positionBeforeSync;
 	private TimeSpan? clipEnd;
 
-	private void StartAnnotations(AudibleAnnotations? service)
+	private void StartAnnotations(AudibleAnnotations? service, LocalAnnotations? local)
 	{
 		annotations = service;
+		localAnnotations = local;
 		Annotations.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAnnotations));
-		_ = LoadAnnotationsAsync(syncPosition: true);
+		ShowAnnotationRows();
+		_ = SyncPositionAsync();
+		_ = LoadServerAnnotationsAsync();
 	}
 
-	private async Task LoadAnnotationsAsync(bool syncPosition)
+	#region Position
+
+	/// <summary>Jump to where another device left off, if that is more recent than what this device has.</summary>
+	private async Task SyncPositionAsync()
 	{
 		if (annotations is null)
 			return;
 
-		BookAnnotations result;
+		RemotePosition? remote;
 		try
 		{
-			result = await annotations.GetAsync(Book.Id);
+			remote = await annotations.GetPositionAsync(Book.Id);
 		}
 		catch (Exception)
 		{
 			// Offline, or Audible is unreachable: carry on from the position saved on this device.
 			return;
 		}
-		if (disposed)
+		if (disposed || remote is null)
 			return;
 
-		// Creating a clip also creates a bookmark at the same place; show only the clip.
-		var clipStarts = result.Clips.Select(c => c.Start).ToHashSet();
-		var rows = result.Clips.Cast<IRecord>()
-			.Concat(result.Bookmarks.Where(b => !clipStarts.Contains(b.Start)))
-			.OrderBy(r => r.Start)
-			.Select(r => new AnnotationRowViewModel(r, HasChapters ? Chapters.LastOrDefault(c => c.StartOffset <= r.Start)?.Title : null));
-		Annotations.Clear();
-		foreach (var row in rows)
-			Annotations.Add(row);
-
-		if (syncPosition && result.LastHeard is LastHeard remote)
-			SyncPositionFrom(remote);
-	}
-
-	/// <summary>Jump to where another device left off, if that is more recent than what this device has.</summary>
-	private void SyncPositionFrom(LastHeard remote)
-	{
-		// A record at the very start means "not started there", not "rewind to the beginning".
-		if (remote.Start < SyncMinimumDistance || remote.Start >= Duration - FinishedThreshold)
+		// A position at the very start means "not started there", not "rewind to the beginning".
+		if (remote.Position < SyncMinimumDistance || remote.Position >= Duration - FinishedThreshold)
 			return;
 
 		// A position saved here with no record of when (from before times were kept) must not lose to Audible's:
@@ -120,15 +122,15 @@ public partial class NowPlayingViewModel
 		if (hasLocalPosition && localTime is null)
 			return;
 
-		var newer = remote.Created > (localTime ?? DateTimeOffset.MinValue) + SyncTimeMargin;
-		var elsewhere = (remote.Start - Position).Duration() > SyncMinimumDistance;
+		var newer = remote.Updated > (localTime ?? DateTimeOffset.MinValue) + SyncTimeMargin;
+		var elsewhere = (remote.Position - Position).Duration() > SyncMinimumDistance;
 		if (!newer || !elsewhere)
 			return;
 
 		positionBeforeSync = Position;
-		Seek(remote.Start);
+		Seek(remote.Position);
 		SavePosition();
-		ShowStatus($"Moved to {FormatTime(remote.Start)}, where you left off on another device.", canUndoSync: true);
+		ShowStatus($"Moved to {FormatTime(remote.Position)}, where you left off on another device.", canUndoSync: true);
 	}
 
 	[RelayCommand]
@@ -144,7 +146,7 @@ public partial class NowPlayingViewModel
 	/// <summary>Send the position to Audible. Failures are ignored: the next one replaces it.</summary>
 	private void PushPosition()
 	{
-		if (annotations is null)
+		if (annotations is not { } service)
 			return;
 		lastRemoteSave = DateTime.UtcNow;
 		var position = player.Position;
@@ -152,7 +154,7 @@ public partial class NowPlayingViewModel
 		{
 			try
 			{
-				await annotations.SetLastHeardAsync(Book.Id, position);
+				await service.SetPositionAsync(Book.Id, position);
 			}
 			catch (Exception)
 			{
@@ -161,17 +163,21 @@ public partial class NowPlayingViewModel
 		});
 	}
 
+	#endregion
+
+	#region Bookmarks and clips
+
 	[RelayCommand]
-	private async Task AddBookmark()
+	private void AddBookmark()
 	{
 		var at = Position;
-		if (await ChangeAnnotationsAsync(a => a.AddBookmarkAsync(Book.Id, at)))
-			ShowStatus($"Bookmark added at {FormatTime(at)}.");
+		SaveAnnotation(at, null);
+		ShowStatus($"Bookmark added at {FormatTime(at)}.");
 	}
 
 	/// <summary>Save what was just heard: the last 30 seconds up to now.</summary>
 	[RelayCommand]
-	private async Task AddClip()
+	private void AddClip()
 	{
 		var end = Position;
 		var start = end - ClipLength < TimeSpan.Zero ? TimeSpan.Zero : end - ClipLength;
@@ -180,22 +186,52 @@ public partial class NowPlayingViewModel
 			ShowStatus("Play a little first, then clip what you just heard.");
 			return;
 		}
-		if (await ChangeAnnotationsAsync(a => a.AddClipAsync(Book.Id, start, end, null)))
-			ShowStatus($"Clipped the last {(end - start).TotalSeconds:0} seconds.");
+		SaveAnnotation(start, end);
+		ShowStatus($"Clipped the last {(end - start).TotalSeconds:0} seconds.");
+	}
+
+	private void SaveAnnotation(TimeSpan start, TimeSpan? end)
+	{
+		localAnnotations?.Add(Book.Id, start, end);
+		ShowAnnotationRows();
+
+		// Also offer it to Audible's annotation server, which keeps it only for some books.
+		if (annotations is { } service)
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					await service.TryAddToServerAsync(Book.Id, start, end);
+				}
+				catch (Exception)
+				{
+					// Saved on this device regardless.
+				}
+			});
 	}
 
 	[RelayCommand]
 	private async Task DeleteAnnotation(AnnotationRowViewModel row)
 	{
-		await ChangeAnnotationsAsync(async a =>
+		if (row.Local is { } local)
+			localAnnotations?.Remove(Book.Id, local.Id);
+
+		// Remove the server's copy too, whether the row came from there or was mirrored there.
+		var onServer = row.Server ?? serverAnnotations.FirstOrDefault(r => IsSame(r.Start, (r as Clip)?.End, row.Start, row.End));
+		if (onServer is not null && annotations is { } service)
 		{
-			if (!await a.DeleteAsync(Book.Id, row.Record))
-				return false;
-			// A clip's companion bookmark can only go once the clip has.
-			if (row.Record is Clip clip)
-				await a.DeleteAsync(Book.Id, new Bookmark(clip.Created, clip.Start, null, clip.LastModified));
-			return true;
-		});
+			try
+			{
+				await service.DeleteFromServerAsync(Book.Id, onServer);
+				serverAnnotations = serverAnnotations.Where(r => r != onServer).ToList();
+			}
+			catch (Exception)
+			{
+				if (row.Local is null)
+					ShowStatus("That one is in your Audible account. Deleting it needs a connection.");
+			}
+		}
+		ShowAnnotationRows();
 	}
 
 	/// <summary>Jump to a bookmark, or play a clip from its start and stop at its end.</summary>
@@ -213,32 +249,54 @@ public partial class NowPlayingViewModel
 	private void ShowAnnotations()
 	{
 		IsAnnotationListOpen = true;
-		_ = LoadAnnotationsAsync(syncPosition: false);
+		_ = LoadServerAnnotationsAsync();
 	}
 
 	[RelayCommand]
 	private void HideAnnotations() => IsAnnotationListOpen = false;
 
-	private async Task<bool> ChangeAnnotationsAsync(Func<AudibleAnnotations, Task<bool>> change)
+	private async Task LoadServerAnnotationsAsync()
 	{
 		if (annotations is null)
-			return false;
+			return;
 		try
 		{
-			if (!await change(annotations))
-			{
-				ShowStatus("Audible did not accept that. Try again.");
-				return false;
-			}
+			serverAnnotations = await annotations.GetServerAnnotationsAsync(Book.Id);
 		}
 		catch (Exception)
 		{
-			ShowStatus("That needs a connection to Audible.");
-			return false;
+			// Offline: show what is saved on this device.
+			return;
 		}
-		await LoadAnnotationsAsync(syncPosition: false);
-		return true;
+		if (!disposed)
+			ShowAnnotationRows();
 	}
+
+	/// <summary>Everything saved on this device, plus anything on the server that is not already among it.</summary>
+	private void ShowAnnotationRows()
+	{
+		string? chapterAt(TimeSpan start) => HasChapters ? Chapters.LastOrDefault(c => c.StartOffset <= start)?.Title : null;
+
+		var local = localAnnotations?.Get(Book.Id) ?? [];
+		// Creating a clip on the server also creates a bookmark at the same place; show only the clip.
+		var serverClipStarts = serverAnnotations.OfType<Clip>().Select(c => c.Start).ToHashSet();
+		var serverOnly = serverAnnotations
+			.Where(r => r is Clip || !serverClipStarts.Contains(r.Start))
+			.Where(r => !local.Any(l => IsSame(l.Start, l.End, r.Start, (r as Clip)?.End)));
+
+		var rows = local.Select(l => new AnnotationRowViewModel(l, chapterAt(l.Start)))
+			.Concat(serverOnly.Select(r => new AnnotationRowViewModel(r, chapterAt(r.Start))))
+			.OrderBy(r => r.Start);
+
+		Annotations.Clear();
+		foreach (var row in rows)
+			Annotations.Add(row);
+	}
+
+	private static bool IsSame(TimeSpan startA, TimeSpan? endA, TimeSpan startB, TimeSpan? endB)
+		=> (endA is null) == (endB is null) && (startA - startB).Duration() < SameAnnotationTolerance;
+
+	#endregion
 
 	/// <summary>Called on each tick: stop at the end of a clip being played, and sync the position now and then.</summary>
 	private void UpdateAnnotations()

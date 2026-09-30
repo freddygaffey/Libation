@@ -39,6 +39,9 @@ public class AudibleAccount
 
 	public bool IsSignedIn => File.Exists(identityFile) && settings.RegionName is not null;
 
+	/// <summary>The account's Audible marketplace. Only valid while signed in.</summary>
+	public Locale Locale => Localization.Get(settings.RegionName);
+
 	/// <summary>
 	/// Sign in through Amazon's web page. <paramref name="login"/> shows the page and returns the URL Amazon
 	/// redirects to once the user has signed in. AudibleApi then registers this app as an Android device and

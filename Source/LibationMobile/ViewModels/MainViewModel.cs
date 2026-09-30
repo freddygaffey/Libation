@@ -39,6 +39,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	private readonly MobileSettings settings;
 	private readonly AudibleAccount account;
 	private readonly AudibleAnnotations annotations;
+	private readonly LocalAnnotations localAnnotations;
 
 	public LibraryViewModel Library { get; }
 	public IReadOnlyList<string> RegionNames { get; } = AudibleAccount.Regions.Select(r => r.DisplayName).ToList();
@@ -74,9 +75,10 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	{
 		settings = new MobileSettings(Path.Combine(dataDirectory, "settings.json"));
 		account = new AudibleAccount(Path.Combine(dataDirectory, "audible-identity.json"), settings);
-		annotations = new AudibleAnnotations(account);
+		annotations = new AudibleAnnotations(account, settings);
+		localAnnotations = new LocalAnnotations(Path.Combine(dataDirectory, "annotations.json"));
 		var catalog = new LibraryCatalog(dataDirectory);
-		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog), settings);
+		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings);
 		SelectedRegionIndex = Math.Max(0, AudibleAccount.Regions.ToList().FindIndex(r => r.Name == "us"));
 	}
 
@@ -304,7 +306,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		NowPlaying = null;
 		try
 		{
-			NowPlaying = await NowPlayingViewModel.OpenAsync(await Library.ToLocalBookAsync(item), settings, annotations);
+			NowPlaying = await NowPlayingViewModel.OpenAsync(await Library.ToLocalBookAsync(item), settings, annotations, localAnnotations);
 			if (showNowPlaying)
 				CurrentPage = Page.NowPlaying;
 			return true;
@@ -361,8 +363,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	}
 
 	/// <summary>
-	/// End-to-end check of playback and of everything that writes to the Audible account, on one book the
-	/// developer has agreed to use. Restores the book's Audible position afterwards and deletes what it created.
+	/// End-to-end check of playback, of bookmarks and clips, and of reading and writing the Audible position,
+	/// on one book. Leaves the book's Audible position as it found it and deletes what it created.
 	/// </summary>
 	private async Task RunAnnotationTestAsync(BookItemViewModel book)
 	{
@@ -371,8 +373,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		var originalSpeed = settings.Speed;
 		try
 		{
-			var before = await annotations.GetAsync(asin);
-			Log($"before: lastHeard={before.LastHeard?.Start.ToString() ?? "none"} bookmarks={before.Bookmarks.Count} clips={before.Clips.Count}");
+			var before = await annotations.GetPositionAsync(asin);
+			Log($"before: audible position={before?.Position.ToString() ?? "none"} updated={before?.Updated:u}");
 
 			if (!await LoadAsync(book, showNowPlaying: true))
 			{
@@ -380,40 +382,43 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				return;
 			}
 			var np = NowPlaying!;
-			Log($"opened: duration={np.Duration} chapters={np.Chapters.Count}");
+			Log($"opened: duration={np.Duration} chapters={np.Chapters.Count} startedAt={np.Position}");
 
-			// Playback through this platform's audio backend, silent.
+			// Playback through this platform's audio backend, silent, sampled once a second.
 			np.Volume = 0;
 			np.Speed = 3;
 			var testStart = TimeSpan.FromMinutes(10);
 			np.Seek(testStart);
 			np.PlayPause();
-			await Task.Delay(3000);
-			var advanced = np.Position - testStart;
-			np.PlayPause();   // pausing also reports the position to Audible
-			Log($"played 3s at 3x: advanced {advanced.TotalSeconds:F1}s of book (expect about 9), chapter='{np.ChapterText}'");
+			for (var i = 1; i <= 5; i++)
+			{
+				await Task.Delay(1000);
+				Log($"  t+{i}s at 3x: advanced {(np.Position - testStart).TotalSeconds:F1}s of book");
+			}
+			np.PlayPause();
 
-			await np.AddBookmarkCommand.ExecuteAsync(null);
+			np.AddBookmarkCommand.Execute(null);
 			Log($"add bookmark: status='{np.StatusMessage}' rows={np.Annotations.Count}");
-			await np.AddClipCommand.ExecuteAsync(null);
+			np.AddClipCommand.Execute(null);
 			Log($"add clip: status='{np.StatusMessage}' rows={np.Annotations.Count}");
 			foreach (var row in np.Annotations)
 				Log($"  row: {row.Title} | {row.DetailText}");
-
-			await Task.Delay(1500);
-			var during = await annotations.GetAsync(asin);
-			Log($"on Audible now: lastHeard={during.LastHeard?.Start.ToString() ?? "none"} bookmarks={during.Bookmarks.Count} clips={during.Clips.Count}");
-
 			foreach (var row in np.Annotations.Where(r => r.Start >= testStart - TimeSpan.FromMinutes(1) && r.Start <= testStart + TimeSpan.FromMinutes(1)).ToList())
 				await np.DeleteAnnotationCommand.ExecuteAsync(row);
-			Log($"after delete: rows={np.Annotations.Count} status='{np.StatusMessage}'");
+			Log($"after delete: rows={np.Annotations.Count}");
 
-			// Put the account back as it was.
-			np.Seek(before.LastHeard?.Start ?? TimeSpan.Zero);
-			if (before.LastHeard is not null)
-				await annotations.SetLastHeardAsync(asin, before.LastHeard.Start);
-			var after = await annotations.GetAsync(asin);
-			Log($"after: lastHeard={after.LastHeard?.Start.ToString() ?? "none"} bookmarks={after.Bookmarks.Count} clips={after.Clips.Count}");
+			// Writing the position: send a marker, read it back, then put the original back.
+			var marker = testStart + TimeSpan.FromSeconds(7);
+			await annotations.SetPositionAsync(asin, marker);
+			var during = await annotations.GetPositionAsync(asin);
+			Log($"wrote {marker}, audible now says {during?.Position.ToString() ?? "none"}");
+			if (before is not null)
+			{
+				await annotations.SetPositionAsync(asin, before.Position);
+				np.Seek(before.Position);
+			}
+			var after = await annotations.GetPositionAsync(asin);
+			Log($"after: audible position={after?.Position.ToString() ?? "none"}");
 			np.Volume = 1;
 			np.Speed = originalSpeed;
 			Log("done");

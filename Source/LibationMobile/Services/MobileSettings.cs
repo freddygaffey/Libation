@@ -22,6 +22,8 @@ public class MobileSettings
 		public Dictionary<string, TimeSpan> Positions { get; set; } = new();
 		/// <summary>When each position was saved, to compare with the one Audible holds from other devices.</summary>
 		public Dictionary<string, DateTimeOffset> PositionTimes { get; set; } = new();
+		/// <summary>Audible's content reference for each downloaded book, needed to report a position.</summary>
+		public Dictionary<string, string> ContentReferences { get; set; } = new();
 		public string? LastBookId { get; set; }
 		public string? RegionName { get; set; }
 	}
@@ -64,6 +66,22 @@ public class MobileSettings
 		{
 			state.Positions[bookId] = position;
 			state.PositionTimes[bookId] = DateTimeOffset.UtcNow;
+			Save();
+		}
+	}
+
+	/// <summary>Audible's content reference (ACR) for a book, from its download license. Null if not known yet.</summary>
+	public string? GetContentReference(string bookId)
+	{
+		lock (locker)
+			return state.ContentReferences.TryGetValue(bookId, out var acr) ? acr : null;
+	}
+
+	public void SetContentReference(string bookId, string acr)
+	{
+		lock (locker)
+		{
+			state.ContentReferences[bookId] = acr;
 			Save();
 		}
 	}

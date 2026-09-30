@@ -22,13 +22,21 @@ public class BookDownloader
 	private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
 
 	private readonly LibraryCatalog catalog;
+	private readonly MobileSettings settings;
 
-	public BookDownloader(LibraryCatalog catalog) => this.catalog = catalog;
+	public BookDownloader(LibraryCatalog catalog, MobileSettings settings)
+	{
+		this.catalog = catalog;
+		this.settings = settings;
+	}
 
 	/// <param name="progress">Reports 0 to 1.</param>
 	public async Task DownloadAsync(Api api, CatalogBook book, IProgress<double> progress, CancellationToken token)
 	{
 		var license = await api.GetDownloadLicenseAsync(book.Asin, DownloadQuality.High);
+		// Needed later to report the listening position for this book.
+		if (license.Acr is string acr)
+			settings.SetContentReference(book.Asin, acr);
 		var url = license.ContentMetadata?.ContentUrl?.OfflineUrl
 			?? throw new InvalidDataException("Audible did not provide a download link for this book.");
 		if (license.Voucher?.Key is not string key || license.Voucher.Iv is not string iv)

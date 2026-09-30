@@ -133,7 +133,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	private DateTime lastSaved = DateTime.MinValue;
 	private bool disposed;
 
-	private NowPlayingViewModel(LocalBook book, AudioFilePlayer player, IReadOnlyList<Chapter> chapters, MobileSettings settings, AudibleAnnotations? annotations)
+	private NowPlayingViewModel(LocalBook book, AudioFilePlayer player, IReadOnlyList<Chapter> chapters, MobileSettings settings, AudibleAnnotations? annotations, LocalAnnotations? localAnnotations)
 	{
 		Book = book;
 		this.player = player;
@@ -150,17 +150,18 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) => Update());
 		timer.Start();
 		Update();
-		StartAnnotations(annotations);
+		StartAnnotations(annotations, localAnnotations);
 		StartMediaSession();
 	}
 
-	/// <param name="annotations">Audible position, bookmarks and clips. Null plays without syncing.</param>
-	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings, AudibleAnnotations? annotations = null)
+	/// <param name="annotations">Position sync with Audible. Null plays without syncing.</param>
+	/// <param name="localAnnotations">Bookmarks and clips saved on the device. Null plays without them.</param>
+	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings, AudibleAnnotations? annotations = null, LocalAnnotations? localAnnotations = null)
 	{
 		var chapters = await AudioFileChapters.ReadAsync(book.Path);
 		var player = await Task.Run(() => new AudioFilePlayer(AudioBackend.OpenSource(book.Path), AudioBackend.CreateOutput));
 		settings.LastBookId = book.Id;
-		return new NowPlayingViewModel(book, player, chapters, settings, annotations);
+		return new NowPlayingViewModel(book, player, chapters, settings, annotations, localAnnotations);
 	}
 
 	[RelayCommand]

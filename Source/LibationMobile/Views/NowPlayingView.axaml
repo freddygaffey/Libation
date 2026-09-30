@@ -57,7 +57,7 @@
 				Command="{Binding $parent[UserControl;1].((vm:MainViewModel)DataContext).GoToLibraryCommand}">
 				<PathIcon Data="{StaticResource IconChevronDown}" />
 			</Button>
-			<!-- Kept in the user's Audible account, so they show up in the official app too. -->
+			<!-- Saved on the device; see AudibleAnnotations for why not in the Audible account. -->
 			<StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,-8,0">
 				<Button Classes="labelled" Command="{Binding AddBookmarkCommand}">
 					<StackPanel Spacing="2">
@@ -206,7 +206,7 @@
 		</ListBox>
 	</Grid>
 
-	<!-- Bookmarks and clips from the user's Audible account. -->
+	<!-- Bookmarks and clips saved on the device, plus any on Audible's older annotation server. -->
 	<Grid RowDefinitions="Auto,*" Background="{StaticResource Ink}" IsVisible="{Binding IsAnnotationListOpen}">
 		<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
 			<Button Classes="transport" Width="48" Height="48" Command="{Binding HideAnnotationsCommand}" ToolTip.Tip="Close">
@@ -217,7 +217,7 @@
 		<StackPanel Grid.Row="1" Margin="24,32,24,0" Spacing="10" IsVisible="{Binding !HasAnnotations}">
 			<TextBlock Classes="bookTitle" Text="Nothing saved in this book yet" FontSize="18" />
 			<TextBlock Classes="muted" TextWrapping="Wrap"
-				Text="While listening, tap Bookmark to mark your place, or Clip to keep the last 30 seconds. They are saved to your Audible account." />
+				Text="While listening, tap Bookmark to mark your place, or Clip to keep the last 30 seconds. They are saved on this phone." />
 		</StackPanel>
 		<ListBox Grid.Row="1" Classes="chapters" ItemsSource="{Binding Annotations}" Background="Transparent" IsVisible="{Binding HasAnnotations}">
 			<ListBox.ItemTemplate>
