@@ -49,6 +49,10 @@
 					MinHeight="96" MaxHeight="200" FontSize="12" />
 				<Button Content="Import account" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
 					Command="{Binding ImportAccountCommand}" IsEnabled="{Binding !IsSigningIn}" />
+				<ProgressBar IsIndeterminate="True" IsVisible="{Binding IsSigningIn}" Foreground="{StaticResource Lamp}" />
+				<!-- Shown here too: the one at the top is scrolled out of view while this form is open. -->
+				<TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{StaticResource Lamp}"
+					IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
 			</StackPanel>
 
 			<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="12" Margin="0,24,0,0"

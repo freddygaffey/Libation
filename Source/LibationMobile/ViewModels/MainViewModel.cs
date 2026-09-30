@@ -192,6 +192,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		}
 		catch (Exception ex)
 		{
+			Console.WriteLine($"Account import failed: {ex}");
 			Error = $"The account could not be imported: {ex.Message}";
 		}
 		finally
@@ -322,6 +323,11 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		{
 			case "signin":
 				await SignInCommand.ExecuteAsync(null);
+				break;
+			case "importdefault":
+				TypeDefaultCredential();
+				await ImportAccountAsync(ImportText);
+				Console.WriteLine($"LIBATION_TEST importdefault: error={Error ?? "none"} signedIn={account.IsSignedIn}");
 				break;
 			case "play" when parts.Length > 1 && Library.Find(parts[1]) is { } item:
 				await OpenBookCommand.ExecuteAsync(item);
