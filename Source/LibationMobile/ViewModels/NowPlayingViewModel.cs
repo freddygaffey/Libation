@@ -115,7 +115,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings)
 	{
 		var chapters = await AudioFileChapters.ReadAsync(book.Path);
-		var player = await Task.Run(() => new AudioFilePlayer(new FFmpegPcmSource(book.Path)));
+		var player = await Task.Run(() => new AudioFilePlayer(AudioBackend.OpenSource(book.Path), AudioBackend.CreateOutput));
 		settings.LastBookId = book.Id;
 		return new NowPlayingViewModel(book, player, chapters, settings);
 	}

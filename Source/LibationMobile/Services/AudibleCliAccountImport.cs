@@ -23,6 +23,11 @@ public static class AudibleCliAccountImport
 	/// <exception cref="InvalidDataException">The text is not a usable account export.</exception>
 	public static async Task<string> ImportAsync(string json, string identityFile)
 	{
+		// A common mix-up: Libation's master key (Settings > Export master key) only unlocks Libation's own token
+		// file on the computer and has no Audible sign-in in it. An account export is JSON; anything else gets this.
+		if (!json.TrimStart().StartsWith('{'))
+			throw new InvalidDataException("That isn't an account export. If it's Libation's master key, that only unlocks Libation on your computer. In Libation, use Settings > Accounts, then Export on your account's row, and paste that file instead.");
+
 		JObject export;
 		try
 		{

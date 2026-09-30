@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <SupportedOSPlatformVersion>16.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>LibationMobile.iOS</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationId>io.github.freddygaffey.libationmobile</ApplicationId>
+    <ApplicationTitle>Libation</ApplicationTitle>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.iOS" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.0" />
+  </ItemGroup>
+
+  <!-- iOS plays through AVFoundation (see AudioBackend in AppDelegate), so SoundFlow's native libraries are not
+       needed. Its iOS frameworks are device-only and would otherwise be linked into simulator builds and fail. -->
+  <ItemGroup>
+    <PackageReference Include="SoundFlow" Version="1.4.1" ExcludeAssets="native;build;buildTransitive" />
+    <PackageReference Include="SoundFlow.Codecs.FFMpeg" Version="1.4.0" ExcludeAssets="native;build;buildTransitive" />
+  </ItemGroup>
+
+  <!-- Pulled in by Dinah.Core for desktop keychain storage (CredentialManagerOsSecretStore), which this app never
+       uses: tokens are kept in the app's own file. It imports macOS's System.framework, which iOS does not have. -->
+  <ItemGroup>
+    <PackageReference Include="Devlooped.CredentialManager" Version="2.7.0" ExcludeAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LibationMobile\LibationMobile.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.400" />
+  </ItemGroup>
+
+</Project>

@@ -32,8 +32,18 @@ public partial class App : Application
 		if (mainViewModel is null)
 		{
 			mainViewModel = new MainViewModel(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-			_ = mainViewModel.InitializeAsync();
+			_ = StartAsync(mainViewModel);
 		}
 		return new MainView { DataContext = mainViewModel };
+	}
+
+	private static async System.Threading.Tasks.Task StartAsync(MainViewModel vm)
+	{
+		await vm.InitializeAsync();
+#if DEBUG
+		// Lets emulator and simulator runs be driven without taps, e.g. SIMCTL_CHILD_LIBATION_TEST_ACTION=play:B0FAKE0001:3
+		if (Environment.GetEnvironmentVariable("LIBATION_TEST_ACTION") is { Length: > 0 } action)
+			await vm.RunTestActionAsync(action);
+#endif
 	}
 }

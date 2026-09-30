@@ -291,4 +291,24 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	}
 
 	#endregion
+
+#if DEBUG
+	/// <summary>Debug builds only: act on a launch setting, so emulator and simulator runs can be driven without taps.</summary>
+	/// <param name="action">"signin", or "play:ASIN[:speed]".</param>
+	internal async Task RunTestActionAsync(string action)
+	{
+		var parts = action.Split(':');
+		switch (parts[0])
+		{
+			case "signin":
+				await SignInCommand.ExecuteAsync(null);
+				break;
+			case "play" when parts.Length > 1 && Library.Find(parts[1]) is { } item:
+				await OpenBookCommand.ExecuteAsync(item);
+				if (parts.Length > 2 && NowPlaying is not null && double.TryParse(parts[2], System.Globalization.CultureInfo.InvariantCulture, out var speed))
+					NowPlaying.Speed = speed;
+				break;
+		}
+	}
+#endif
 }

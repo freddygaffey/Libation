@@ -1,18 +1,13 @@
-﻿using SoundFlow.Abstracts;
-using SoundFlow.Abstracts.Devices;
-using SoundFlow.Backends.MiniAudio;
-using SoundFlow.Enums;
-using SoundFlow.Structs;
-using System;
+﻿using System;
 using System.Threading;
 
 namespace AudioPlayer;
 
 /// <summary>
-/// Plays an <see cref="IPcmSource"/> on the default output device, with pitch-preserving speed control.
+/// Plays an <see cref="IPcmSource"/> with pitch-preserving speed control.
 /// </summary>
 /// <remarks>
-/// Decoding and time stretching run on the audio device's thread. <see cref="PlaybackEnded"/> is raised on a
+/// Decoding and time stretching run on the audio output's thread. <see cref="PlaybackEnded"/> is raised on a
 /// thread pool thread; UI subscribers must marshal to their own thread.
 /// </remarks>
 public sealed class AudioFilePlayer : IDisposable
@@ -25,7 +20,7 @@ public sealed class AudioFilePlayer : IDisposable
 	public event EventHandler? PlaybackEnded;
 
 	public TimeSpan Duration => source.Duration;
-	public bool IsPlaying => device.IsRunning;
+	public bool IsPlaying => output.IsRunning;
 
 	/// <summary>Playback speed, clamped to [<see cref="MIN_SPEED"/>, <see cref="MAX_SPEED"/>].</summary>
 	public float Speed
@@ -66,9 +61,7 @@ public sealed class AudioFilePlayer : IDisposable
 	private readonly Lock locker = new();
 	private readonly IPcmSource source;
 	private readonly Sonic sonic;
-	private readonly MiniAudioEngine engine;
-	private readonly AudioPlaybackDevice device;
-	private readonly StretchComponent component;
+	private readonly IAudioOutput output;
 	private readonly float[] decodeBuffer;
 	/// <summary>Index of the next source frame to be handed to <see cref="sonic"/>.</summary>
 	private long sourceFrame;
@@ -77,34 +70,16 @@ public sealed class AudioFilePlayer : IDisposable
 	private bool endRaised;
 
 	/// <param name="source">The audio to play. Ownership passes to the player, which disposes it.</param>
-	public AudioFilePlayer(IPcmSource source)
+	/// <param name="outputFactory">Where to play it. Defaults to <see cref="SoundFlowAudioOutput"/>.</param>
+	public AudioFilePlayer(IPcmSource source, AudioOutputFactory? outputFactory = null)
 	{
 		ArgumentNullException.ThrowIfNull(source, nameof(source));
 
 		this.source = source;
 		sonic = new Sonic(source.SampleRate, source.Channels);
 		decodeBuffer = new float[DECODE_CHUNK_FRAMES * source.Channels];
-
-		var format = new AudioFormat
-		{
-			Format = SampleFormat.F32,
-			Channels = source.Channels,
-			Layout = AudioFormat.GetLayoutFromChannels(source.Channels),
-			SampleRate = source.SampleRate
-		};
-
-		engine = new MiniAudioEngine();
-		try
-		{
-			device = engine.InitializePlaybackDevice(null, format);
-			component = new StretchComponent(engine, format, this);
-			device.MasterMixer.AddComponent(component);
-		}
-		catch
-		{
-			engine.Dispose();
-			throw;
-		}
+		output = (outputFactory ?? ((rate, channels, render) => new SoundFlowAudioOutput(rate, channels, render)))
+			(source.SampleRate, source.Channels, FillBuffer);
 	}
 
 	public void Play()
@@ -114,10 +89,10 @@ public sealed class AudioFilePlayer : IDisposable
 			if (endRaised)
 				SeekInternal(TimeSpan.Zero);
 		}
-		device.Start();
+		output.Start();
 	}
 
-	public void Pause() => device.Stop();
+	public void Pause() => output.Stop();
 
 	public void Seek(TimeSpan position)
 	{
@@ -134,7 +109,7 @@ public sealed class AudioFilePlayer : IDisposable
 		endRaised = false;
 	}
 
-	/// <summary>Fill <paramref name="buffer"/> with stretched audio. Called on the audio device's thread.</summary>
+	/// <summary>Fill <paramref name="buffer"/> with stretched audio. Called on the audio output's thread.</summary>
 	private void FillBuffer(Span<float> buffer)
 	{
 		lock (locker)
@@ -179,24 +154,7 @@ public sealed class AudioFilePlayer : IDisposable
 
 	public void Dispose()
 	{
-		device.Stop();
-		device.MasterMixer.RemoveComponent(component);
-		component.Dispose();
-		device.Dispose();
-		engine.Dispose();
+		output.Dispose();
 		source.Dispose();
-	}
-
-	private sealed class StretchComponent : SoundComponent
-	{
-		private readonly AudioFilePlayer player;
-
-		public StretchComponent(AudioEngine engine, AudioFormat format, AudioFilePlayer player) : base(engine, format)
-		{
-			this.player = player;
-			Name = nameof(AudioFilePlayer);
-		}
-
-		protected override void GenerateAudio(Span<float> buffer, int channels) => player.FillBuffer(buffer);
 	}
 }
