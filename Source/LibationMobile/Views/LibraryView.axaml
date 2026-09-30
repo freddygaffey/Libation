@@ -78,18 +78,7 @@
 			<ItemsControl ItemsSource="{Binding Library.Books}">
 				<ItemsControl.ItemTemplate>
 					<DataTemplate x:DataType="vm:BookItemViewModel">
-						<Grid ColumnDefinitions="*,Auto">
-							<Grid.ContextFlyout>
-								<MenuFlyout>
-									<MenuItem Header="Remove download" IsVisible="{Binding IsDownloaded}"
-										Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).RemoveDownloadCommand}" CommandParameter="{Binding}" />
-									<MenuItem Header="Cancel download" IsVisible="{Binding IsDownloading}"
-										Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.CancelDownloadCommand}" CommandParameter="{Binding}" />
-									<MenuItem Header="Download" IsVisible="{Binding IsNotDownloaded}"
-										Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.DownloadCommand}" CommandParameter="{Binding}" />
-								</MenuFlyout>
-							</Grid.ContextFlyout>
-
+						<Grid ColumnDefinitions="*,Auto,Auto">
 							<Button
 								Grid.Column="0"
 								Background="Transparent"
@@ -122,7 +111,7 @@
 							</Button>
 
 							<!-- Download marker: download, cancel, or show that the book is on the device. -->
-							<Panel Grid.Column="1" Width="56" Margin="0,0,8,0">
+							<Panel Grid.Column="1" Width="48">
 								<Button Classes="transport" Width="48" Height="48"
 									IsVisible="{Binding IsNotDownloaded}"
 									Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.DownloadCommand}" CommandParameter="{Binding}"
@@ -145,7 +134,22 @@
 									ToolTip.Tip="Downloaded" />
 							</Panel>
 
-							<Border Grid.ColumnSpan="2" Height="1" VerticalAlignment="Bottom" Margin="20,0,0,0" Background="{StaticResource Hairline}" />
+							<!-- Per-book actions, like the Audible app's row menu. -->
+							<Button Grid.Column="2" Classes="transport" Width="40" Height="48" Margin="0,0,4,0" ToolTip.Tip="More">
+								<PathIcon Data="{StaticResource IconMore}" Width="18" Height="18" Foreground="{StaticResource Dust}" />
+								<Button.Flyout>
+									<MenuFlyout Placement="BottomEdgeAlignedRight">
+										<MenuItem Header="Download" IsVisible="{Binding IsNotDownloaded}"
+											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.DownloadCommand}" CommandParameter="{Binding}" />
+										<MenuItem Header="Cancel download" IsVisible="{Binding IsDownloading}"
+											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.CancelDownloadCommand}" CommandParameter="{Binding}" />
+										<MenuItem Header="Remove download" IsVisible="{Binding IsDownloaded}"
+											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).RemoveDownloadCommand}" CommandParameter="{Binding}" />
+									</MenuFlyout>
+								</Button.Flyout>
+							</Button>
+
+							<Border Grid.ColumnSpan="3" Height="1" VerticalAlignment="Bottom" Margin="20,0,0,0" Background="{StaticResource Hairline}" />
 						</Grid>
 					</DataTemplate>
 				</ItemsControl.ItemTemplate>
