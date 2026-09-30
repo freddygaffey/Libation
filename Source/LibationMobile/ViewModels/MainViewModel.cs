@@ -344,6 +344,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				}
 				Console.WriteLine($"LIBATION_TEST benchsonic: 30s of audio at 10x took {watch.ElapsedMilliseconds} ms (budget 3000 ms)");
 				break;
+			case "annotest" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } book:
+				await RunAnnotationTestAsync(book);
+				break;
 			case "importdefault":
 				TypeDefaultCredential();
 				await ImportAccountAsync(ImportText);
@@ -354,6 +357,70 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				if (parts.Length > 2 && NowPlaying is not null && double.TryParse(parts[2], System.Globalization.CultureInfo.InvariantCulture, out var speed))
 					NowPlaying.Speed = speed;
 				break;
+		}
+	}
+
+	/// <summary>
+	/// End-to-end check of playback and of everything that writes to the Audible account, on one book the
+	/// developer has agreed to use. Restores the book's Audible position afterwards and deletes what it created.
+	/// </summary>
+	private async Task RunAnnotationTestAsync(BookItemViewModel book)
+	{
+		static void Log(string message) => Console.WriteLine("LIBATION_TEST annotest: " + message);
+		var asin = book.Book.Asin;
+		var originalSpeed = settings.Speed;
+		try
+		{
+			var before = await annotations.GetAsync(asin);
+			Log($"before: lastHeard={before.LastHeard?.Start.ToString() ?? "none"} bookmarks={before.Bookmarks.Count} clips={before.Clips.Count}");
+
+			if (!await LoadAsync(book, showNowPlaying: true))
+			{
+				Log($"open failed: {Error}");
+				return;
+			}
+			var np = NowPlaying!;
+			Log($"opened: duration={np.Duration} chapters={np.Chapters.Count}");
+
+			// Playback through this platform's audio backend, silent.
+			np.Volume = 0;
+			np.Speed = 3;
+			var testStart = TimeSpan.FromMinutes(10);
+			np.Seek(testStart);
+			np.PlayPause();
+			await Task.Delay(3000);
+			var advanced = np.Position - testStart;
+			np.PlayPause();   // pausing also reports the position to Audible
+			Log($"played 3s at 3x: advanced {advanced.TotalSeconds:F1}s of book (expect about 9), chapter='{np.ChapterText}'");
+
+			await np.AddBookmarkCommand.ExecuteAsync(null);
+			Log($"add bookmark: status='{np.StatusMessage}' rows={np.Annotations.Count}");
+			await np.AddClipCommand.ExecuteAsync(null);
+			Log($"add clip: status='{np.StatusMessage}' rows={np.Annotations.Count}");
+			foreach (var row in np.Annotations)
+				Log($"  row: {row.Title} | {row.DetailText}");
+
+			await Task.Delay(1500);
+			var during = await annotations.GetAsync(asin);
+			Log($"on Audible now: lastHeard={during.LastHeard?.Start.ToString() ?? "none"} bookmarks={during.Bookmarks.Count} clips={during.Clips.Count}");
+
+			foreach (var row in np.Annotations.Where(r => r.Start >= testStart - TimeSpan.FromMinutes(1) && r.Start <= testStart + TimeSpan.FromMinutes(1)).ToList())
+				await np.DeleteAnnotationCommand.ExecuteAsync(row);
+			Log($"after delete: rows={np.Annotations.Count} status='{np.StatusMessage}'");
+
+			// Put the account back as it was.
+			np.Seek(before.LastHeard?.Start ?? TimeSpan.Zero);
+			if (before.LastHeard is not null)
+				await annotations.SetLastHeardAsync(asin, before.LastHeard.Start);
+			var after = await annotations.GetAsync(asin);
+			Log($"after: lastHeard={after.LastHeard?.Start.ToString() ?? "none"} bookmarks={after.Bookmarks.Count} clips={after.Clips.Count}");
+			np.Volume = 1;
+			np.Speed = originalSpeed;
+			Log("done");
+		}
+		catch (Exception ex)
+		{
+			Log($"FAILED: {ex}");
 		}
 	}
 #endif

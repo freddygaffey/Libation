@@ -110,6 +110,17 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	public string SpeedText => $"{Speed:0.0}×";
 
+	/// <summary>Output gain: 0 is silent, 1 is unchanged.</summary>
+	public double Volume
+	{
+		get => player.Volume;
+		set
+		{
+			player.Volume = (float)value;
+			OnPropertyChanged();
+		}
+	}
+
 	public string ChapterText
 		=> HasChapters && CurrentChapterRow is { } row ? $"{row.Title}, {row.Number} of {Chapters.Count}" : "";
 

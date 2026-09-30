@@ -1,4 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <color name="splash_background">#FFFFFF</color>
+  <!-- The app's indigo, in light and dark mode alike: the app itself is always dark. -->
+  <color name="splash_background">#1D1A2E</color>
+  <color name="ic_launcher_background">#1D1A2E</color>
 </resources>

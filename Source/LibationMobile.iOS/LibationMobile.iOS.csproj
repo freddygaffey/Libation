@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <RootNamespace>LibationMobile.iOS</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- The icon set in Assets.xcassets. Rendered from LibationMobile/Icon/icon.svg by render-icons.sh. -->
+    <AppIcon>AppIcon</AppIcon>
     <ApplicationId>io.github.freddygaffey.libationmobile</ApplicationId>
     <ApplicationTitle>Libation</ApplicationTitle>
     <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>

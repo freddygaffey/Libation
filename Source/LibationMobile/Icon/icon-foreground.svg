@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Android adaptive icon foreground. The background colour is set in colors.xml. -->
+  <g transform="translate(512 512) scale(0.56) translate(-512 -512)">
+  <rect x="130" y="630" width="60" height="170" rx="30" fill="#EFE7D6"/>
+  <rect x="274" y="570" width="60" height="230" rx="30" fill="#EFD9B4"/>
+  <rect x="406" y="500" width="60" height="300" rx="30" fill="#F0C88A"/>
+  <rect x="526" y="430" width="60" height="370" rx="30" fill="#F0B25A"/>
+  <rect x="636" y="360" width="60" height="440" rx="30" fill="#EDA05A"/>
+  <rect x="738" y="290" width="60" height="510" rx="30" fill="#EA8A5A"/>
+  <rect x="834" y="220" width="60" height="580" rx="30" fill="#E8745A"/>
+  </g>
+</svg>
