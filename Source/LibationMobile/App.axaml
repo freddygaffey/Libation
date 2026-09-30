@@ -30,6 +30,8 @@
 		<StreamGeometry x:Key="IconChevronDown">M7.4,8.6 L12,13.2 L16.6,8.6 L18,10 L12,16 L6,10 Z</StreamGeometry>
 		<StreamGeometry x:Key="IconPlus">M11,5 H13 V11 H19 V13 H13 V19 H11 V13 H5 V11 H11 Z</StreamGeometry>
 		<StreamGeometry x:Key="IconMinus">M5,11 H19 V13 H5 Z</StreamGeometry>
+		<StreamGeometry x:Key="IconRefresh">M17.65,6.35C16.2,4.9 14.21,4 12,4c-4.42,0 -7.99,3.58 -7.99,8s3.57,8 7.99,8c3.73,0 6.84,-2.55 7.73,-6h-2.08c-0.82,2.33 -3.04,4 -5.65,4 -3.31,0 -6,-2.69 -6,-6s2.69,-6 6,-6c1.66,0 3.14,0.69 4.22,1.78L13,11h7V4l-2.35,2.35z</StreamGeometry>
+		<StreamGeometry x:Key="IconMore">M12,8a2,2 0 1,0 0,-4a2,2 0 1,0 0,4z M12,14a2,2 0 1,0 0,-4a2,2 0 1,0 0,4z M12,20a2,2 0 1,0 0,-4a2,2 0 1,0 0,4z</StreamGeometry>
 
 		<!-- Fluent theme overrides, so stock controls pick up the palette. -->
 		<SolidColorBrush x:Key="SystemControlHighlightAccentBrush" Color="{StaticResource LampColor}" />

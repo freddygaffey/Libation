@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             x:Class="LibationMobile.Views.BrowserView"
+             x:DataType="vm:MainViewModel"
+             Background="{StaticResource Ink}">
+
+	<Grid RowDefinitions="Auto,*">
+		<Grid ColumnDefinitions="*,Auto" Margin="20,8,8,8">
+			<TextBlock Text="Sign in to Audible" VerticalAlignment="Center" FontSize="16" />
+			<Button Grid.Column="1" Classes="quiet" Content="Cancel" Command="{Binding CancelSignInCommand}" />
+		</Grid>
+		<!-- The web view is created when a sign-in starts, so each attempt gets a fresh page and cookies. -->
+		<Border Grid.Row="1" Name="host" />
+	</Grid>
+</UserControl>

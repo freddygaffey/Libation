@@ -21,6 +21,7 @@ public class MobileSettings
 		public float Speed { get; set; } = DEFAULT_SPEED;
 		public Dictionary<string, TimeSpan> Positions { get; set; } = new();
 		public string? LastBookId { get; set; }
+		public string? RegionName { get; set; }
 	}
 
 	public MobileSettings(string path)
@@ -40,6 +41,13 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.LastBookId; }
 		set { lock (locker) { state.LastBookId = value; Save(); } }
+	}
+
+	/// <summary>The Audible marketplace the account signed in to. Null when signed out.</summary>
+	public string? RegionName
+	{
+		get { lock (locker) return state.RegionName; }
+		set { lock (locker) { state.RegionName = value; Save(); } }
 	}
 
 	public TimeSpan? GetPosition(string bookId)

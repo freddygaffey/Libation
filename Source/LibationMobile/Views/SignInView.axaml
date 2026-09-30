@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             x:Class="LibationMobile.Views.SignInView"
+             x:DataType="vm:MainViewModel">
+
+	<ScrollViewer>
+		<StackPanel Margin="24,72,24,24" Spacing="14" MaxWidth="440" HorizontalAlignment="Left">
+			<TextBlock Classes="bookTitle" Text="Libation" FontSize="40" />
+			<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="16"
+				Text="Sign in with your Audible account to see your library. Download any book to listen offline, at up to ten times speed." />
+
+			<TextBlock Text="Your Audible store" Margin="0,24,0,0" />
+			<ComboBox ItemsSource="{Binding RegionNames}" SelectedIndex="{Binding SelectedRegionIndex}" HorizontalAlignment="Stretch" />
+
+			<Button
+				Margin="0,12,0,0"
+				HorizontalAlignment="Stretch"
+				HorizontalContentAlignment="Center"
+				Padding="16,14"
+				CornerRadius="6"
+				Background="{StaticResource Lamp}"
+				Foreground="{StaticResource Ink}"
+				FontWeight="SemiBold"
+				Command="{Binding SignInCommand}"
+				IsEnabled="{Binding !IsSigningIn}"
+				Content="Sign in to Audible" />
+
+			<TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{StaticResource Lamp}"
+				IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+			<!-- Reuse the sign-in from Libation desktop instead of signing in again. -->
+			<Button Classes="quiet" Padding="0,8" Margin="0,16,0,0" Command="{Binding ToggleImportCommand}">
+				<TextBlock Text="Already use Libation on a computer? Import your account" TextWrapping="Wrap" Foreground="{StaticResource Lamp}" />
+			</Button>
+
+			<StackPanel Spacing="10" IsVisible="{Binding ShowImport}">
+				<TextBlock Classes="muted" TextWrapping="Wrap"
+					Text="In Libation on your computer, open Settings > Accounts, select your account, and choose Export. Then choose that file here, or paste its contents." />
+				<Button Content="Choose export file" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
+					Click="ChooseExportFile_Click" IsEnabled="{Binding !IsSigningIn}" />
+				<TextBox Text="{Binding ImportText}" PlaceholderText="Or paste the export here" AcceptsReturn="True" TextWrapping="Wrap"
+					MinHeight="96" MaxHeight="200" FontSize="12" />
+				<Button Content="Import account" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
+					Command="{Binding ImportAccountCommand}" IsEnabled="{Binding !IsSigningIn}" />
+			</StackPanel>
+
+			<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="12" Margin="0,24,0,0"
+				Text="Your password goes to Amazon only. The app keeps a sign-in token on this phone, and you can sign out at any time." />
+		</StackPanel>
+	</ScrollViewer>
+</UserControl>

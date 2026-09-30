@@ -1,76 +1,152 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:LibationMobile.ViewModels"
+             xmlns:controls="using:LibationMobile.Controls"
              x:Class="LibationMobile.Views.LibraryView"
              x:DataType="vm:MainViewModel">
 
-	<Grid RowDefinitions="Auto,Auto,*">
+	<UserControl.Styles>
+		<!-- The All / Downloaded filter: plain text, the chosen one lit and underlined. -->
+		<Style Selector="Button.filter">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="Padding" Value="0,6" />
+			<Setter Property="Margin" Value="0,0,20,0" />
+			<Setter Property="BorderThickness" Value="0,0,0,2" />
+			<Setter Property="BorderBrush" Value="Transparent" />
+			<Setter Property="CornerRadius" Value="0" />
+			<Setter Property="Foreground" Value="{StaticResource Dust}" />
+			<Setter Property="FontSize" Value="15" />
+		</Style>
+		<Style Selector="Button.filter.selected">
+			<Setter Property="BorderBrush" Value="{StaticResource Lamp}" />
+			<Setter Property="Foreground" Value="{StaticResource Paper}" />
+		</Style>
+		<Style Selector="Button.filter:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+	</UserControl.Styles>
 
-		<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="20,20,12,8">
+	<Grid RowDefinitions="Auto,Auto,Auto,*">
+
+		<Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="20,16,8,4">
 			<TextBlock Classes="bookTitle" Text="Library" FontSize="30" VerticalAlignment="Center" />
-			<Button Grid.Column="1" Classes="quiet" Click="AddBook_Click" VerticalAlignment="Center">
-				<StackPanel Orientation="Horizontal" Spacing="4">
-					<PathIcon Data="{StaticResource IconPlus}" Width="16" Height="16" Foreground="{StaticResource Lamp}" />
-					<TextBlock Text="Add book" Foreground="{StaticResource Lamp}" />
-				</StackPanel>
+			<Panel Grid.Column="1" Width="48" Height="48">
+				<ProgressBar IsIndeterminate="True" IsVisible="{Binding Library.IsSyncing}" Width="24" VerticalAlignment="Center" Foreground="{StaticResource Lamp}" />
+				<Button Classes="transport" Width="48" Height="48" Command="{Binding Library.SyncCommand}" IsVisible="{Binding !Library.IsSyncing}"
+					ToolTip.Tip="Refresh library">
+					<PathIcon Data="{StaticResource IconRefresh}" Width="20" Height="20" />
+				</Button>
+			</Panel>
+			<Button Grid.Column="2" Classes="transport" Width="48" Height="48" ToolTip.Tip="Account">
+				<PathIcon Data="{StaticResource IconMore}" Width="20" Height="20" />
+				<Button.Flyout>
+					<MenuFlyout Placement="BottomEdgeAlignedRight">
+						<MenuItem Header="{Binding AccountText}" IsEnabled="False" />
+						<MenuItem Header="Refresh library" Command="{Binding Library.SyncCommand}" />
+						<MenuItem Header="Sign out" Command="{Binding SignOutCommand}" />
+					</MenuFlyout>
+				</Button.Flyout>
 			</Button>
 		</Grid>
 
+		<StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,20,4">
+			<Button Classes="filter" Classes.selected="{Binding Library.ShowAll}" Content="All" Command="{Binding Library.ShowAllBooksCommand}" />
+			<Button Classes="filter" Classes.selected="{Binding Library.ShowDownloadedOnly}" Content="Downloaded" Command="{Binding Library.ShowDownloadedBooksCommand}" />
+		</StackPanel>
+
 		<TextBlock
-			Grid.Row="1"
-			Margin="20,0,20,8"
+			Grid.Row="2"
+			Margin="20,4,20,8"
 			Classes="muted"
 			Text="{Binding Library.Message}"
 			IsVisible="{Binding Library.Message, Converter={x:Static ObjectConverters.IsNotNull}}"
 			TextWrapping="Wrap" />
 
-		<!-- Empty library: say what to do next. -->
-		<StackPanel
-			Grid.Row="2"
-			Margin="20,48,20,0"
-			Spacing="10"
-			IsVisible="{Binding Library.IsEmpty}">
-			<TextBlock Classes="bookTitle" Text="No books yet" FontSize="20" />
+		<StackPanel Grid.Row="3" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding Library.IsLibraryEmpty}">
+			<TextBlock Classes="bookTitle" Text="Your library is empty" FontSize="20" />
 			<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
-				Text="Add an m4b or mp3 audiobook from your phone's files to start listening." />
-			<Button Classes="quiet" Content="Add book" Click="AddBook_Click" Padding="0,8" />
+				Text="Books you buy on Audible appear here. Pull them in with Refresh library." />
 		</StackPanel>
 
-		<ScrollViewer Grid.Row="2">
+		<StackPanel Grid.Row="3" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding Library.IsDownloadedEmpty}">
+			<TextBlock Classes="bookTitle" Text="Nothing downloaded yet" FontSize="20" />
+			<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
+				Text="Tap the arrow next to a book in All to download it and listen offline." />
+		</StackPanel>
+
+		<ScrollViewer Grid.Row="3">
 			<ItemsControl ItemsSource="{Binding Library.Books}">
 				<ItemsControl.ItemTemplate>
 					<DataTemplate x:DataType="vm:BookItemViewModel">
-						<Button
-							Background="Transparent"
-							HorizontalAlignment="Stretch"
-							HorizontalContentAlignment="Stretch"
-							CornerRadius="0"
-							Padding="20,12"
-							BorderThickness="0,0,0,1"
-							BorderBrush="{StaticResource Hairline}"
-							Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).OpenBookCommand}"
-							CommandParameter="{Binding}">
-							<Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
-								<Border Width="64" Height="64" CornerRadius="3" ClipToBounds="True" Background="{StaticResource Slate}" VerticalAlignment="Top">
-									<Image Source="{Binding Cover}" Stretch="UniformToFill" />
-								</Border>
-								<StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-									<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="16" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
-									<TextBlock Classes="muted" Text="{Binding Author}" FontSize="13" TextTrimming="CharacterEllipsis" />
-									<TextBlock Classes="muted" Text="{Binding StatusText}" FontSize="12" Margin="0,4,0,0" />
-									<ProgressBar
-										Height="2"
-										MinHeight="2"
-										Margin="0,6,0,0"
-										Minimum="0"
-										Maximum="1"
-										Value="{Binding Progress}"
-										IsVisible="{Binding HasProgress}"
-										Foreground="{StaticResource Lamp}"
-										Background="{StaticResource Hairline}" />
-								</StackPanel>
-							</Grid>
-						</Button>
+						<Grid ColumnDefinitions="*,Auto">
+							<Grid.ContextFlyout>
+								<MenuFlyout>
+									<MenuItem Header="Remove download" IsVisible="{Binding IsDownloaded}"
+										Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).RemoveDownloadCommand}" CommandParameter="{Binding}" />
+									<MenuItem Header="Cancel download" IsVisible="{Binding IsDownloading}"
+										Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.CancelDownloadCommand}" CommandParameter="{Binding}" />
+									<MenuItem Header="Download" IsVisible="{Binding IsNotDownloaded}"
+										Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.DownloadCommand}" CommandParameter="{Binding}" />
+								</MenuFlyout>
+							</Grid.ContextFlyout>
+
+							<Button
+								Grid.Column="0"
+								Background="Transparent"
+								HorizontalAlignment="Stretch"
+								HorizontalContentAlignment="Stretch"
+								CornerRadius="0"
+								Padding="20,12,8,12"
+								Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).OpenBookCommand}"
+								CommandParameter="{Binding}">
+								<Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+									<Border Width="64" Height="64" CornerRadius="3" ClipToBounds="True" Background="{StaticResource Slate}" VerticalAlignment="Top">
+										<Image Source="{Binding Cover}" Stretch="UniformToFill" />
+									</Border>
+									<StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+										<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="16" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+										<TextBlock Classes="muted" Text="{Binding Author}" FontSize="13" TextTrimming="CharacterEllipsis" />
+										<TextBlock Classes="muted" Text="{Binding StatusText}" FontSize="12" Margin="0,4,0,0" />
+										<ProgressBar
+											Height="2"
+											MinHeight="2"
+											Margin="0,6,0,0"
+											Minimum="0"
+											Maximum="1"
+											Value="{Binding Progress}"
+											IsVisible="{Binding HasProgress}"
+											Foreground="{StaticResource Lamp}"
+											Background="{StaticResource Hairline}" />
+									</StackPanel>
+								</Grid>
+							</Button>
+
+							<!-- Download marker: download, cancel, or show that the book is on the device. -->
+							<Panel Grid.Column="1" Width="56" Margin="0,0,8,0">
+								<Button Classes="transport" Width="48" Height="48"
+									IsVisible="{Binding IsNotDownloaded}"
+									Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.DownloadCommand}" CommandParameter="{Binding}"
+									ToolTip.Tip="Download">
+									<controls:DownloadGlyph State="{Binding State}" />
+								</Button>
+								<Button Classes="transport" Width="48" Height="48"
+									IsVisible="{Binding IsDownloading}"
+									Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.CancelDownloadCommand}" CommandParameter="{Binding}"
+									ToolTip.Tip="Cancel download">
+									<controls:DownloadGlyph State="{Binding State}" Progress="{Binding DownloadProgress}" />
+								</Button>
+								<controls:DownloadGlyph
+									IsVisible="{Binding IsDownloaded}"
+									State="{Binding State}"
+									Width="22"
+									Height="22"
+									HorizontalAlignment="Center"
+									VerticalAlignment="Center"
+									ToolTip.Tip="Downloaded" />
+							</Panel>
+
+							<Border Grid.ColumnSpan="2" Height="1" VerticalAlignment="Bottom" Margin="20,0,0,0" Background="{StaticResource Hairline}" />
+						</Grid>
 					</DataTemplate>
 				</ItemsControl.ItemTemplate>
 			</ItemsControl>
