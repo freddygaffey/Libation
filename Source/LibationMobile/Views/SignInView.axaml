@@ -29,6 +29,10 @@
 			<TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{StaticResource Lamp}"
 				IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
+			<!-- Debug builds with a bundled developer account only. -->
+			<Button Content="Type default credential" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
+				IsVisible="{Binding HasDefaultCredential}" Command="{Binding TypeDefaultCredentialCommand}" />
+
 			<!-- Reuse the sign-in from Libation desktop instead of signing in again. -->
 			<Button Classes="quiet" Padding="0,8" Margin="0,16,0,0" Command="{Binding ToggleImportCommand}">
 				<TextBlock Text="Already use Libation on a computer? Import your account" TextWrapping="Wrap" Foreground="{StaticResource Lamp}" />
@@ -37,6 +41,8 @@
 			<StackPanel Spacing="10" IsVisible="{Binding ShowImport}">
 				<TextBlock Classes="muted" TextWrapping="Wrap"
 					Text="In Libation on your computer, open Settings > Accounts, select your account, and choose Export. Then choose that file here, or paste its contents." />
+				<Button Content="Paste from clipboard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
+					Click="PasteFromClipboard_Click" IsEnabled="{Binding !IsSigningIn}" />
 				<Button Content="Choose export file" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
 					Click="ChooseExportFile_Click" IsEnabled="{Binding !IsSigningIn}" />
 				<TextBox Text="{Binding ImportText}" PlaceholderText="Or paste the export here" AcceptsReturn="True" TextWrapping="Wrap"

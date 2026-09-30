@@ -1,7 +1,10 @@
 using AAXClean;
 using AudibleApi;
+using AudibleApi.Common;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -43,7 +46,10 @@ public class BookDownloader
 			{
 				var aax = new AaxFile(input);
 				aax.SetDecryptionKey(Convert.FromHexString(key), Convert.FromHexString(iv));
-				var operation = aax.ConvertToMp4aAsync(output);
+				// Audible's own chapter list, as Libation desktop writes it: better titles than the file's generic marks.
+				var operation = ToChapterInfo(license.ContentMetadata?.ChapterInfo) is Mpeg4Lib.ChapterInfo chapters
+					? aax.ConvertToMp4aAsync(output, chapters)
+					: aax.ConvertToMp4aAsync(output);
 				operation.ConversionProgressUpdate += (_, e) => progress.Report(DOWNLOAD_SHARE + e.FractionCompleted * (1 - DOWNLOAD_SHARE));
 				using var registration = token.Register(() => _ = operation.CancelAsync());
 				await operation;
@@ -57,6 +63,51 @@ public class BookDownloader
 		{
 			File.Delete(decrypted);
 		}
+	}
+
+	/// <summary>
+	/// Flatten Audible's chapter tree into one list, the way Libation desktop does with its default settings
+	/// (<c>DownloadOptions.flattenChapters</c>, nested titles joined with ": ").
+	/// </summary>
+	private static Mpeg4Lib.ChapterInfo? ToChapterInfo(ChapterInfo? chapterInfo)
+	{
+		var chapters = Flatten(chapterInfo?.Chapters).OrderBy(c => c.StartOffsetMs).ToList();
+		if (chapters.Count == 0)
+			return null;
+
+		var info = new Mpeg4Lib.ChapterInfo(TimeSpan.FromMilliseconds(chapters[0].StartOffsetMs));
+		foreach (var chapter in chapters)
+			info.AddChapter(chapter.Title ?? "", TimeSpan.FromMilliseconds(chapter.LengthMs));
+		return info;
+	}
+
+	private static List<Chapter> Flatten(IList<Chapter>? chapters)
+	{
+		List<Chapter> flat = [];
+		foreach (var c in chapters ?? [])
+		{
+			if (c.Chapters is null)
+			{
+				flat.Add(c);
+				continue;
+			}
+
+			// A parent under ten seconds is just a heading: fold it into its first child.
+			if (c.LengthMs < 10000)
+			{
+				c.Chapters[0].StartOffsetMs = c.StartOffsetMs;
+				c.Chapters[0].StartOffsetSec = c.StartOffsetSec;
+				c.Chapters[0].LengthMs += c.LengthMs;
+			}
+			else
+				flat.Add(c);
+
+			var children = Flatten(c.Chapters);
+			foreach (var child in children)
+				child.Title = $"{c.Title}: {child.Title}";
+			flat.AddRange(children);
+		}
+		return flat;
 	}
 
 	/// <summary>

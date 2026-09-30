@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using LibationMobile.ViewModels;
@@ -12,6 +13,16 @@ public partial class SignInView : UserControl
 	public SignInView()
 	{
 		InitializeComponent();
+	}
+
+	/// <summary>Import straight from the clipboard: pasting into a text box is fiddly on a phone.</summary>
+	private async void PasteFromClipboard_Click(object? sender, RoutedEventArgs e)
+	{
+		if (DataContext is not MainViewModel vm || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+			return;
+
+		var text = await clipboard.TryGetTextAsync();
+		await vm.ImportAccountAsync(text);
 	}
 
 	private async void ChooseExportFile_Click(object? sender, RoutedEventArgs e)

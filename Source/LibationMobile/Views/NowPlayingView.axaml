@@ -6,6 +6,31 @@
              x:DataType="vm:NowPlayingViewModel"
              Background="{StaticResource Ink}">
 
+	<UserControl.Styles>
+		<Style Selector="Button.row:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.row:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Hairline}" />
+		</Style>
+		<Style Selector="ListBox.chapters ListBoxItem">
+			<Setter Property="Padding" Value="0" />
+		</Style>
+		<Style Selector="ListBox.chapters ListBoxItem:selected /template/ ContentPresenter, ListBox.chapters ListBoxItem:pointerover /template/ ContentPresenter, ListBox.chapters ListBoxItem:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="TextBlock.chapterTitle">
+			<Setter Property="Foreground" Value="{StaticResource Paper}" />
+		</Style>
+		<Style Selector="TextBlock.chapterTitle.played">
+			<Setter Property="Foreground" Value="{StaticResource Dust}" />
+		</Style>
+		<Style Selector="TextBlock.chapterTitle.current">
+			<Setter Property="Foreground" Value="{StaticResource Lamp}" />
+		</Style>
+	</UserControl.Styles>
+
+	<Panel>
 	<Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="24,4,24,20">
 
 		<!-- Down chevron: Now Playing slides over the library, so "back" points down. -->
@@ -34,8 +59,17 @@
 		<StackPanel Grid.Row="2" Spacing="4">
 			<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="24" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
 			<TextBlock Classes="muted" Text="{Binding Author}" FontSize="15" />
-			<TextBlock Text="{Binding ChapterText}" FontSize="14" Foreground="{StaticResource Lamp}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"
-				IsVisible="{Binding HasChapters}" />
+			<!-- Tap the chapter to see them all. -->
+			<Button Classes="row" Background="Transparent" Padding="0,6,0,2" Margin="0,4,0,0" HorizontalAlignment="Stretch"
+				HorizontalContentAlignment="Stretch" IsVisible="{Binding HasChapters}" Command="{Binding ShowChaptersCommand}">
+				<Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+					<StackPanel>
+						<TextBlock Text="{Binding ChapterText}" FontSize="14" Foreground="{StaticResource Lamp}" TextTrimming="CharacterEllipsis" />
+						<TextBlock Classes="muted" Text="{Binding ChapterRemainingText}" FontSize="12" />
+					</StackPanel>
+					<PathIcon Grid.Column="1" Data="{StaticResource IconChapters}" Width="20" Height="20" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+				</Grid>
+			</Button>
 		</StackPanel>
 
 		<StackPanel Grid.Row="3" Margin="0,12,0,0">
@@ -102,4 +136,34 @@
 			</StackPanel>
 		</Border>
 	</Grid>
+
+	<!-- Chapter list: over the player, so closing it returns exactly where you were. -->
+	<Grid RowDefinitions="Auto,*" Background="{StaticResource Ink}" IsVisible="{Binding IsChapterListOpen}">
+		<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
+			<Button Classes="transport" Width="48" Height="48" Command="{Binding HideChaptersCommand}" ToolTip.Tip="Close chapters">
+				<PathIcon Data="{StaticResource IconChevronDown}" />
+			</Button>
+			<TextBlock Grid.Column="1" Classes="bookTitle" Text="Chapters" FontSize="22" VerticalAlignment="Center" Margin="4,0,0,0" />
+		</Grid>
+		<ListBox Grid.Row="1" Name="chapterList" Classes="chapters" ItemsSource="{Binding ChapterRows}" Background="Transparent">
+			<ListBox.ItemTemplate>
+				<DataTemplate x:DataType="vm:ChapterRowViewModel">
+					<Button Classes="row" Background="Transparent" CornerRadius="0" Padding="24,14" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+						BorderThickness="0,0,0,1" BorderBrush="{StaticResource Hairline}"
+						Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).JumpToChapterCommand}" CommandParameter="{Binding}">
+						<Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
+							<TextBlock Classes="muted" Text="{Binding Number}" FontSize="13" VerticalAlignment="Center" />
+							<StackPanel Grid.Column="1" VerticalAlignment="Center">
+								<TextBlock Classes="chapterTitle" Classes.played="{Binding IsPlayed}" Classes.current="{Binding IsCurrent}"
+									Text="{Binding Title}" FontSize="15" TextWrapping="Wrap" />
+								<TextBlock Text="Playing" FontSize="11" Foreground="{StaticResource Lamp}" IsVisible="{Binding IsCurrent}" Margin="0,2,0,0" />
+							</StackPanel>
+							<TextBlock Grid.Column="2" Classes="muted" Text="{Binding LengthText}" FontSize="13" VerticalAlignment="Center" />
+						</Grid>
+					</Button>
+				</DataTemplate>
+			</ListBox.ItemTemplate>
+		</ListBox>
+	</Grid>
+	</Panel>
 </UserControl>

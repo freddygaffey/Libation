@@ -13,6 +13,23 @@ using System.Threading.Tasks;
 
 namespace LibationMobile.ViewModels;
 
+/// <summary>One line in the chapter list.</summary>
+public partial class ChapterRowViewModel(int number, Chapter chapter) : ObservableObject
+{
+	public Chapter Chapter { get; } = chapter;
+	public int Number { get; } = number;
+	public string Title => Chapter.Title;
+	public string LengthText { get; } = NowPlayingViewModel.FormatTime(chapter.Duration);
+
+	/// <summary>The chapter playing now.</summary>
+	[ObservableProperty]
+	private bool isCurrent;
+
+	/// <summary>Before the current chapter.</summary>
+	[ObservableProperty]
+	private bool isPlayed;
+}
+
 /// <summary>The one book currently loaded for playback. Use on the UI thread.</summary>
 public partial class NowPlayingViewModel : ObservableObject, IDisposable
 {
@@ -35,9 +52,20 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public TimeSpan Duration => player.Duration;
 	public double DurationSeconds => Duration.TotalSeconds;
 
+	public IReadOnlyList<ChapterRowViewModel> ChapterRows { get; }
+
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(PositionSeconds), nameof(Progress), nameof(ElapsedText), nameof(RemainingText), nameof(ChapterText))]
+	[NotifyPropertyChangedFor(nameof(PositionSeconds), nameof(Progress), nameof(ElapsedText), nameof(RemainingText), nameof(ChapterRemainingText))]
 	private TimeSpan position;
+
+	/// <summary>The chapter list, shown over Now Playing.</summary>
+	[ObservableProperty]
+	private bool isChapterListOpen;
+
+	/// <summary>The chapter playing now, or null for a book without chapters.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(ChapterText))]
+	private ChapterRowViewModel? currentChapterRow;
 
 	[ObservableProperty]
 	private bool isPlaying;
@@ -57,6 +85,12 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public string ElapsedText => FormatTime(Position);
 	public string RemainingText => $"{FormatTime((Duration - Position) / Speed)} left at {SpeedText}";
 
+	/// <summary>Time to the end of this chapter at the current speed: how long until the next natural stopping point.</summary>
+	public string ChapterRemainingText
+		=> CurrentChapterRow?.Chapter is Chapter chapter
+			? $"{FormatTime((chapter.EndOffset - Position) / Speed)} left in chapter"
+			: "";
+
 	public double Speed
 	{
 		get => player.Speed;
@@ -70,23 +104,16 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			OnPropertyChanged();
 			OnPropertyChanged(nameof(SpeedText));
 			OnPropertyChanged(nameof(RemainingText));
+			OnPropertyChanged(nameof(ChapterRemainingText));
 		}
 	}
 
 	public string SpeedText => $"{Speed:0.0}×";
 
 	public string ChapterText
-	{
-		get
-		{
-			if (!HasChapters || CurrentChapter is not Chapter chapter)
-				return "";
-			var index = Chapters.ToList().IndexOf(chapter) + 1;
-			return $"{chapter.Title}, {index} of {Chapters.Count}";
-		}
-	}
+		=> HasChapters && CurrentChapterRow is { } row ? $"{row.Title}, {row.Number} of {Chapters.Count}" : "";
 
-	private Chapter? CurrentChapter => Chapters.LastOrDefault(c => c.StartOffset <= Position) ?? Chapters.FirstOrDefault();
+	private Chapter? CurrentChapter => CurrentChapterRow?.Chapter ?? Chapters.FirstOrDefault();
 
 	private readonly AudioFilePlayer player;
 	private readonly MobileSettings settings;
@@ -100,6 +127,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		this.player = player;
 		this.settings = settings;
 		Chapters = chapters;
+		ChapterRows = chapters.Select((c, i) => new ChapterRowViewModel(i + 1, c)).ToList();
 		Cover = LoadCover(book.Cover, 900);
 
 		player.Speed = settings.Speed;
@@ -156,6 +184,23 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	}
 
 	[RelayCommand]
+	private void ShowChapters()
+	{
+		if (HasChapters)
+			IsChapterListOpen = true;
+	}
+
+	[RelayCommand]
+	private void HideChapters() => IsChapterListOpen = false;
+
+	[RelayCommand]
+	private void JumpToChapter(ChapterRowViewModel row)
+	{
+		Seek(row.Chapter.StartOffset);
+		IsChapterListOpen = false;
+	}
+
+	[RelayCommand]
 	private void SlowerStep() => Speed -= SPEED_STEP;
 
 	[RelayCommand]
@@ -174,8 +219,27 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			return;
 		IsPlaying = player.IsPlaying;
 		Position = player.Position;
+		UpdateCurrentChapter();
 		if (IsPlaying && DateTime.UtcNow - lastSaved > SaveInterval)
 			SavePosition();
+	}
+
+	private void UpdateCurrentChapter()
+	{
+		// Ticks four times a second, so only touch the rows when the chapter actually changes.
+		var index = -1;
+		for (var i = 0; i < ChapterRows.Count && ChapterRows[i].Chapter.StartOffset <= Position; i++)
+			index = i;
+		var current = index >= 0 ? ChapterRows[index] : ChapterRows.FirstOrDefault();
+		if (current == CurrentChapterRow)
+			return;
+
+		CurrentChapterRow = current;
+		for (var i = 0; i < ChapterRows.Count; i++)
+		{
+			ChapterRows[i].IsCurrent = ChapterRows[i] == current;
+			ChapterRows[i].IsPlayed = i < index;
+		}
 	}
 
 	private void SavePosition()
@@ -208,7 +272,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		}
 	}
 
-	private static string FormatTime(TimeSpan time)
+	internal static string FormatTime(TimeSpan time)
 		=> time.TotalHours >= 1 ? $"{(int)time.TotalHours}:{time:mm\\:ss}" : time.ToString("m\\:ss");
 
 	public void Dispose()
