@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             xmlns:views="using:LibationMobile.Views"
+             x:Class="LibationMobile.Views.MainView"
+             x:DataType="vm:MainViewModel"
+             Background="{StaticResource Ink}">
+
+	<Grid Name="safeArea" RowDefinitions="*,Auto,Auto">
+
+		<views:LibraryView Grid.Row="0" IsVisible="{Binding IsLibraryPage}" />
+
+		<TextBlock
+			Grid.Row="1"
+			Margin="20,8"
+			Text="{Binding Error}"
+			IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}"
+			TextWrapping="Wrap"
+			Foreground="{StaticResource Lamp}" />
+
+		<!-- Mini player: the loaded book, one tap from resuming. -->
+		<Border
+			Grid.Row="2"
+			Background="{StaticResource Slate}"
+			IsVisible="{Binding ShowMiniPlayer}">
+			<Grid DataContext="{Binding NowPlaying}" x:DataType="vm:NowPlayingViewModel" RowDefinitions="2,Auto">
+				<ProgressBar
+					Grid.Row="0"
+					Height="2"
+					MinHeight="2"
+					CornerRadius="0"
+					Minimum="0"
+					Maximum="1"
+					Value="{Binding Progress}"
+					Foreground="{StaticResource Lamp}"
+					Background="Transparent" />
+				<Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="12,8">
+					<Button
+						Grid.Column="0"
+						Background="Transparent"
+						Padding="0"
+						HorizontalAlignment="Stretch"
+						HorizontalContentAlignment="Stretch"
+						Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).ShowNowPlayingCommand}">
+						<Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+							<Border Width="44" Height="44" CornerRadius="3" ClipToBounds="True" Background="{StaticResource Ink}">
+								<Image Source="{Binding Cover}" Stretch="UniformToFill" />
+							</Border>
+							<StackPanel Grid.Column="1" VerticalAlignment="Center">
+								<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="15" TextTrimming="CharacterEllipsis" />
+								<TextBlock Classes="muted" Text="{Binding RemainingText}" FontSize="12" TextTrimming="CharacterEllipsis" />
+							</StackPanel>
+						</Grid>
+					</Button>
+					<Button Grid.Column="1" Classes="transport" Command="{Binding PlayPauseCommand}">
+						<Panel>
+							<PathIcon Data="{StaticResource IconPlay}" IsVisible="{Binding !IsPlaying}" />
+							<PathIcon Data="{StaticResource IconPause}" IsVisible="{Binding IsPlaying}" />
+						</Panel>
+					</Button>
+				</Grid>
+			</Grid>
+		</Border>
+
+		<views:NowPlayingView
+			Grid.Row="0"
+			Grid.RowSpan="3"
+			DataContext="{Binding NowPlaying}"
+			IsVisible="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).IsNowPlayingPage}" />
+	</Grid>
+</UserControl>

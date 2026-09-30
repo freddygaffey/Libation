@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             xmlns:controls="using:LibationMobile.Controls"
+             x:Class="LibationMobile.Views.NowPlayingView"
+             x:DataType="vm:NowPlayingViewModel"
+             Background="{StaticResource Ink}">
+
+	<Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="24,4,24,20">
+
+		<!-- Down chevron: Now Playing slides over the library, so "back" points down. -->
+		<Button
+			Grid.Row="0"
+			Classes="transport"
+			Width="48"
+			Height="48"
+			Margin="-12,0,0,0"
+			HorizontalAlignment="Left"
+			Command="{Binding $parent[UserControl;1].((vm:MainViewModel)DataContext).GoToLibraryCommand}">
+			<PathIcon Data="{StaticResource IconChevronDown}" />
+		</Button>
+
+		<Border
+			Grid.Row="1"
+			Margin="0,8,0,20"
+			CornerRadius="4"
+			ClipToBounds="True"
+			HorizontalAlignment="Center"
+			VerticalAlignment="Center"
+			Background="{StaticResource Slate}">
+			<Image Source="{Binding Cover}" Stretch="Uniform" MaxWidth="420" />
+		</Border>
+
+		<StackPanel Grid.Row="2" Spacing="4">
+			<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="24" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+			<TextBlock Classes="muted" Text="{Binding Author}" FontSize="15" />
+			<TextBlock Text="{Binding ChapterText}" FontSize="14" Foreground="{StaticResource Lamp}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"
+				IsVisible="{Binding HasChapters}" />
+		</StackPanel>
+
+		<StackPanel Grid.Row="3" Margin="0,12,0,0">
+			<Slider
+				Classes="scrubber"
+				Minimum="0"
+				Maximum="{Binding DurationSeconds}"
+				Value="{Binding PositionSeconds}" />
+			<Grid ColumnDefinitions="*,*" Margin="0,-6,0,0">
+				<TextBlock Classes="muted" Text="{Binding ElapsedText}" FontSize="12" />
+				<TextBlock Grid.Column="1" Classes="muted" Text="{Binding RemainingText}" FontSize="12" HorizontalAlignment="Right" />
+			</Grid>
+		</StackPanel>
+
+		<UniformGrid Grid.Row="4" Columns="5" Margin="0,16,0,8">
+			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding PreviousChapterCommand}" IsEnabled="{Binding HasChapters}">
+				<PathIcon Data="{StaticResource IconPrevious}" />
+			</Button>
+			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding SkipBackCommand}">
+				<Panel>
+					<PathIcon Data="{StaticResource IconSkipBack}" Width="30" Height="30" />
+					<TextBlock Text="30" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4,0,0" />
+				</Panel>
+			</Button>
+			<Button Classes="transport play" HorizontalAlignment="Center" Command="{Binding PlayPauseCommand}">
+				<Panel>
+					<PathIcon Data="{StaticResource IconPlay}" Width="28" Height="28" IsVisible="{Binding !IsPlaying}" />
+					<PathIcon Data="{StaticResource IconPause}" Width="28" Height="28" IsVisible="{Binding IsPlaying}" />
+				</Panel>
+			</Button>
+			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding SkipForwardCommand}">
+				<Panel>
+					<PathIcon Data="{StaticResource IconSkipForward}" Width="30" Height="30" />
+					<TextBlock Text="30" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4,0,0" />
+				</Panel>
+			</Button>
+			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding NextChapterCommand}" IsEnabled="{Binding HasChapters}">
+				<PathIcon Data="{StaticResource IconNext}" />
+			</Button>
+		</UniformGrid>
+
+		<!-- Speed: the one bold element on the screen. -->
+		<Border Grid.Row="5" Background="{StaticResource Slate}" CornerRadius="6" Padding="16,12,16,10" Margin="0,8,0,0">
+			<StackPanel Spacing="10">
+				<Grid ColumnDefinitions="*,Auto,Auto">
+					<TextBlock
+						Text="{Binding SpeedText}"
+						FontFamily="{StaticResource DisplayFont}"
+						FontWeight="Light"
+						FontSize="52"
+						VerticalAlignment="Center" />
+					<Button Grid.Column="1" Classes="transport" Width="48" Height="48" Command="{Binding SlowerStepCommand}">
+						<PathIcon Data="{StaticResource IconMinus}" />
+					</Button>
+					<Button Grid.Column="2" Classes="transport" Width="48" Height="48" Command="{Binding FasterStepCommand}">
+						<PathIcon Data="{StaticResource IconPlus}" />
+					</Button>
+				</Grid>
+				<controls:SpeedRail
+					Speed="{Binding Speed}"
+					Minimum="{x:Static vm:NowPlayingViewModel.MIN_SPEED}"
+					Maximum="{x:Static vm:NowPlayingViewModel.MAX_SPEED}"
+					Stops="{x:Static vm:NowPlayingViewModel.SpeedStops}" />
+			</StackPanel>
+		</Border>
+	</Grid>
+</UserControl>

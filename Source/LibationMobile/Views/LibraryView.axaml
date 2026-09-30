@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             x:Class="LibationMobile.Views.LibraryView"
+             x:DataType="vm:MainViewModel">
+
+	<Grid RowDefinitions="Auto,Auto,*">
+
+		<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="20,20,12,8">
+			<TextBlock Classes="bookTitle" Text="Library" FontSize="30" VerticalAlignment="Center" />
+			<Button Grid.Column="1" Classes="quiet" Click="AddBook_Click" VerticalAlignment="Center">
+				<StackPanel Orientation="Horizontal" Spacing="4">
+					<PathIcon Data="{StaticResource IconPlus}" Width="16" Height="16" Foreground="{StaticResource Lamp}" />
+					<TextBlock Text="Add book" Foreground="{StaticResource Lamp}" />
+				</StackPanel>
+			</Button>
+		</Grid>
+
+		<TextBlock
+			Grid.Row="1"
+			Margin="20,0,20,8"
+			Classes="muted"
+			Text="{Binding Library.Message}"
+			IsVisible="{Binding Library.Message, Converter={x:Static ObjectConverters.IsNotNull}}"
+			TextWrapping="Wrap" />
+
+		<!-- Empty library: say what to do next. -->
+		<StackPanel
+			Grid.Row="2"
+			Margin="20,48,20,0"
+			Spacing="10"
+			IsVisible="{Binding Library.IsEmpty}">
+			<TextBlock Classes="bookTitle" Text="No books yet" FontSize="20" />
+			<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
+				Text="Add an m4b or mp3 audiobook from your phone's files to start listening." />
+			<Button Classes="quiet" Content="Add book" Click="AddBook_Click" Padding="0,8" />
+		</StackPanel>
+
+		<ScrollViewer Grid.Row="2">
+			<ItemsControl ItemsSource="{Binding Library.Books}">
+				<ItemsControl.ItemTemplate>
+					<DataTemplate x:DataType="vm:BookItemViewModel">
+						<Button
+							Background="Transparent"
+							HorizontalAlignment="Stretch"
+							HorizontalContentAlignment="Stretch"
+							CornerRadius="0"
+							Padding="20,12"
+							BorderThickness="0,0,0,1"
+							BorderBrush="{StaticResource Hairline}"
+							Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).OpenBookCommand}"
+							CommandParameter="{Binding}">
+							<Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+								<Border Width="64" Height="64" CornerRadius="3" ClipToBounds="True" Background="{StaticResource Slate}" VerticalAlignment="Top">
+									<Image Source="{Binding Cover}" Stretch="UniformToFill" />
+								</Border>
+								<StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+									<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="16" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+									<TextBlock Classes="muted" Text="{Binding Author}" FontSize="13" TextTrimming="CharacterEllipsis" />
+									<TextBlock Classes="muted" Text="{Binding StatusText}" FontSize="12" Margin="0,4,0,0" />
+									<ProgressBar
+										Height="2"
+										MinHeight="2"
+										Margin="0,6,0,0"
+										Minimum="0"
+										Maximum="1"
+										Value="{Binding Progress}"
+										IsVisible="{Binding HasProgress}"
+										Foreground="{StaticResource Lamp}"
+										Background="{StaticResource Hairline}" />
+								</StackPanel>
+							</Grid>
+						</Button>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</ScrollViewer>
+	</Grid>
+</UserControl>

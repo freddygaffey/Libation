@@ -2,7 +2,88 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="LibationMobile.App"
              RequestedThemeVariant="Dark">
+
+	<Application.Resources>
+		<!-- A reading lamp at night: indigo ink, warm paper text, amber lamplight. -->
+		<Color x:Key="InkColor">#1D1A2E</Color>
+		<Color x:Key="SlateColor">#2A2640</Color>
+		<Color x:Key="PaperColor">#EFE7D6</Color>
+		<Color x:Key="DustColor">#9C95B0</Color>
+		<Color x:Key="LampColor">#F0B25A</Color>
+		<SolidColorBrush x:Key="Ink" Color="{StaticResource InkColor}" />
+		<SolidColorBrush x:Key="Slate" Color="{StaticResource SlateColor}" />
+		<SolidColorBrush x:Key="Paper" Color="{StaticResource PaperColor}" />
+		<SolidColorBrush x:Key="Dust" Color="{StaticResource DustColor}" />
+		<SolidColorBrush x:Key="Lamp" Color="{StaticResource LampColor}" />
+		<SolidColorBrush x:Key="Hairline" Color="{StaticResource DustColor}" Opacity="0.18" />
+
+		<FontFamily x:Key="BookFont">avares://LibationMobile/Assets/Fonts#Literata</FontFamily>
+		<FontFamily x:Key="DisplayFont">avares://LibationMobile/Assets/Fonts#Literata 72pt</FontFamily>
+
+		<!-- Icons. The circular skip arrows are adapted from Material Icons (Apache-2.0). -->
+		<StreamGeometry x:Key="IconPlay">M8,5 L19,12 L8,19 Z</StreamGeometry>
+		<StreamGeometry x:Key="IconPause">M6,5 H10 V19 H6 Z M14,5 H18 V19 H14 Z</StreamGeometry>
+		<StreamGeometry x:Key="IconPrevious">M6,6 H8 V18 H6 Z M9.5,12 L18,6 V18 Z</StreamGeometry>
+		<StreamGeometry x:Key="IconNext">M16,6 H18 V18 H16 Z M6,6 L14.5,12 L6,18 Z</StreamGeometry>
+		<StreamGeometry x:Key="IconSkipBack">M12,5V1L7,6l5,5V7c3.31,0 6,2.69 6,6s-2.69,6 -6,6 -6,-2.69 -6,-6H4c0,4.42 3.58,8 8,8s8,-3.58 8,-8 -3.58,-8 -8,-8z</StreamGeometry>
+		<StreamGeometry x:Key="IconSkipForward">M12,5V1l5,5 -5,5V7c-3.31,0 -6,2.69 -6,6s2.69,6 6,6 6,-2.69 6,-6h2c0,4.42 -3.58,8 -8,8s-8,-3.58 -8,-8 3.58,-8 8,-8z</StreamGeometry>
+		<StreamGeometry x:Key="IconChevronDown">M7.4,8.6 L12,13.2 L16.6,8.6 L18,10 L12,16 L6,10 Z</StreamGeometry>
+		<StreamGeometry x:Key="IconPlus">M11,5 H13 V11 H19 V13 H13 V19 H11 V13 H5 V11 H11 Z</StreamGeometry>
+		<StreamGeometry x:Key="IconMinus">M5,11 H19 V13 H5 Z</StreamGeometry>
+
+		<!-- Fluent theme overrides, so stock controls pick up the palette. -->
+		<SolidColorBrush x:Key="SystemControlHighlightAccentBrush" Color="{StaticResource LampColor}" />
+		<Color x:Key="SystemAccentColor">#F0B25A</Color>
+	</Application.Resources>
+
 	<Application.Styles>
 		<FluentTheme />
+
+		<Style Selector="TextBlock">
+			<Setter Property="Foreground" Value="{StaticResource Paper}" />
+		</Style>
+		<Style Selector="TextBlock.muted">
+			<Setter Property="Foreground" Value="{StaticResource Dust}" />
+		</Style>
+		<Style Selector="TextBlock.bookTitle">
+			<Setter Property="FontFamily" Value="{StaticResource BookFont}" />
+			<Setter Property="FontWeight" Value="SemiBold" />
+		</Style>
+
+		<!-- Round, borderless transport buttons with a generous touch target. -->
+		<Style Selector="Button.transport">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="Foreground" Value="{StaticResource Paper}" />
+			<Setter Property="Width" Value="56" />
+			<Setter Property="Height" Value="56" />
+			<Setter Property="CornerRadius" Value="28" />
+			<Setter Property="Padding" Value="0" />
+			<Setter Property="HorizontalContentAlignment" Value="Center" />
+			<Setter Property="VerticalContentAlignment" Value="Center" />
+		</Style>
+		<Style Selector="Button.transport:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Slate}" />
+		</Style>
+		<Style Selector="Button.play">
+			<Setter Property="Background" Value="{StaticResource Lamp}" />
+			<Setter Property="Width" Value="76" />
+			<Setter Property="Height" Value="76" />
+			<Setter Property="CornerRadius" Value="38" />
+		</Style>
+		<Style Selector="Button.play:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Lamp}" />
+		</Style>
+		<Style Selector="Button.play PathIcon">
+			<Setter Property="Foreground" Value="{StaticResource Ink}" />
+		</Style>
+		<Style Selector="Button.quiet">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="Foreground" Value="{StaticResource Lamp}" />
+			<Setter Property="Padding" Value="8,6" />
+		</Style>
+
+		<Style Selector="Slider.scrubber">
+			<Setter Property="Foreground" Value="{StaticResource Lamp}" />
+		</Style>
 	</Application.Styles>
 </Application>
