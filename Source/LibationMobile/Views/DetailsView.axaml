@@ -16,7 +16,7 @@
 
 	<Grid RowDefinitions="Auto,*">
 		<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
-			<Button Classes="transport" Width="48" Height="48" Command="{Binding GoToLibraryCommand}" ToolTip.Tip="Back to library">
+			<Button Classes="transport" Width="48" Height="48" Command="{Binding GoToLibraryCommand}" ToolTip.Tip="Back">
 				<PathIcon Data="{StaticResource IconChevronDown}" />
 			</Button>
 			<TextBlock Grid.Column="1" Classes="bookTitle" Text="Details" FontSize="22" VerticalAlignment="Center" Margin="4,0,0,0" />

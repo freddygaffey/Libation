@@ -250,6 +250,7 @@ public partial class NowPlayingViewModel
 	{
 		OnPropertyChanged(nameof(SkipText));
 		RefreshScrubber();
+		UpdateMediaSession();
 	}
 
 	public void RefreshFromAudible()

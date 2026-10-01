@@ -81,6 +81,7 @@
 				<Button.Flyout>
 					<MenuFlyout Placement="BottomEdgeAlignedRight">
 						<MenuItem Header="{Binding AccountText}" IsEnabled="False" />
+						<MenuItem Header="Listening log" Command="{Binding ShowLogCommand}" />
 						<MenuItem Header="Sign out" Command="{Binding SignOutCommand}" />
 					</MenuFlyout>
 				</Button.Flyout>

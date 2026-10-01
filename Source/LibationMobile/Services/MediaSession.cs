@@ -3,7 +3,10 @@ using System;
 namespace LibationMobile.Services;
 
 /// <summary>What the system's media controls show for the book being played.</summary>
-public record MediaInfo(string Title, string? Author, byte[]? Cover, TimeSpan Duration);
+/// <param name="Title">The main line: the chapter, when the controls cover one chapter.</param>
+/// <param name="Subtitle">The second line: the book's title, or its author.</param>
+/// <param name="Duration">What the system's progress bar covers: the chapter, or the whole book.</param>
+public record MediaInfo(string Title, string? Subtitle, byte[]? Cover, TimeSpan Duration, string? Album = null);
 
 /// <summary>
 /// The platform's own media controls: lock screen, Control Centre or notification, headphone buttons.
@@ -14,7 +17,7 @@ public interface IMediaSession
 	/// <summary>A book has been loaded.</summary>
 	void Show(MediaInfo info);
 
-	/// <summary>Playback started, stopped, jumped or changed speed.</summary>
+	/// <summary>Playback started, stopped, jumped or changed speed. The position is within what <see cref="MediaInfo.Duration"/> covers.</summary>
 	void Update(TimeSpan position, double speed, bool isPlaying);
 
 	/// <summary>Nothing is loaded any more.</summary>

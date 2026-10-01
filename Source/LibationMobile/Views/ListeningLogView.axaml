@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             x:Class="LibationMobile.Views.ListeningLogView"
+             x:DataType="vm:MainViewModel"
+             Background="{StaticResource Ink}">
+
+	<Grid RowDefinitions="Auto,*">
+		<Grid ColumnDefinitions="Auto,*,Auto" Margin="12,4,16,4">
+			<Button Classes="transport" Width="48" Height="48" Command="{Binding GoToLibraryCommand}" ToolTip.Tip="Back">
+				<PathIcon Data="{StaticResource IconChevronDown}" />
+			</Button>
+			<TextBlock Grid.Column="1" Classes="bookTitle" Text="Listening log" FontSize="22" VerticalAlignment="Center" Margin="4,0,0,0" />
+			<Button Grid.Column="2" Classes="quiet" Content="Clear" Padding="10,6" Command="{Binding Log.ClearLogCommand}" IsVisible="{Binding !Log.IsEmpty}" />
+		</Grid>
+
+		<StackPanel Grid.Row="1" Margin="24,32,24,0" Spacing="10" IsVisible="{Binding Log.IsEmpty}">
+			<TextBlock Classes="bookTitle" Text="Nothing logged yet" FontSize="20" />
+			<TextBlock Classes="muted" TextWrapping="Wrap"
+				Text="Each time you listen for more than half a minute, it is noted here: when, which book, for how long, and how much of the book that covered." />
+		</StackPanel>
+
+		<ScrollViewer Grid.Row="1" IsVisible="{Binding !Log.IsEmpty}">
+			<ItemsControl ItemsSource="{Binding Log.Days}" Margin="0,0,0,32">
+				<ItemsControl.ItemTemplate>
+					<DataTemplate x:DataType="vm:LogDayViewModel">
+						<StackPanel Margin="0,20,0,0">
+							<TextBlock Text="{Binding Header}" FontFamily="{StaticResource DisplayFont}" FontSize="20" Margin="24,0" />
+							<TextBlock Classes="muted" Text="{Binding TotalText}" FontSize="13" Margin="24,2,24,6" />
+							<ItemsControl ItemsSource="{Binding Entries}">
+								<ItemsControl.ItemTemplate>
+									<DataTemplate x:DataType="vm:LogEntryViewModel">
+										<Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource Hairline}" Padding="24,10">
+											<StackPanel Spacing="2">
+												<Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+													<TextBlock Text="{Binding Title}" FontSize="15" TextTrimming="CharacterEllipsis" />
+													<TextBlock Grid.Column="1" Classes="muted" Text="{Binding TimeText}" FontSize="13" />
+												</Grid>
+												<TextBlock Classes="muted" Text="{Binding DetailText}" FontSize="12" TextWrapping="Wrap" />
+											</StackPanel>
+										</Border>
+									</DataTemplate>
+								</ItemsControl.ItemTemplate>
+							</ItemsControl>
+						</StackPanel>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</ScrollViewer>
+	</Grid>
+</UserControl>

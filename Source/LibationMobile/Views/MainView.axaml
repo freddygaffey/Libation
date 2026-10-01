@@ -74,6 +74,7 @@
 			DataContext="{Binding NowPlaying}"
 			IsVisible="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).IsNowPlayingPage}" />
 
+		<views:ListeningLogView Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding IsLogPage}" />
 		<views:DetailsView Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding IsDetailsPage}" />
 		<views:SettingsView Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding IsSettingsPage}" />
 		<views:SignInView Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding IsSignInPage}" />

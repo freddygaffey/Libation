@@ -1,5 +1,6 @@
 using Avalonia.Threading;
 using LibationMobile.Services;
+using Mpeg4Lib;
 using System;
 
 namespace LibationMobile.ViewModels;
@@ -21,8 +22,7 @@ public partial class NowPlayingViewModel
 		mediaSession.SkipForwardRequested += OnSkipForwardRequested;
 		mediaSession.SkipBackRequested += OnSkipBackRequested;
 		mediaSession.SeekRequested += OnSeekRequested;
-		mediaSession.Show(new MediaInfo(Title, Author, Book.Cover, Duration));
-		UpdateMediaSession();
+		ShowMediaInfo();
 		if (mediaSession.TakePendingPlay())
 			OnPlayRequested();
 	}
@@ -42,7 +42,36 @@ public partial class NowPlayingViewModel
 		mediaSession = null;
 	}
 
-	private void UpdateMediaSession() => mediaSession?.Update(player.Position, Speed, player.IsPlaying);
+	/// <summary>
+	/// What the lock screen shows. Like the player's own bar, it covers the chapter playing unless that is turned
+	/// off: dragging a whole book's bar by a hair jumps hours, and loses the listener's place.
+	/// </summary>
+	private void ShowMediaInfo()
+	{
+		if (mediaSession is null)
+			return;
+		shownChapter = ScrubsChapter ? CurrentChapter : null;
+		mediaSession.Show(shownChapter is { } chapter
+			? new MediaInfo(chapter.Title, Title, Book.Cover, chapter.Duration, Album: Title)
+			: new MediaInfo(Title, Author, Book.Cover, Duration));
+		UpdateMediaSession();
+	}
+
+	/// <summary>The chapter the lock screen covers, or null when it covers the whole book.</summary>
+	private Chapter? shownChapter;
+
+	private void UpdateMediaSession()
+	{
+		if (mediaSession is null)
+			return;
+		// A new chapter, or the setting changed: the lock screen needs the new span before the new position.
+		if ((ScrubsChapter ? CurrentChapter : null) != shownChapter)
+		{
+			ShowMediaInfo();
+			return;
+		}
+		mediaSession.Update(player.Position - ScrubberStart, Speed, player.IsPlaying);
+	}
 
 	// The system raises these on its own thread; the player is only touched from the UI thread.
 	private void OnUi(Action action) => Dispatcher.UIThread.Post(() =>
@@ -56,5 +85,6 @@ public partial class NowPlayingViewModel
 	private void OnToggleRequested() => OnUi(PlayPause);
 	private void OnSkipForwardRequested() => OnUi(() => Seek(Position + SkipInterval));
 	private void OnSkipBackRequested() => OnUi(() => Seek(Position - SkipInterval));
-	private void OnSeekRequested(TimeSpan position) => OnUi(() => Seek(position));
+	// The lock screen's bar covers what was last shown: the chapter, or the book.
+	private void OnSeekRequested(TimeSpan position) => OnUi(() => Seek((shownChapter?.StartOffset ?? TimeSpan.Zero) + position));
 }

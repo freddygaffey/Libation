@@ -114,8 +114,8 @@ public sealed class AppleMediaSession : IMediaSession
 		nowPlaying = new MPNowPlayingInfo
 		{
 			Title = info.Title,
-			Artist = info.Author,
-			AlbumTitle = info.Title,
+			Artist = info.Subtitle,
+			AlbumTitle = info.Album ?? info.Title,
 			PlaybackDuration = info.Duration.TotalSeconds,
 			MediaType = MPNowPlayingInfoMediaType.Audio
 		};

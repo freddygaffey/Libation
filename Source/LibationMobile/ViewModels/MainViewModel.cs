@@ -19,7 +19,8 @@ public enum Page
 	Library,
 	NowPlaying,
 	Settings,
-	Details
+	Details,
+	Log
 }
 
 /// <summary>Amazon's sign-in page, shown in the app. Completed with the URL Amazon redirects to after sign-in, or null if cancelled.</summary>
@@ -47,7 +48,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public IReadOnlyList<string> RegionNames { get; } = AudibleAccount.Regions.Select(r => r.DisplayName).ToList();
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsSignInPage), nameof(IsBrowserPage), nameof(IsLibraryPage), nameof(IsNowPlayingPage), nameof(IsSettingsPage), nameof(IsDetailsPage), nameof(ShowMiniPlayer))]
+	[NotifyPropertyChangedFor(nameof(IsSignInPage), nameof(IsBrowserPage), nameof(IsLibraryPage), nameof(IsNowPlayingPage), nameof(IsSettingsPage), nameof(IsDetailsPage), nameof(IsLogPage), nameof(ShowMiniPlayer))]
 	private Page currentPage = Page.Library;
 
 	[ObservableProperty]
@@ -72,6 +73,30 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public bool IsNowPlayingPage => CurrentPage == Page.NowPlaying;
 	public bool IsSettingsPage => CurrentPage == Page.Settings;
 	public bool IsDetailsPage => CurrentPage == Page.Details;
+	public bool IsLogPage => CurrentPage == Page.Log;
+
+	private readonly ListeningLog listeningLog;
+	public ListeningLogViewModel Log { get; }
+
+	/// <summary>Where Back goes from the details and log pages: the player, if they were opened from it.</summary>
+	private Page returnPage = Page.Library;
+
+	[RelayCommand]
+	private void ShowLog()
+	{
+		returnPage = CurrentPage == Page.Settings ? Page.Settings : Page.Library;
+		Log.Refresh();
+		CurrentPage = Page.Log;
+	}
+
+	/// <summary>The details page for the book playing, from the player's top bar.</summary>
+	[RelayCommand]
+	private void ShowPlayingDetails()
+	{
+		if (NowPlaying is null || Library.Find(NowPlaying.Book.Id) is not { } item)
+			return;
+		ShowDetails(item);
+	}
 
 	/// <summary>The book whose details page is open.</summary>
 	[ObservableProperty]
@@ -85,6 +110,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	[RelayCommand]
 	private void ShowDetails(BookItemViewModel item)
 	{
+		// Moving between books in a series keeps the way back to where the details were first opened.
+		if (CurrentPage != Page.Details)
+			returnPage = CurrentPage == Page.NowPlaying ? Page.NowPlaying : Page.Library;
 		Details = new BookDetailsViewModel(item, store, Library);
 		CurrentPage = Page.Details;
 	}
@@ -137,6 +165,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		store = new AudibleSeries(account);
 		Settings = new SettingsViewModel(settings, () => NowPlaying?.SettingsChanged());
 		localAnnotations = new LocalAnnotations(Path.Combine(dataDirectory, "annotations.json"));
+		listeningLog = new ListeningLog(Path.Combine(dataDirectory, "listening-log.json"));
+		Log = new ListeningLogViewModel(listeningLog);
 		var catalog = new LibraryCatalog(dataDirectory);
 		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations);
 		// The refresh button refreshes everything Audible holds, including the loaded book's position and bookmarks.
@@ -372,8 +402,12 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				CurrentPage = Page.Library;
 				Library.RefreshProgress();
 				return true;
-			case Page.Settings or Page.Details:
+			case Page.Settings:
 				CurrentPage = Page.Library;
+				return true;
+			case Page.Details or Page.Log:
+				CurrentPage = returnPage;
+				returnPage = Page.Library;
 				return true;
 			default:
 				return false;
@@ -415,7 +449,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		NowPlaying = null;
 		try
 		{
-			NowPlaying = await NowPlayingViewModel.OpenAsync(await Library.ToLocalBookAsync(item), settings, annotations, localAnnotations);
+			NowPlaying = await NowPlayingViewModel.OpenAsync(await Library.ToLocalBookAsync(item), settings, annotations, localAnnotations, listeningLog);
 			if (showNowPlaying)
 				CurrentPage = Page.NowPlaying;
 			return true;

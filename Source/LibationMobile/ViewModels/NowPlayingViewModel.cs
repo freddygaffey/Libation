@@ -199,12 +199,12 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	/// <param name="annotations">Position sync with Audible. Null plays without syncing.</param>
 	/// <param name="localAnnotations">Bookmarks and clips saved on the device. Null plays without them.</param>
-	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings, AudibleAnnotations? annotations = null, LocalAnnotations? localAnnotations = null)
+	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings, AudibleAnnotations? annotations = null, LocalAnnotations? localAnnotations = null, ListeningLog? log = null)
 	{
 		var chapters = await AudioFileChapters.ReadAsync(book.Path);
 		var player = await Task.Run(() => new AudioFilePlayer(AudioBackend.OpenSource(book.Path), AudioBackend.CreateOutput, AudioBackend.CreateStretcher));
 		settings.LastBookId = book.Id;
-		return new NowPlayingViewModel(book, player, chapters, settings, annotations, localAnnotations);
+		return new NowPlayingViewModel(book, player, chapters, settings, annotations, localAnnotations) { log = log };
 	}
 
 	[RelayCommand]
@@ -320,6 +320,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			ChapterRows[i].IsCurrent = ChapterRows[i] == current;
 			ChapterRows[i].IsPlayed = i < index;
 		}
+		UpdateMediaSession();
 	}
 
 	private DateTime? lastListeningTick;
@@ -333,13 +334,45 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	{
 		var now = DateTime.UtcNow;
 		// Previewing a clip is not listening to the book.
-		if (IsPlaying && ClipEditor is null && lastListeningTick is DateTime last && now - last < LongestCountedTick)
+		var listening = IsPlaying && ClipEditor is null;
+		if (listening && lastListeningTick is DateTime last && now - last < LongestCountedTick)
 		{
 			uncountedTimeSpent += now - last;
 			uncountedBookTime += (now - last) * Speed;
+			sessionSpent += now - last;
+			sessionBookTime += (now - last) * Speed;
 		}
-		lastListeningTick = IsPlaying ? now : null;
+		lastListeningTick = listening ? now : null;
+
+		if (listening && sessionStarted is null)
+		{
+			sessionStarted = DateTimeOffset.Now;
+			sessionFrom = Position;
+			sessionSpent = sessionBookTime = TimeSpan.Zero;
+		}
+		else if (!listening && sessionStarted is not null)
+			EndSession();
 	}
+
+	#region Listening log
+
+	private ListeningLog? log;
+	private DateTimeOffset? sessionStarted;
+	private TimeSpan sessionFrom;
+	private TimeSpan sessionSpent;
+	private TimeSpan sessionBookTime;
+	/// <summary>Shorter stretches, such as checking where a chapter starts, are not worth a line in the log.</summary>
+	private static readonly TimeSpan ShortestLoggedSession = TimeSpan.FromSeconds(30);
+
+	private void EndSession()
+	{
+		if (sessionStarted is DateTimeOffset started && sessionSpent >= ShortestLoggedSession)
+			log?.Add(new ListeningSession(Book.Id, Title, started, DateTimeOffset.Now, sessionFrom, Position,
+				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed));
+		sessionStarted = null;
+	}
+
+	#endregion
 
 	private void SavePosition()
 	{
@@ -387,6 +420,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		timer.Stop();
 		statusTimer?.Stop();
 		StopMediaSession();
+		EndSession();
 		SavePosition();
 		PushPosition();
 		player.Dispose();

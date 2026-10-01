@@ -71,6 +71,12 @@
 						<TextBlock Text="Clip" FontSize="10" HorizontalAlignment="Center" />
 					</StackPanel>
 				</Button>
+				<Button Classes="labelled" Command="{Binding $parent[UserControl;1].((vm:MainViewModel)DataContext).ShowPlayingDetailsCommand}">
+					<StackPanel Spacing="2">
+						<PathIcon Data="{StaticResource IconInfo}" Width="18" Height="18" />
+						<TextBlock Text="Details" FontSize="10" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
 				<Button Classes="labelled" Command="{Binding ShowAnnotationsCommand}">
 					<StackPanel Spacing="2">
 						<PathIcon Data="{StaticResource IconBookmarks}" Width="18" Height="18" />
