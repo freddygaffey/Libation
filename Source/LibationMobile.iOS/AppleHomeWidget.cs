@@ -5,6 +5,8 @@ using LibationMobile.Services;
 using Security;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using UIKit;
@@ -27,8 +29,13 @@ public sealed class AppleHomeWidget : IHomeWidget
 
 	private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-	private sealed record State(string BookId, string Title, string? Author, double RemainingSeconds, double Speed, bool IsPlaying, double UpdatedAt);
-	private sealed record WidgetCommand(string Command, string? BookId, double? Speed, double At);
+	private sealed record State(string BookId, string Title, string? Author, double RemainingSeconds, double Speed, bool IsPlaying, double UpdatedAt,
+		double DurationSeconds, string? ChapterTitle, double? ChapterRemainingSeconds, double? ChapterDurationSeconds, double SkipSeconds);
+	private sealed record WidgetCommand(string Command, string? BookId, double? Speed, bool? Forward, double At);
+	private sealed record RecentBook(string BookId, string Title);
+	/// <summary>Books before the current one, for the large widget.</summary>
+	private const int RECENT_COUNT = 2;
+	private const int RECENT_COVER_SIZE = 120;
 
 	private readonly AppleMediaSession mediaSession;
 	private readonly ConcurrentDictionary<string, double> pendingSpeeds = new();
@@ -36,6 +43,8 @@ public sealed class AppleHomeWidget : IHomeWidget
 	private string? coverBookId;
 
 	public event Action<string, double>? SpeedRequested;
+	public event Action<string>? OpenRequested;
+	private string? pendingOpen;
 
 	public AppleHomeWidget(AppleMediaSession mediaSession)
 	{
@@ -49,15 +58,20 @@ public sealed class AppleHomeWidget : IHomeWidget
 	public void Show(WidgetInfo info)
 	{
 		var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
-		var state = new State(info.BookId, info.Title, info.Author, info.Remaining.TotalSeconds, info.Speed, info.IsPlaying, now);
+		var state = new State(info.BookId, info.Title, info.Author, info.Remaining.TotalSeconds, info.Speed, info.IsPlaying, now,
+			info.Duration.TotalSeconds, info.ChapterTitle, info.ChapterRemaining?.TotalSeconds, info.ChapterDuration?.TotalSeconds, info.SkipSeconds);
 		try
 		{
+			if (shown is { } previousBook && previousBook.BookId != info.BookId)
+				AddRecent(previousBook);
 			Write("state", JsonSerializer.SerializeToUtf8Bytes(state, Json));
 			if (coverBookId != info.BookId)
 			{
 				coverBookId = info.BookId;
 				if (SmallCover(info.Cover) is NSData cover)
 					Write("cover", cover);
+				else
+					Console.WriteLine($"Widget: no cover for {info.BookId} ({info.Cover?.Length ?? 0} bytes given)");
 			}
 		}
 		catch (Exception ex)
@@ -69,13 +83,34 @@ public sealed class AppleHomeWidget : IHomeWidget
 		// The widget counts down by itself while playing; it only needs redrawing when that would go wrong.
 		var previous = shown;
 		shown = state;
-		if (previous is null || previous.BookId != state.BookId || previous.IsPlaying != state.IsPlaying
+		if (previous is null || previous.BookId != state.BookId || previous.IsPlaying != state.IsPlaying || previous.ChapterTitle != state.ChapterTitle
 			|| Math.Abs(previous.Speed - state.Speed) > 0.001 || Math.Abs(Predicted(previous, now) - state.RemainingSeconds) > 60)
 			Reload();
 	}
 
 	private static double Predicted(State state, double at)
 		=> state.IsPlaying ? state.RemainingSeconds - (at - state.UpdatedAt) * state.Speed : state.RemainingSeconds;
+
+	/// <summary>The book being replaced goes to the front of the recent list, with a small copy of its cover.</summary>
+	private static void AddRecent(State book)
+	{
+		var recent = Read("recent") is byte[] saved ? JsonSerializer.Deserialize<List<RecentBook>>(saved, Json) ?? [] : [];
+		recent.RemoveAll(r => r.BookId == book.BookId);
+		recent.Insert(0, new RecentBook(book.BookId, book.Title));
+		if (Read("cover") is byte[] cover && UIImage.LoadFromData(NSData.FromArray(cover)) is UIImage image)
+			Write("cover-" + book.BookId, Resized(image, RECENT_COVER_SIZE));
+		foreach (var dropped in recent.Skip(RECENT_COUNT + 1))
+			Remove("cover-" + dropped.BookId);
+		// One spare, in case the current book is among them when it comes back round.
+		Write("recent", JsonSerializer.SerializeToUtf8Bytes(recent.Take(RECENT_COUNT + 1).ToList(), Json));
+	}
+
+	public string? TakePendingOpen()
+	{
+		var open = pendingOpen;
+		pendingOpen = null;
+		return open;
+	}
 
 	public double? TakePendingSpeed(string bookId) => pendingSpeeds.TryRemove(bookId, out var speed) ? speed : null;
 
@@ -107,6 +142,15 @@ public sealed class AppleHomeWidget : IHomeWidget
 			case "pause" when !stale:
 				mediaSession.RequestPause();
 				break;
+			case "skip" when !stale:
+				mediaSession.RequestSkip(command.Forward == true);
+				break;
+			case "open" when !stale && command.BookId is string openId:
+				if (OpenRequested is null)
+					pendingOpen = openId;
+				else
+					OpenRequested.Invoke(openId);
+				break;
 			case "speed" when command.BookId is string bookId && command.Speed is double speed:
 				if (SpeedRequested is null)
 					pendingSpeeds[bookId] = speed;
@@ -120,9 +164,14 @@ public sealed class AppleHomeWidget : IHomeWidget
 	{
 		if (cover is null || UIImage.LoadFromData(NSData.FromArray(cover)) is not UIImage image)
 			return null;
-		var renderer = new UIGraphicsImageRenderer(new CGSize(COVER_SIZE, COVER_SIZE), new UIGraphicsImageRendererFormat { Scale = 1 });
-		var small = renderer.CreateImage(_ => image.Draw(new CGRect(0, 0, COVER_SIZE, COVER_SIZE)));
-		return small.AsJPEG(0.8f);
+		return Resized(image, COVER_SIZE);
+	}
+
+	private static NSData Resized(UIImage image, int size)
+	{
+		var renderer = new UIGraphicsImageRenderer(new CGSize(size, size), new UIGraphicsImageRendererFormat { Scale = 1 });
+		var small = renderer.CreateImage(_ => image.Draw(new CGRect(0, 0, size, size)));
+		return small.AsJPEG(0.8f)!;
 	}
 
 	// Saved without naming a keychain group, so in the first of the app's keychain-access-groups: the shared one.
@@ -135,18 +184,28 @@ public sealed class AppleHomeWidget : IHomeWidget
 
 	private static void Write(string account, NSData value)
 	{
-		var status = SecKeyChain.Update(Query(account), new SecRecord(SecKind.GenericPassword) { ValueData = value });
-		if (status == SecStatusCode.ItemNotFound)
-		{
-			var item = Query(account);
-			item.ValueData = value;
-			// The widget is drawn while the phone is locked.
-			item.Accessible = SecAccessible.AfterFirstUnlock;
-			status = SecKeyChain.Add(item);
-		}
+		// Replaced whole: an update cannot carry the item's class, which every SecRecord has.
+		SecKeyChain.Remove(Query(account));
+		var item = Query(account);
+		item.ValueData = value;
+		// The widget is drawn while the phone is locked.
+		item.Accessible = SecAccessible.AfterFirstUnlock;
+		var status = SecKeyChain.Add(item);
 		if (status != SecStatusCode.Success)
-			throw new InvalidOperationException($"keychain {status}");
+			throw new InvalidOperationException($"keychain {status} writing {account}");
 	}
+
+	/// <summary>For the widget test action: what is saved, as the widget will read it.</summary>
+	public override string ToString()
+	{
+		// Kept beside the app's files so a test can look at the image itself.
+		if (Read("cover") is byte[] cover)
+			System.IO.File.WriteAllBytes(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "widget-cover-test.jpg"), cover);
+		return Describe();
+	}
+
+	private static string Describe()
+		=> $"state: {(Read("state") is byte[] state ? System.Text.Encoding.UTF8.GetString(state) : "none")}; cover: {Read("cover")?.Length.ToString() ?? "none"} bytes";
 
 	private static void Remove(string account) => SecKeyChain.Remove(Query(account));
 

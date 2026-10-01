@@ -14,4 +14,10 @@ public interface IAudioOutput : IDisposable
 	bool IsRunning { get; }
 	void Start();
 	void Stop();
+
+	/// <summary>Frames already taken from the render callback and not yet heard.</summary>
+	int BufferedFrames => 0;
+
+	/// <summary>Drop audio taken from the render callback and not yet heard, because it is from before a seek.</summary>
+	void Discard() { }
 }

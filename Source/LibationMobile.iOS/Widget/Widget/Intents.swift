@@ -1,26 +1,51 @@
 import AppIntents
 import Foundation
 
-/// The widget's speed buttons. Steps to the next half: 2.7x goes up to 3x and down to 2.5x.
+/// Sets the speed, keeping the countdown right, and tells the app.
+private func setSpeed(_ speed: Double) {
+    guard var state = WidgetState.load() else { return }
+    let now = Date()
+    state.settle(at: now)
+    state.speed = min(WidgetState.maxSpeed, max(WidgetState.minSpeed, (speed * 100).rounded() / 100))
+    state.save()
+    WidgetCommand.post(WidgetCommand(command: "speed", bookId: state.bookId, speed: state.speed, at: now.timeIntervalSince1970))
+}
+
+/// The + and − speed buttons. Coarse steps go to the next half (2.7x up to 3x, down to 2.5x); fine ones by 0.1.
 struct ChangeSpeedIntent: AppIntent {
     static var title: LocalizedStringResource = "Change speed"
     static var isDiscoverable = false
 
     @Parameter(title: "Faster") var faster: Bool
+    @Parameter(title: "Fine") var fine: Bool
 
     init() {}
-    init(faster: Bool) { self.faster = faster }
+    init(faster: Bool, fine: Bool = false) {
+        self.faster = faster
+        self.fine = fine
+    }
 
     func perform() async throws -> some IntentResult {
-        guard var state = WidgetState.load() else { return .result() }
-        let step = WidgetState.speedStep
+        guard let state = WidgetState.load() else { return .result() }
+        let step = fine ? WidgetState.fineSpeedStep : WidgetState.speedStep
         let steps = state.speed / step
-        let next = (faster ? (steps + 0.001).rounded(.down) + 1 : (steps - 0.001).rounded(.up) - 1) * step
-        let now = Date()
-        state.settle(at: now)
-        state.speed = min(WidgetState.maxSpeed, max(WidgetState.minSpeed, next))
-        state.save()
-        WidgetCommand.post(WidgetCommand(command: "speed", bookId: state.bookId, speed: state.speed, at: now.timeIntervalSince1970))
+        setSpeed((faster ? (steps + 0.001).rounded(.down) + 1 : (steps - 0.001).rounded(.up) - 1) * step)
+        return .result()
+    }
+}
+
+/// A notch on a speed slider.
+struct SetSpeedIntent: AppIntent {
+    static var title: LocalizedStringResource = "Set speed"
+    static var isDiscoverable = false
+
+    @Parameter(title: "Speed") var speed: Double
+
+    init() {}
+    init(speed: Double) { self.speed = speed }
+
+    func perform() async throws -> some IntentResult {
+        setSpeed(speed)
         return .result()
     }
 }
@@ -49,6 +74,47 @@ struct PlayIntent: AppIntent {
 
     func perform() async throws -> some IntentResult {
         WidgetCommand.post(WidgetCommand(command: "play", bookId: WidgetState.load()?.bookId, at: Date().timeIntervalSince1970))
+        return .result()
+    }
+}
+
+/// Skips by the app's skip length. Works while playing, when the app is running to hear it.
+struct SkipIntent: AppIntent {
+    static var title: LocalizedStringResource = "Skip"
+    static var isDiscoverable = false
+
+    @Parameter(title: "Forward") var forward: Bool
+
+    init() {}
+    init(forward: Bool) { self.forward = forward }
+
+    func perform() async throws -> some IntentResult {
+        guard var state = WidgetState.load() else { return .result() }
+        let now = Date()
+        state.settle(at: now)
+        // Shown at once; the app's next update corrects it.
+        let skip = (state.skipSeconds ?? 30) * (forward ? -1 : 1)
+        state.remainingSeconds = max(0, state.remainingSeconds + skip)
+        state.chapterRemainingSeconds = state.chapterRemainingSeconds.map { max(0, $0 + skip) }
+        state.save()
+        WidgetCommand.post(WidgetCommand(command: "skip", bookId: state.bookId, forward: forward, at: now.timeIntervalSince1970))
+        return .result()
+    }
+}
+
+/// A recent book: opens it in the app.
+struct OpenBookIntent: AppIntent {
+    static var title: LocalizedStringResource = "Open book"
+    static var isDiscoverable = false
+    static var openAppWhenRun = true
+
+    @Parameter(title: "Book") var bookId: String
+
+    init() {}
+    init(bookId: String) { self.bookId = bookId }
+
+    func perform() async throws -> some IntentResult {
+        WidgetCommand.post(WidgetCommand(command: "open", bookId: bookId, at: Date().timeIntervalSince1970))
         return .result()
     }
 }

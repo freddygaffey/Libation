@@ -188,9 +188,31 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 
 		await Library.LoadAsync();
 
+		// A recent book tapped on the home-screen widget, which may be what started the app.
+		if (HomeWidget.Platform is { } widget)
+		{
+			widget.OpenRequested += id => Dispatcher.UIThread.Post(() => OpenFromWidget(id));
+			if (widget.TakePendingOpen() is string pending && Library.Find(pending) is { IsDownloaded: true } tapped)
+			{
+				await LoadAsync(tapped, showNowPlaying: true);
+				return;
+			}
+		}
+
 		// Put the last book back in the mini player, paused, so one tap resumes it.
 		if (Library.Find(settings.LastBookId) is { IsDownloaded: true } last)
 			await LoadAsync(last, showNowPlaying: false);
+	}
+
+	/// <summary>Shows the book in the player, without playing: the widget's play button is for that.</summary>
+	private async void OpenFromWidget(string bookId)
+	{
+		if (Library.Find(bookId) is not { IsDownloaded: true } item)
+			return;
+		if (NowPlaying?.Book.Id == bookId)
+			CurrentPage = Page.NowPlaying;
+		else
+			await LoadAsync(item, showNowPlaying: true);
 	}
 
 	#region Sign in
@@ -503,6 +525,13 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				}
 				AudioBackend.Nonlinearity = settings.Nonlinearity;
 				AudioBackend.UseNonlinear = settings.UseNonlinearSpeed;
+				break;
+			case "widget" when parts.Length > 1 && Library.Find(parts[1]) is { } widgetBook && HomeWidget.Platform is { } widget:
+				// Writes a book to the home-screen widget twice (the second replaces the first) and logs what it holds.
+				var widgetCover = await Library.GetCoverBytesAsync(widgetBook);
+				widget.Show(new WidgetInfo(widgetBook.Book.Asin, widgetBook.Title, widgetBook.Author, widgetCover, widgetBook.Book.Length, 2, false, widgetBook.Book.Length, "Chapter 1", TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(30)));
+				widget.Show(new WidgetInfo(widgetBook.Book.Asin, widgetBook.Title, widgetBook.Author, widgetCover, widgetBook.Book.Length, 3, false, widgetBook.Book.Length, "Chapter 1", TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(30)));
+				Console.WriteLine($"LIBATION_TEST widget: given cover {widgetCover?.Length ?? 0} bytes; saved {widget}");
 				break;
 			case "open" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } openBook:
 				// Shows the player without playing: playback reports a position to Audible, which a look at the screen must not.

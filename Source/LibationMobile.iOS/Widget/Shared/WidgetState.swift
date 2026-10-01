@@ -13,10 +13,23 @@ struct WidgetState: Codable {
     var isPlaying: Bool
     /// Seconds since 1970 when this was written; while playing, the time left counts down from here.
     var updatedAt: Double
+    /// The whole book, at 1x.
+    var durationSeconds: Double?
+    var chapterTitle: String?
+    /// Book time left in the chapter, and its length, at 1x.
+    var chapterRemainingSeconds: Double?
+    var chapterDurationSeconds: Double?
+    /// The app's skip length, for the skip buttons' labels.
+    var skipSeconds: Double?
 
     static let minSpeed = 0.5
     static let maxSpeed = 10.0
     static let speedStep = 0.5
+    static let fineSpeedStep = 0.1
+    /// The sliders' notches: the app's own speed stops.
+    static let speedStops: [Double] = [1, 1.5, 2, 3, 5, 10]
+    /// The wide slider has room for more.
+    static let fineSpeedStops: [Double] = [1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 6, 8, 10]
 
     /// Darwin notifications telling the app, if it is running, to read what the widget asked for.
     static let commandPosted = "io.github.freddygaffey.libation.widget.command"
@@ -33,10 +46,34 @@ struct WidgetState: Codable {
 
     static func loadCover() -> Data? { SharedKeychain.read("cover") }
 
+    static func formatSkip(_ seconds: Double?) -> String { "\(Int(seconds ?? 30))" }
+
     /// Time left in real time at this speed, as it stands at `date`.
     func remaining(at date: Date) -> Double {
         let elapsed = isPlaying ? max(0, date.timeIntervalSince1970 - updatedAt) * speed : 0
         return max(0, remainingSeconds - elapsed) / speed
+    }
+
+    /// Book time played since this was written.
+    private func played(at date: Date) -> Double {
+        isPlaying ? max(0, date.timeIntervalSince1970 - updatedAt) * speed : 0
+    }
+
+    /// Time left in the chapter in real time at this speed.
+    func chapterRemaining(at date: Date) -> Double? {
+        chapterRemainingSeconds.map { max(0, $0 - played(at: date)) / speed }
+    }
+
+    /// How far through the chapter, 0 to 1.
+    func chapterProgress(at date: Date) -> Double? {
+        guard let left = chapterRemainingSeconds, let length = chapterDurationSeconds, length > 0 else { return nil }
+        return min(1, max(0, 1 - (left - played(at: date)) / length))
+    }
+
+    /// How far through the book, 0 to 1.
+    func bookProgress(at date: Date) -> Double {
+        guard let length = durationSeconds, length > 0 else { return 0 }
+        return min(1, max(0, 1 - (remainingSeconds - played(at: date)) / length))
     }
 
     /// Settles the book time played so far, so the countdown carries on right after a change of speed or a pause.
@@ -57,11 +94,25 @@ struct WidgetState: Codable {
     }
 }
 
-/// A request from the widget for the app: "play", "pause" or "speed".
+/// A book played before the current one, for the large widget.
+struct RecentBook: Codable, Hashable {
+    var bookId: String
+    var title: String
+
+    static func load() -> [RecentBook] {
+        SharedKeychain.read("recent").flatMap { try? JSONDecoder().decode([RecentBook].self, from: $0) } ?? []
+    }
+
+    var cover: Data? { SharedKeychain.read("cover-" + bookId) }
+}
+
+/// A request from the widget for the app: "play", "pause", "speed", "skip" or "open".
 struct WidgetCommand: Codable {
     var command: String
     var bookId: String?
     var speed: Double?
+    /// For "skip": forwards or back.
+    var forward: Bool?
     var at: Double
 
     static func post(_ command: WidgetCommand) {

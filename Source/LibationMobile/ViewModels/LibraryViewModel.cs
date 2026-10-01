@@ -513,6 +513,8 @@ public partial class LibraryViewModel : ObservableObject
 		item.Book.Length,
 		await catalog.GetCoverAsync(item.Book));
 
+	public Task<byte[]?> GetCoverBytesAsync(BookItemViewModel item) => catalog.GetCoverAsync(item.Book);
+
 	private void RefreshItem(BookItemViewModel item) => item.Refresh(settings.GetPosition(item.Book.Asin), settings.GetBookSpeed(item.Book.Asin) ?? settings.Speed);
 
 	private void SetBooks(IReadOnlyList<CatalogBook> books)

@@ -99,6 +99,15 @@ public sealed class AppleMediaSession : IMediaSession
 		PauseRequested?.Invoke();
 	}
 
+	/// <summary>Skip, if a book is loaded. From the home-screen widget.</summary>
+	public void RequestSkip(bool forward)
+	{
+		if (forward)
+			SkipForwardRequested?.Invoke();
+		else
+			SkipBackRequested?.Invoke();
+	}
+
 	public bool TakePendingPlay()
 	{
 		var pending = pendingPlay;
@@ -127,10 +136,25 @@ public sealed class AppleMediaSession : IMediaSession
 			MediaType = MPNowPlayingInfoMediaType.Audio
 		};
 
-		if (info.Cover is not null && UIImage.LoadFromData(NSData.FromArray(info.Cover)) is UIImage image)
-			nowPlaying.Artwork = new MPMediaItemArtwork(image.Size, _ => image);
+		nowPlaying.Artwork = Artwork(info.Cover);
 
 		MPNowPlayingInfoCenter.DefaultCenter.NowPlaying = nowPlaying;
+	}
+
+	// The lock screen is shown again at every chapter; decoding a full-size cover each time is wasted work.
+	private byte[]? artworkCover;
+	private MPMediaItemArtwork? artwork;
+
+	private MPMediaItemArtwork? Artwork(byte[]? cover)
+	{
+		if (cover != artworkCover)
+		{
+			artworkCover = cover;
+			artwork = cover is not null && UIImage.LoadFromData(NSData.FromArray(cover)) is UIImage image
+				? new MPMediaItemArtwork(image.Size, _ => image)
+				: null;
+		}
+		return artwork;
 	}
 
 	public void Update(TimeSpan position, double speed, bool isPlaying)

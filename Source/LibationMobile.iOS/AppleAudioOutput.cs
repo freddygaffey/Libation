@@ -15,7 +15,9 @@ public sealed class AppleAudioOutput : IAudioOutput
 {
 	private readonly AVAudioEngine engine = new();
 	private readonly AVAudioSourceNode sourceNode;
-	private readonly AudioRenderCallback render;
+	/// <summary>Decoding and speed change run ahead on their own thread; the real-time callback only copies.</summary>
+	private readonly BufferedRender buffer;
+	private static readonly TimeSpan BufferAhead = TimeSpan.FromMilliseconds(250);
 	private readonly int channels;
 	private readonly AVAudioFormat format;
 	private readonly NSObject configurationObserver;
@@ -24,11 +26,13 @@ public sealed class AppleAudioOutput : IAudioOutput
 	private volatile bool wantRunning;
 
 	public bool IsRunning => engine.Running;
+	public int BufferedFrames => buffer.BufferedFrames;
+	public void Discard() => buffer.Discard();
 
 	public AppleAudioOutput(int sampleRate, int channels, AudioRenderCallback render)
 	{
-		this.render = render;
 		this.channels = channels;
+		buffer = new BufferedRender(render, sampleRate, channels, BufferAhead);
 
 		// Playback category: keeps playing with the screen locked and ignores the silent switch, like any audiobook app.
 		// Long-form audio is what audiobook and podcast apps declare: pressing play then takes AirPods over from a
@@ -89,8 +93,7 @@ public sealed class AppleAudioOutput : IAudioOutput
 		try
 		{
 			var span = interleaved.AsSpan(0, count);
-			span.Clear();
-			render(span);
+			buffer.Read(span);
 
 			for (var c = 0; c < channels && c < outputData.Count; c++)
 			{
@@ -139,5 +142,6 @@ public sealed class AppleAudioOutput : IAudioOutput
 		engine.DetachNode(sourceNode);
 		sourceNode.Dispose();
 		engine.Dispose();
+		buffer.Dispose();
 	}
 }

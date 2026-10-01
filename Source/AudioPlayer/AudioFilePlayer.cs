@@ -7,7 +7,7 @@ namespace AudioPlayer;
 /// Plays an <see cref="IPcmSource"/> with pitch-preserving speed control.
 /// </summary>
 /// <remarks>
-/// Decoding and time stretching run on the audio output's thread. <see cref="PlaybackEnded"/> is raised on a
+/// Decoding and time stretching run on whichever thread the audio output calls its render callback on. <see cref="PlaybackEnded"/> is raised on a
 /// thread pool thread; UI subscribers must marshal to their own thread.
 /// </remarks>
 public sealed class AudioFilePlayer : IDisposable
@@ -47,8 +47,9 @@ public sealed class AudioFilePlayer : IDisposable
 		{
 			lock (locker)
 			{
-				// Frames handed to the speed changer but not yet heard.
-				return TimeSpan.FromSeconds(Math.Max(0, sourceFrame - stretcher.BufferedSourceFrames) / (double)source.SampleRate);
+				// Frames handed to the speed changer but not yet heard, and its output queued in the device.
+				var unheard = stretcher.BufferedSourceFrames + (long)(output.BufferedFrames * stretcher.Speed);
+				return TimeSpan.FromSeconds(Math.Max(0, sourceFrame - unheard) / (double)source.SampleRate);
 			}
 		}
 	}
@@ -101,6 +102,7 @@ public sealed class AudioFilePlayer : IDisposable
 	{
 		sourceFrame = source.Seek(position);
 		stretcher.Clear();
+		output.Discard();
 		sourceEnded = false;
 		stretcherFlushed = false;
 		endRaised = false;
