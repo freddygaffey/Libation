@@ -35,7 +35,11 @@ struct SpeedStripView: View {
                     Text(state.title).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .font(.system(size: 13))
-                HorizontalSpeedSlider(speed: state.speed, stops: WidgetState.speedStops, barHeight: 7, labelSize: 9, tinted: true)
+                HStack(spacing: 3) {
+                    SpeedStepButton(faster: false, width: 20, height: 18, tinted: true)
+                    HorizontalSpeedSlider(speed: state.speed, stops: WidgetState.speedStops, barHeight: 7, labelSize: 9, tinted: true)
+                    SpeedStepButton(faster: true, width: 20, height: 18, tinted: true)
+                }
             }
         }
     }
@@ -45,7 +49,7 @@ struct SpeedStripWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "LibationSpeedStrip", provider: Provider()) { SpeedStripView(entry: $0) }
             .configurationDisplayName("Speed Strip")
-            .description("A speed slider for the lock screen.")
+            .description("A speed slider for the lock screen, with − and + for 0.1 steps.")
             .supportedFamilies([.accessoryRectangular])
     }
 }

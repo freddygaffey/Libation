@@ -81,20 +81,21 @@ struct SkipButton: View {
     }
 }
 
-/// A + or − speed button.
+/// A + or − speed button: 0.1x a press, for fine adjustment beside the sliders' big jumps.
 struct SpeedStepButton: View {
     let faster: Bool
-    var fine = false
     var width: CGFloat = 44
     var height: CGFloat = 22
+    /// On the lock screen, drawn in the system's tint.
+    var tinted = false
 
     var body: some View {
-        Button(intent: ChangeSpeedIntent(faster: faster, fine: fine)) {
+        Button(intent: ChangeSpeedIntent(faster: faster, fine: true)) {
             Image(systemName: faster ? "plus" : "minus")
                 .font(.system(size: height * 0.55, weight: .bold))
-                .foregroundStyle(Color.paper)
+                .foregroundStyle(tinted ? Color.primary : Color.paper)
                 .frame(width: width, height: height)
-                .background(Capsule().fill(Color.white.opacity(0.12)))
+                .background(Capsule().fill(tinted ? Color.primary.opacity(0.2) : Color.white.opacity(0.12)))
         }
         .buttonStyle(.plain)
     }
@@ -180,6 +181,7 @@ struct VerticalSpeedSlider: View {
     var body: some View {
         let current = currentStop(stops, speed)
         VStack(spacing: 2) {
+            SpeedStepButton(faster: true, width: 58, height: 16)
             ForEach(stops.reversed(), id: \.self) { stop in
                 Button(intent: SetSpeedIntent(speed: stop)) {
                     HStack(spacing: 5) {
@@ -198,6 +200,7 @@ struct VerticalSpeedSlider: View {
                 }
                 .buttonStyle(.plain)
             }
+            SpeedStepButton(faster: false, width: 58, height: 16)
         }
     }
 }

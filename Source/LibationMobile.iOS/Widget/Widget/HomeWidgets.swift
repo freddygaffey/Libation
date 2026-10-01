@@ -54,13 +54,14 @@ struct SpeedDialSmall: View {
     var body: some View {
         WidgetFrame(entry: entry) { state in
             HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Cover(image: entry.cover, size: 54)
+                VStack(alignment: .leading, spacing: 4) {
+                    Cover(image: entry.cover, size: 46)
                     Text(state.title)
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(Color.paper)
-                        .lineLimit(2)
+                        .lineLimit(1)
                     Spacer(minLength: 0)
+                    SpeedLabel(speed: state.speed, size: 13)
                     PlayButton(isPlaying: state.isPlaying, size: 32)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -74,7 +75,7 @@ struct SpeedDialWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "LibationSpeedDial", provider: Provider()) { SpeedDialSmall(entry: $0) }
             .configurationDisplayName("Speed Dial")
-            .description("Tap a speed on the slider.")
+            .description("Tap a speed on the slider, or − and + for 0.1 steps.")
             .supportedFamilies([.systemSmall])
     }
 }
@@ -99,11 +100,11 @@ struct SpeedBarSmall: View {
                 }
                 Spacer(minLength: 4)
                 HStack {
-                    SpeedStepButton(faster: false, fine: true, width: 30, height: 20)
+                    SpeedStepButton(faster: false, width: 30, height: 20)
                     Spacer(minLength: 2)
                     SpeedLabel(speed: state.speed, size: 16)
                     Spacer(minLength: 2)
-                    SpeedStepButton(faster: true, fine: true, width: 30, height: 20)
+                    SpeedStepButton(faster: true, width: 30, height: 20)
                 }
                 Spacer(minLength: 4)
                 HorizontalSpeedSlider(speed: state.speed, stops: WidgetState.speedStops)
@@ -116,7 +117,7 @@ struct SpeedBarWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "LibationSpeedBar", provider: Provider()) { SpeedBarSmall(entry: $0) }
             .configurationDisplayName("Speed Bar")
-            .description("A speed slider, with 0.1 steps either side.")
+            .description("A speed slider, with − and + for 0.1 steps.")
             .supportedFamilies([.systemSmall])
     }
 }
@@ -204,11 +205,11 @@ struct SpeedDeckMedium: View {
                 }
                 Spacer(minLength: 6)
                 HStack {
-                    SpeedStepButton(faster: false, fine: true, width: 40, height: 22)
+                    SpeedStepButton(faster: false, width: 40, height: 22)
                     Spacer()
                     SpeedLabel(speed: state.speed, size: 20)
                     Spacer()
-                    SpeedStepButton(faster: true, fine: true, width: 40, height: 22)
+                    SpeedStepButton(faster: true, width: 40, height: 22)
                 }
                 Spacer(minLength: 6)
                 HorizontalSpeedSlider(speed: state.speed, stops: WidgetState.fineSpeedStops, barHeight: 12, labelSize: 9,
@@ -222,7 +223,7 @@ struct SpeedDeckWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "LibationSpeedDeck", provider: Provider()) { SpeedDeckMedium(entry: $0) }
             .configurationDisplayName("Speed Deck")
-            .description("A long speed slider from 1x to 10x.")
+            .description("A long speed slider from 1x to 10x, with − and + for 0.1 steps.")
             .supportedFamilies([.systemMedium])
     }
 }
@@ -273,9 +274,9 @@ struct FullPlayerLarge: View {
                     Spacer()
                 }
                 HStack(spacing: 6) {
-                    SpeedStepButton(faster: false, fine: true, width: 28, height: 20)
+                    SpeedStepButton(faster: false, width: 28, height: 20)
                     HorizontalSpeedSlider(speed: state.speed, stops: WidgetState.speedStops, barHeight: 8, labelSize: 10)
-                    SpeedStepButton(faster: true, fine: true, width: 28, height: 20)
+                    SpeedStepButton(faster: true, width: 28, height: 20)
                 }
                 if !entry.recent.isEmpty {
                     Divider().overlay(Color.white.opacity(0.15))

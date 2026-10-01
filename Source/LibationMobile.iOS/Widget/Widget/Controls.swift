@@ -36,12 +36,12 @@ struct PauseControl: ControlWidget {
 struct FasterControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "LibationFasterControl") {
-            ControlWidgetButton(action: ChangeSpeedIntent(faster: true)) {
+            ControlWidgetButton(action: ChangeSpeedIntent(faster: true, fine: true)) {
                 Label(WidgetState.load().map { WidgetState.formatSpeed($0.speed) } ?? "Faster", systemImage: "hare.fill")
             }
         }
         .displayName("Faster")
-        .description("Speeds the book up by half.")
+        .description("Speeds the book up by 0.1x.")
     }
 }
 
@@ -49,11 +49,11 @@ struct FasterControl: ControlWidget {
 struct SlowerControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "LibationSlowerControl") {
-            ControlWidgetButton(action: ChangeSpeedIntent(faster: false)) {
+            ControlWidgetButton(action: ChangeSpeedIntent(faster: false, fine: true)) {
                 Label(WidgetState.load().map { WidgetState.formatSpeed($0.speed) } ?? "Slower", systemImage: "tortoise.fill")
             }
         }
         .displayName("Slower")
-        .description("Slows the book down by half.")
+        .description("Slows the book down by 0.1x.")
     }
 }
