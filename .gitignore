@@ -382,5 +382,3 @@ FodyWeavers.xsd
 node_modules
 .vitepress/cache
 .vitepress/dist   
-# Mobile app: a developer's own Audible account export, bundled into Debug builds only. Never commit.
-Source/LibationMobile/DevCredentials/

@@ -29,10 +29,6 @@
 			<TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{StaticResource Lamp}"
 				IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-			<!-- Debug builds with a bundled developer account only. -->
-			<Button Content="Type default credential" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
-				IsVisible="{Binding HasDefaultCredential}" Command="{Binding TypeDefaultCredentialCommand}" />
-
 			<!-- Reuse the sign-in from Libation desktop instead of signing in again. -->
 			<Button Classes="quiet" Padding="0,8" Margin="0,16,0,0" Command="{Binding ToggleImportCommand}">
 				<TextBlock Text="Already use Libation on a computer? Import your account" TextWrapping="Wrap" Foreground="{StaticResource Lamp}" />

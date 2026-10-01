@@ -218,22 +218,6 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	[RelayCommand]
 	private void ToggleImport() => ShowImport = !ShowImport;
 
-	private const string DEFAULT_ACCOUNT_RESOURCE = "DefaultAccount.json";
-
-	/// <summary>A developer's account export bundled into this Debug build, for quick sign-in on emulators.</summary>
-	public bool HasDefaultCredential { get; } = typeof(MainViewModel).Assembly.GetManifestResourceInfo(DEFAULT_ACCOUNT_RESOURCE) is not null;
-
-	[RelayCommand]
-	private void TypeDefaultCredential()
-	{
-		using var stream = typeof(MainViewModel).Assembly.GetManifestResourceStream(DEFAULT_ACCOUNT_RESOURCE);
-		if (stream is null)
-			return;
-		using var reader = new StreamReader(stream);
-		ImportText = reader.ReadToEnd();
-		ShowImport = true;
-	}
-
 	[RelayCommand]
 	private Task ImportAccount() => ImportAccountAsync(ImportText);
 
@@ -507,11 +491,6 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				break;
 			case "annotest" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } book:
 				await RunAnnotationTestAsync(book);
-				break;
-			case "importdefault":
-				TypeDefaultCredential();
-				await ImportAccountAsync(ImportText);
-				Console.WriteLine($"LIBATION_TEST importdefault: error={Error ?? "none"} signedIn={account.IsSignedIn}");
 				break;
 			case "play" when parts.Length > 1 && Library.Find(parts[1]) is { } item:
 				await OpenBookCommand.ExecuteAsync(item);

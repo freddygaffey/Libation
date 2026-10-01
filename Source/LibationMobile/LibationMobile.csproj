@@ -12,12 +12,6 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
-  <!-- A developer's own account export for quick sign-in on emulators. Debug builds only, and only when the
-       git-ignored file exists; see DevCredentials in .gitignore. -->
-  <ItemGroup Condition="'$(Configuration)' == 'Debug' And Exists('DevCredentials\default-account.json')">
-    <EmbeddedResource Include="DevCredentials\default-account.json" LogicalName="DefaultAccount.json" />
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.2" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
