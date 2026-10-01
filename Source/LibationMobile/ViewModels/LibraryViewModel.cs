@@ -290,6 +290,7 @@ public partial class LibraryViewModel : ObservableObject
 	{
 		SetBooks(await catalog.LoadAsync());
 		IsLoaded = true;
+		ResumeDownloads();
 		if (allBooks.Count == 0)
 			await SyncAsync();
 		else
@@ -390,6 +391,16 @@ public partial class LibraryViewModel : ObservableObject
 		}
 	}
 
+	/// <summary>Carry on with downloads that were under way when the app was closed.</summary>
+	private void ResumeDownloads()
+	{
+		foreach (var asin in downloader.PendingDownloads())
+		{
+			if (Find(asin) is { State: DownloadState.NotDownloaded } item)
+				_ = DownloadCommand.ExecuteAsync(item);
+		}
+	}
+
 	[RelayCommand]
 	private void CancelDownload(BookItemViewModel item) => item.DownloadCancellation?.Cancel();
 
@@ -429,38 +440,49 @@ public partial class LibraryViewModel : ObservableObject
 
 	#region Sorting
 
+	public const string SORT_LISTENED = "listened";
+	public const string SORT_FINISHED = "finished";
 	public const string SORT_RECENT = "recent";
 	public const string SORT_TITLE = "title";
 	public const string SORT_AUTHOR = "author";
 	public const string SORT_IN_PROGRESS = "progress";
 
 	private string Sort => settings.LibrarySort ?? SORT_RECENT;
-	public string SortRecentText => SortLabel(SORT_RECENT, "Sort by newest");
-	public string SortTitleText => SortLabel(SORT_TITLE, "Sort by title");
-	public string SortAuthorText => SortLabel(SORT_AUTHOR, "Sort by author");
-	public string SortInProgressText => SortLabel(SORT_IN_PROGRESS, "Sort by in progress first");
-
-	private string SortLabel(string sort, string label) => Sort == sort ? "✓ " + label : label;
+	public bool IsSortListened => Sort == SORT_LISTENED;
+	public bool IsSortFinished => Sort == SORT_FINISHED;
+	public bool IsSortRecent => Sort == SORT_RECENT;
+	public bool IsSortInProgress => Sort == SORT_IN_PROGRESS;
+	public bool IsSortTitle => Sort == SORT_TITLE;
+	public bool IsSortAuthor => Sort == SORT_AUTHOR;
 
 	[RelayCommand]
 	private void SortBy(string sort)
 	{
 		settings.LibrarySort = sort;
-		OnPropertyChanged(nameof(SortRecentText));
-		OnPropertyChanged(nameof(SortTitleText));
-		OnPropertyChanged(nameof(SortAuthorText));
-		OnPropertyChanged(nameof(SortInProgressText));
+		OnPropertyChanged(nameof(IsSortListened));
+		OnPropertyChanged(nameof(IsSortFinished));
+		OnPropertyChanged(nameof(IsSortRecent));
+		OnPropertyChanged(nameof(IsSortInProgress));
+		OnPropertyChanged(nameof(IsSortTitle));
+		OnPropertyChanged(nameof(IsSortAuthor));
 		ApplySort();
 	}
+
+	/// <summary>When the book was last played, here or (through sync) on another device. Oldest for never.</summary>
+	private DateTimeOffset LastListened(BookItemViewModel book)
+		=> book.HasProgress && settings.GetPositionTime(book.Book.Asin) is DateTimeOffset time ? time : DateTimeOffset.MinValue;
 
 	private void ApplySort()
 	{
 		IEnumerable<BookItemViewModel> sorted = Sort switch
 		{
+			SORT_LISTENED => allBooks.OrderByDescending(LastListened).ThenByDescending(b => b.Book.Purchased),
+			// Finished books, the most recently finished first; then the rest, newest first.
+			SORT_FINISHED => allBooks.OrderByDescending(b => b.IsFinished).ThenByDescending(b => b.IsFinished ? LastListened(b) : DateTimeOffset.MinValue).ThenByDescending(b => b.Book.Purchased),
 			SORT_TITLE => allBooks.OrderBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase),
 			SORT_AUTHOR => allBooks.OrderBy(b => b.Author, StringComparer.CurrentCultureIgnoreCase).ThenBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase),
 			// Books part-way through first, the furthest along at the top; then the rest, newest first.
-			SORT_IN_PROGRESS => allBooks.OrderByDescending(b => b.Progress is > 0 and < 1).ThenByDescending(b => b.Progress is > 0 and < 1 ? b.Progress : 0).ThenByDescending(b => b.Book.Purchased),
+			SORT_IN_PROGRESS => allBooks.OrderByDescending(b => b.Progress is > 0 and < 1).ThenByDescending(b => b.Progress is > 0 and < 1 ? LastListened(b) : DateTimeOffset.MinValue).ThenByDescending(b => b.Book.Purchased),
 			_ => allBooks.OrderByDescending(b => b.Book.Purchased)
 		};
 		allBooks = sorted.ToList();
@@ -491,7 +513,7 @@ public partial class LibraryViewModel : ObservableObject
 		item.Book.Length,
 		await catalog.GetCoverAsync(item.Book));
 
-	private void RefreshItem(BookItemViewModel item) => item.Refresh(settings.GetPosition(item.Book.Asin), settings.Speed);
+	private void RefreshItem(BookItemViewModel item) => item.Refresh(settings.GetPosition(item.Book.Asin), settings.GetBookSpeed(item.Book.Asin) ?? settings.Speed);
 
 	private void SetBooks(IReadOnlyList<CatalogBook> books)
 	{

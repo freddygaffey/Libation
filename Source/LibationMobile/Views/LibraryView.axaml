@@ -76,15 +76,11 @@
 			<Button Grid.Column="2" Classes="transport" Width="48" Height="48" Command="{Binding ShowSettingsCommand}" ToolTip.Tip="Settings">
 				<PathIcon Data="{StaticResource IconSettings}" Width="20" Height="20" />
 			</Button>
-			<Button Grid.Column="3" Classes="transport" Width="48" Height="48" ToolTip.Tip="Sort and account">
+			<Button Grid.Column="3" Classes="transport" Width="48" Height="48" ToolTip.Tip="Account">
 				<PathIcon Data="{StaticResource IconMore}" Width="20" Height="20" />
 				<Button.Flyout>
 					<MenuFlyout Placement="BottomEdgeAlignedRight">
 						<MenuItem Header="{Binding AccountText}" IsEnabled="False" />
-						<MenuItem Header="{Binding Library.SortRecentText}" Command="{Binding Library.SortByCommand}" CommandParameter="recent" />
-						<MenuItem Header="{Binding Library.SortInProgressText}" Command="{Binding Library.SortByCommand}" CommandParameter="progress" />
-						<MenuItem Header="{Binding Library.SortTitleText}" Command="{Binding Library.SortByCommand}" CommandParameter="title" />
-						<MenuItem Header="{Binding Library.SortAuthorText}" Command="{Binding Library.SortByCommand}" CommandParameter="author" />
 						<MenuItem Header="Sign out" Command="{Binding SignOutCommand}" />
 					</MenuFlyout>
 				</Button.Flyout>
@@ -92,13 +88,22 @@
 		</Grid>
 
 		<Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" Margin="20,0,12,8">
-			<TextBox Text="{Binding Library.SearchText}" PlaceholderText="Search titles, authors, narrators" />
+			<TextBox Name="searchBox" Text="{Binding Library.SearchText}" PlaceholderText="Search titles, authors, narrators" />
 			<Button Grid.Column="1" Classes="quiet" Content="Clear" Padding="10,8" Margin="8,0,0,0"
 				IsVisible="{Binding Library.IsSearching}" Command="{Binding Library.ClearSearchCommand}" />
-			<Button Grid.Column="2" Classes="quiet" Classes.lit="{Binding Library.HasActiveFilters}" Content="{Binding Library.FilterButtonText}" Padding="10,8" Margin="8,0,0,0"
+			<Button Grid.Column="2" Classes="quiet" Classes.lit="{Binding Library.HasActiveFilters}" Content="{Binding Library.FilterButtonText}" ToolTip.Tip="Filter and sort" Padding="10,8" Margin="8,0,0,0"
 				Command="{Binding Library.ToggleFilterPanelCommand}" />
 			<!-- Narrow the list: by how far through, by length, and by whether the book is part of a series. -->
 			<StackPanel Grid.Row="1" Grid.ColumnSpan="3" Spacing="4" Margin="0,10,0,0" IsVisible="{Binding Library.IsFilterPanelOpen}">
+				<TextBlock Classes="muted" Text="Sort by" FontSize="12" />
+				<WrapPanel>
+					<Button Classes="chip" Classes.selected="{Binding Library.IsSortListened}" Content="Last listened" Command="{Binding Library.SortByCommand}" CommandParameter="listened" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsSortFinished}" Content="Recently finished" Command="{Binding Library.SortByCommand}" CommandParameter="finished" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsSortRecent}" Content="Newest" Command="{Binding Library.SortByCommand}" CommandParameter="recent" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsSortInProgress}" Content="In progress" Command="{Binding Library.SortByCommand}" CommandParameter="progress" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsSortTitle}" Content="Title" Command="{Binding Library.SortByCommand}" CommandParameter="title" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsSortAuthor}" Content="Author" Command="{Binding Library.SortByCommand}" CommandParameter="author" />
+				</WrapPanel>
 				<TextBlock Classes="muted" Text="Listening" FontSize="12" />
 				<WrapPanel>
 					<Button Classes="chip" Classes.selected="{Binding Library.IsProgressAny}" Content="Any" Command="{Binding Library.SetProgressFilterCommand}" CommandParameter="any" />
@@ -159,7 +164,7 @@
 		</StackPanel>
 
 		<!-- ListBox virtualizes: only rows on screen are built, which matters for libraries of hundreds of books. -->
-		<ListBox Grid.Row="4" Classes="books" ItemsSource="{Binding Library.Books}" SelectionMode="Single" Background="Transparent">
+		<ListBox Grid.Row="4" Name="bookList" Classes="books" ItemsSource="{Binding Library.Books}" SelectionMode="Single" Background="Transparent">
 				<ListBox.ItemTemplate>
 					<DataTemplate x:DataType="vm:BookItemViewModel">
 						<Grid ColumnDefinitions="*,Auto,Auto">

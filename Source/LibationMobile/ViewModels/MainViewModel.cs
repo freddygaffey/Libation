@@ -474,6 +474,15 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				// Shows the player without playing: playback reports a position to Audible, which a look at the screen must not.
 				await LoadAsync(openBook, showNowPlaying: true);
 				break;
+			case "download" when parts.Length > 1 && Library.Find(parts[1]) is { IsNotDownloaded: true } downloadBook:
+				// Starts a download and logs its progress, to check it carries on with the app in the background.
+				downloadBook.PropertyChanged += (_, e) =>
+				{
+					if (e.PropertyName is nameof(BookItemViewModel.State) or nameof(BookItemViewModel.StatusText))
+						Console.WriteLine($"LIBATION_TEST download {DateTime.Now:HH:mm:ss}: {downloadBook.State} {downloadBook.StatusText}");
+				};
+				_ = Library.DownloadCommand.ExecuteAsync(downloadBook);
+				break;
 			case "settings":
 				ShowSettings();
 				break;

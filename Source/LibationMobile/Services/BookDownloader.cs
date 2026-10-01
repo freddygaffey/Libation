@@ -30,8 +30,33 @@ public class BookDownloader
 		this.settings = settings;
 	}
 
+	/// <summary>Marks a book whose download has started and not finished, so it can be picked up after a restart.</summary>
+	private string PendingPath(string asin) => Path.Combine(catalog.BooksDirectory, asin + ".pending");
+
+	/// <summary>Books whose download was interrupted by the app closing.</summary>
+	public IEnumerable<string> PendingDownloads()
+		=> Directory.EnumerateFiles(catalog.BooksDirectory, "*.pending").Select(Path.GetFileNameWithoutExtension).OfType<string>();
+
 	/// <param name="progress">Reports 0 to 1.</param>
 	public async Task DownloadAsync(Api api, CatalogBook book, IProgress<double> progress, CancellationToken token)
+	{
+		// iOS gives a little time to finish after the app leaves the screen; the file itself downloads in the
+		// system's background session, which carries on beyond that.
+		using var backgroundWork = FileTransfer.BeginBackgroundWork($"Download {book.Asin}");
+		File.WriteAllText(PendingPath(book.Asin), "");
+		try
+		{
+			await DownloadAndDecryptAsync(api, book, progress, token);
+			File.Delete(PendingPath(book.Asin));
+		}
+		catch (OperationCanceledException)
+		{
+			File.Delete(PendingPath(book.Asin));
+			throw;
+		}
+	}
+
+	private async Task DownloadAndDecryptAsync(Api api, CatalogBook book, IProgress<double> progress, CancellationToken token)
 	{
 		var license = await api.GetDownloadLicenseAsync(book.Asin, settings.HighQualityDownloads ? DownloadQuality.High : DownloadQuality.Normal);
 		// Needed later to report the listening position for this book.
@@ -45,7 +70,22 @@ public class BookDownloader
 		var encrypted = Path.Combine(catalog.BooksDirectory, book.Asin + ".aaxc");
 		var decrypted = catalog.BookPath(book.Asin) + ".partial";
 
-		await DownloadFileAsync(url, encrypted, p => progress.Report(p * DOWNLOAD_SHARE), token);
+		var transferred = false;
+		if (FileTransfer.Platform is { } transfer)
+		{
+			try
+			{
+				await transfer.DownloadAsync(new Uri(url), encrypted, DeviceRegistrationProfile.Default.DownloadUserAgent, p => progress.Report(p * DOWNLOAD_SHARE), token);
+				transferred = true;
+			}
+			catch (IOException ex)
+			{
+				// The system's background downloader can be unavailable; download in the app instead, as before.
+				Console.WriteLine($"Background download of {book.Asin} failed, downloading in the app: {ex.Message}");
+			}
+		}
+		if (!transferred)
+			await DownloadFileAsync(url, encrypted, p => progress.Report(p * DOWNLOAD_SHARE), token);
 
 		try
 		{

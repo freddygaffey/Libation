@@ -141,7 +141,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			if (Math.Abs(speed - player.Speed) < 0.001)
 				return;
 			player.Speed = (float)speed;
-			settings.Speed = (float)speed;
+			settings.SetBookSpeed(Book.Id, (float)speed);
 			OnPropertyChanged();
 			OnPropertyChanged(nameof(SpeedText));
 			OnPropertyChanged(nameof(RemainingText));
@@ -184,7 +184,8 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		ChapterRows = chapters.Select((c, i) => new ChapterRowViewModel(i + 1, c)).ToList();
 		Cover = LoadCover(book.Cover, 900);
 
-		player.Speed = settings.Speed;
+		// Each book keeps its own speed; one not played before starts at the speed last used.
+		player.Speed = settings.GetBookSpeed(book.Id) ?? settings.Speed;
 		player.PlaybackEnded += (_, _) => Dispatcher.UIThread.Post(OnPlaybackEnded);
 		if (settings.GetPosition(book.Id) is TimeSpan saved && saved < Duration - FinishedThreshold)
 			player.Seek(saved);

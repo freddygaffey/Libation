@@ -34,6 +34,7 @@ public class MobileSettings
 		public bool UseNonlinearSpeed { get; set; } = true;
 		public string? LibrarySort { get; set; }
 		public bool ScrubByChapter { get; set; } = true;
+		public Dictionary<string, float> BookSpeeds { get; set; } = new();
 		public double BookSecondsHeard { get; set; }
 		public double SecondsSpentListening { get; set; }
 		public DateTimeOffset? ListeningCountedSince { get; set; }
@@ -74,6 +75,24 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.Speed; }
 		set { lock (locker) { state.Speed = value; Save(); } }
+	}
+
+	/// <summary>The speed this book was last played at. Null for a book not played here yet, which starts at <see cref="Speed"/>.</summary>
+	public float? GetBookSpeed(string bookId)
+	{
+		lock (locker)
+			return state.BookSpeeds.TryGetValue(bookId, out var speed) ? speed : null;
+	}
+
+	/// <summary>Remember this book's speed, and make it the speed new books start at.</summary>
+	public void SetBookSpeed(string bookId, float speed)
+	{
+		lock (locker)
+		{
+			state.BookSpeeds[bookId] = speed;
+			state.Speed = speed;
+			Save();
+		}
 	}
 
 	/// <summary>The book that was last opened, to restore the mini player on launch.</summary>

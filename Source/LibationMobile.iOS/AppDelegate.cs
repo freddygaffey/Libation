@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.iOS;
 using Foundation;
+using System;
 using LibationMobile.Services;
 
 namespace LibationMobile.iOS;
@@ -17,6 +18,19 @@ public partial class AppDelegate : AvaloniaAppDelegate<App>
 		AudioBackend.OpenSource = path => new AppleAudioFileSource(path);
 		AudioBackend.CreateOutput = (sampleRate, channels, render) => new AppleAudioOutput(sampleRate, channels, render);
 		MediaSession.Platform = new AppleMediaSession();
+		// Created at launch, so a download that finished while the app was closed is delivered.
+		FileTransfer.Platform = new AppleFileTransfer();
+		FileTransfer.BackgroundWork = new AppleBackgroundWork();
 		return base.CustomizeAppBuilder(builder).WithInterFont();
+	}
+
+	/// <summary>iOS woke the app because the background download session has news.</summary>
+	[Export("application:handleEventsForBackgroundURLSession:completionHandler:")]
+	public void HandleEventsForBackgroundUrl(UIKit.UIApplication application, string sessionIdentifier, Action completionHandler)
+	{
+		if (sessionIdentifier == AppleFileTransfer.SESSION_ID)
+			AppleFileTransfer.BackgroundEventsHandled = completionHandler;
+		else
+			completionHandler();
 	}
 }
