@@ -2,7 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Shared with the home-screen widget (Widget/). Being first, it is also where the app's keychain items go. -->
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)io.github.freddygaffey.libation.shared</string>

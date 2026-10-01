@@ -1,0 +1,50 @@
+# The home-screen widget, and what the .NET app needs from Swift to drive it. build-widget.sh generates this
+# project with xcodegen and builds it; the app's csproj embeds the results.
+#
+# The app and the widget share what is playing through a keychain group of the developer team, which every
+# development profile allows, so no App Group has to be registered.
+name: LibationWidget
+options:
+  bundleIdPrefix: io.github.freddygaffey
+settings:
+  base:
+    APP_BUNDLE_ID: io.github.freddygaffey.libation
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  LibationWidgetExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Widget, Shared]
+    entitlements:
+      path: Widget/Widget.entitlements
+      properties:
+        keychain-access-groups: [$(AppIdentifierPrefix)io.github.freddygaffey.libation.shared]
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Libation
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LibationKeychainGroup: $(AppIdentifierPrefix)io.github.freddygaffey.libation.shared
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).widget
+        PRODUCT_NAME: LibationWidgetExtension
+  # Lets the app ask WidgetKit to redraw, which only Swift can do.
+  LibationWidgetBridge:
+    type: framework
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources: [Bridge]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).widgetbridge
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        SKIP_INSTALL: YES

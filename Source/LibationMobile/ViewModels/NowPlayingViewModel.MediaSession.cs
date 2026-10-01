@@ -12,6 +12,7 @@ public partial class NowPlayingViewModel
 
 	private void StartMediaSession()
 	{
+		StartHomeWidget();
 		mediaSession = MediaSession.Platform;
 		if (mediaSession is null)
 			return;
@@ -29,6 +30,8 @@ public partial class NowPlayingViewModel
 
 	private void StopMediaSession()
 	{
+		if (HomeWidget.Platform is { } widget)
+			widget.SpeedRequested -= OnWidgetSpeedRequested;
 		if (mediaSession is null)
 			return;
 
@@ -62,6 +65,7 @@ public partial class NowPlayingViewModel
 
 	private void UpdateMediaSession()
 	{
+		UpdateHomeWidget();
 		if (mediaSession is null)
 			return;
 		// A new chapter, or the setting changed: the lock screen needs the new span before the new position.
@@ -72,6 +76,29 @@ public partial class NowPlayingViewModel
 		}
 		mediaSession.Update(player.Position - ScrubberStart, Speed, player.IsPlaying);
 	}
+
+	/// <summary>The home-screen widget: shows this book, and changes its speed.</summary>
+	private void StartHomeWidget()
+	{
+		if (HomeWidget.Platform is not { } widget)
+			return;
+		// Changed on the widget while the book was not open.
+		if (widget.TakePendingSpeed(Book.Id) is double speed)
+			Speed = speed;
+		widget.SpeedRequested += OnWidgetSpeedRequested;
+		UpdateHomeWidget();
+	}
+
+	private void UpdateHomeWidget()
+		=> HomeWidget.Platform?.Show(new WidgetInfo(Book.Id, Title, Author, Book.Cover, Duration - player.Position, Speed, player.IsPlaying));
+
+	private void OnWidgetSpeedRequested(string bookId, double speed) => OnUi(() =>
+	{
+		if (bookId == Book.Id)
+			Speed = speed;
+		else
+			settings.SetBookSpeed(bookId, (float)speed);
+	});
 
 	// The system raises these on its own thread; the player is only touched from the UI thread.
 	private void OnUi(Action action) => Dispatcher.UIThread.Post(() =>

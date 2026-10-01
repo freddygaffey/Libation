@@ -17,7 +17,9 @@ public partial class AppDelegate : AvaloniaAppDelegate<App>
 		// and it works in the simulator, which SoundFlow's native libraries do not.
 		AudioBackend.OpenSource = path => new AppleAudioFileSource(path);
 		AudioBackend.CreateOutput = (sampleRate, channels, render) => new AppleAudioOutput(sampleRate, channels, render);
-		MediaSession.Platform = new AppleMediaSession();
+		var mediaSession = new AppleMediaSession();
+		MediaSession.Platform = mediaSession;
+		HomeWidget.Platform = new AppleHomeWidget(mediaSession);
 		// Created at launch, so a download that finished while the app was closed is delivered.
 		FileTransfer.Platform = new AppleFileTransfer();
 		FileTransfer.BackgroundWork = new AppleBackgroundWork();

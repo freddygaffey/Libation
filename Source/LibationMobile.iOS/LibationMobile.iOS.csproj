@@ -35,6 +35,26 @@
     <PackageReference Include="Devlooped.CredentialManager" Version="2.7.0" ExcludeAssets="all" />
   </ItemGroup>
 
+  <!-- The home-screen widget, from Widget/build-widget.sh. Left out when that has not been run, such as on a
+       machine without Xcode's signing set up; the app then runs without it. -->
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Widget/**</DefaultItemExcludes>
+    <_WidgetProducts>$(MSBuildThisFileDirectory)Widget/build/Build/Products</_WidgetProducts>
+    <_WidgetPlatform Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">Release-iphoneos</_WidgetPlatform>
+    <_WidgetPlatform Condition="'$(RuntimeIdentifier)' != 'ios-arm64'">Release-iphonesimulator</_WidgetPlatform>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(_WidgetProducts)/$(_WidgetPlatform)/LibationWidgetExtension.appex') And Exists('$(_WidgetProducts)/$(_WidgetPlatform)/LibationWidgetBridge.framework')">
+    <AdditionalAppExtensions Include="$(_WidgetProducts)">
+      <Name>LibationWidgetExtension</Name>
+      <BuildOutput>$(_WidgetPlatform)</BuildOutput>
+      <CodesignEntitlements Condition="'$(_WidgetPlatform)' == 'Release-iphoneos'">$(_WidgetProducts)/LibationWidgetExtension.entitlements</CodesignEntitlements>
+    </AdditionalAppExtensions>
+    <NativeReference Include="$(_WidgetProducts)/$(_WidgetPlatform)/LibationWidgetBridge.framework">
+      <Kind>Framework</Kind>
+      <SmartLink>False</SmartLink>
+    </NativeReference>
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\LibationMobile\LibationMobile.csproj" />
   </ItemGroup>

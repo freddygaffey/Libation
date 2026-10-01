@@ -382,3 +382,7 @@ FodyWeavers.xsd
 node_modules
 .vitepress/cache
 .vitepress/dist   
+
+# The widget's generated Xcode project and build output (see LibationMobile.iOS/Widget/build-widget.sh)
+Source/LibationMobile.iOS/Widget/build/
+Source/LibationMobile.iOS/Widget/LibationWidget.xcodeproj/

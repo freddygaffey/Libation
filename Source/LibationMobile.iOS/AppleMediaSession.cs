@@ -31,7 +31,7 @@ public sealed class AppleMediaSession : IMediaSession
 	{
 		var commands = MPRemoteCommandCenter.Shared;
 		Handle(commands.PlayCommand, RequestPlay);
-		Handle(commands.PauseCommand, () => PauseRequested?.Invoke());
+		Handle(commands.PauseCommand, RequestPause);
 		Handle(commands.TogglePlayPauseCommand, () =>
 		{
 			// Before a book is loaded, toggling can only mean play.
@@ -84,12 +84,19 @@ public sealed class AppleMediaSession : IMediaSession
 	/// Play, or remember to once a book is loaded: when iOS has closed the app, pressing play on the lock screen
 	/// relaunches it, and the press arrives before the last book has been opened.
 	/// </summary>
-	private void RequestPlay()
+	public void RequestPlay()
 	{
 		if (PlayRequested is null)
 			pendingPlay = true;
 		else
 			PlayRequested.Invoke();
+	}
+
+	/// <summary>Pause, if anything is playing. Also from the home-screen widget.</summary>
+	public void RequestPause()
+	{
+		pendingPlay = false;
+		PauseRequested?.Invoke();
 	}
 
 	public bool TakePendingPlay()
