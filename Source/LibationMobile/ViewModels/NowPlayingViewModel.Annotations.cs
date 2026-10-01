@@ -246,7 +246,11 @@ public partial class NowPlayingViewModel
 	/// or added bookmarks, since.
 	/// </summary>
 	/// <summary>Pick up a change made on the settings page.</summary>
-	public void SettingsChanged() => OnPropertyChanged(nameof(SkipText));
+	public void SettingsChanged()
+	{
+		OnPropertyChanged(nameof(SkipText));
+		RefreshScrubber();
+	}
 
 	public void RefreshFromAudible()
 	{

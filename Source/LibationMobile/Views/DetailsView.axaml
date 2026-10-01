@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             x:Class="LibationMobile.Views.DetailsView"
+             x:DataType="vm:MainViewModel"
+             Background="{StaticResource Ink}">
+
+	<UserControl.Styles>
+		<Style Selector="Button.row:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.row:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Hairline}" />
+		</Style>
+	</UserControl.Styles>
+
+	<Grid RowDefinitions="Auto,*">
+		<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
+			<Button Classes="transport" Width="48" Height="48" Command="{Binding GoToLibraryCommand}" ToolTip.Tip="Back to library">
+				<PathIcon Data="{StaticResource IconChevronDown}" />
+			</Button>
+			<TextBlock Grid.Column="1" Classes="bookTitle" Text="Details" FontSize="22" VerticalAlignment="Center" Margin="4,0,0,0" />
+		</Grid>
+
+		<ScrollViewer Grid.Row="1">
+			<StackPanel Margin="0,8,0,32" DataContext="{Binding Details}" x:DataType="vm:BookDetailsViewModel">
+				<Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" Margin="24,0">
+					<Border Width="112" Height="112" CornerRadius="4" ClipToBounds="True" Background="{StaticResource Slate}" VerticalAlignment="Top">
+						<Image Source="{Binding Item.Cover}" Stretch="UniformToFill" />
+					</Border>
+					<StackPanel Grid.Column="1" Spacing="3">
+						<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="20" TextWrapping="Wrap" />
+						<TextBlock Classes="muted" Text="{Binding Subtitle}" FontSize="13" TextWrapping="Wrap" IsVisible="{Binding HasSubtitle}" />
+						<TextBlock Text="{Binding Author}" FontSize="14" TextWrapping="Wrap" />
+						<TextBlock Classes="muted" Text="{Binding NarratorText}" FontSize="13" TextWrapping="Wrap" />
+						<TextBlock Classes="muted" Text="{Binding LengthText}" FontSize="13" />
+					</StackPanel>
+				</Grid>
+
+				<Button Margin="24,16,24,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,14"
+					Background="{StaticResource Lamp}" Foreground="{StaticResource Ink}" FontWeight="SemiBold"
+					Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).OpenDetailsBookCommand}">
+					<Panel>
+						<TextBlock Text="Play" Foreground="{StaticResource Ink}" IsVisible="{Binding Item.IsDownloaded}" />
+						<TextBlock Text="Download" Foreground="{StaticResource Ink}" IsVisible="{Binding Item.IsNotDownloaded}" />
+						<TextBlock Text="{Binding Item.StatusText}" Foreground="{StaticResource Ink}" IsVisible="{Binding Item.IsDownloading}" />
+					</Panel>
+				</Button>
+
+				<Button Classes="quiet" Content="Open the PDF that comes with this book" Margin="24,10,24,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,12"
+					IsVisible="{Binding HasPdf}" Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).OpenPdfCommand}" />
+
+				<ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" Margin="24,24,24,0" Foreground="{StaticResource Lamp}" />
+				<TextBlock Classes="muted" Text="{Binding Message}" FontSize="13" TextWrapping="Wrap" Margin="24,20,24,0"
+					IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+				<!-- The rest of the series: what is already owned, and what is not, which opens in the Audible store. -->
+				<ItemsControl ItemsSource="{Binding Series}">
+					<ItemsControl.ItemTemplate>
+						<DataTemplate x:DataType="vm:SeriesSectionViewModel">
+							<StackPanel Margin="0,24,0,0">
+								<TextBlock Text="{Binding Name}" FontFamily="{StaticResource DisplayFont}" FontSize="20" TextWrapping="Wrap" Margin="24,0" />
+								<TextBlock Classes="muted" Text="{Binding CountText}" FontSize="13" Margin="24,2,24,8" />
+								<ItemsControl ItemsSource="{Binding Rows}">
+									<ItemsControl.ItemTemplate>
+										<DataTemplate x:DataType="vm:SeriesRowViewModel">
+											<Button Classes="row" Background="Transparent" CornerRadius="0" Padding="24,10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+												BorderThickness="0,0,0,1" BorderBrush="{StaticResource Hairline}"
+												Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).OpenSeriesBookCommand}" CommandParameter="{Binding}">
+												<Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+													<Border Width="52" Height="52" CornerRadius="3" ClipToBounds="True" Background="{StaticResource Slate}">
+														<Image Source="{Binding Cover}" Stretch="UniformToFill" />
+													</Border>
+													<StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+														<TextBlock Classes="muted" Text="{Binding SequenceText}" FontSize="12" />
+														<TextBlock Text="{Binding Title}" FontSize="15" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+														<TextBlock Classes="muted" Text="{Binding StatusText}" FontSize="12" />
+													</StackPanel>
+													<TextBlock Grid.Column="2" Text="Get on Audible" FontSize="13" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" IsVisible="{Binding IsNotOwned}" />
+												</Grid>
+											</Button>
+										</DataTemplate>
+									</ItemsControl.ItemTemplate>
+								</ItemsControl>
+							</StackPanel>
+						</DataTemplate>
+					</ItemsControl.ItemTemplate>
+				</ItemsControl>
+
+				<TextBlock Text="About this book" FontFamily="{StaticResource DisplayFont}" FontSize="20" Margin="24,28,24,8" IsVisible="{Binding HasSummary}" />
+				<TextBlock Classes="muted" Text="{Binding Summary}" FontSize="14" TextWrapping="Wrap" LineHeight="21" Margin="24,0" IsVisible="{Binding HasSummary}" />
+			</StackPanel>
+		</ScrollViewer>
+	</Grid>
+</UserControl>

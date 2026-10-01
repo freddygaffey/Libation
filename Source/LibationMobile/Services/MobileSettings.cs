@@ -33,6 +33,7 @@ public class MobileSettings
 		public float Nonlinearity { get; set; } = 1f;
 		public bool UseNonlinearSpeed { get; set; } = true;
 		public string? LibrarySort { get; set; }
+		public bool ScrubByChapter { get; set; } = true;
 		public double BookSecondsHeard { get; set; }
 		public double SecondsSpentListening { get; set; }
 		public DateTimeOffset? ListeningCountedSince { get; set; }
@@ -94,6 +95,13 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.SkipSeconds; }
 		set { lock (locker) { state.SkipSeconds = value; Save(); } }
+	}
+
+	/// <summary>Whether the player's progress bar covers the chapter playing now (true) or the whole book.</summary>
+	public bool ScrubByChapter
+	{
+		get { lock (locker) return state.ScrubByChapter; }
+		set { lock (locker) { state.ScrubByChapter = value; Save(); } }
 	}
 
 	/// <summary>How long a new clip starts out, in seconds.</summary>

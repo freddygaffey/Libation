@@ -6,6 +6,26 @@
              x:DataType="vm:MainViewModel">
 
 	<UserControl.Styles>
+		<!-- Filter choices: small pills, the chosen one lit. -->
+		<Style Selector="Button.chip">
+			<Setter Property="Background" Value="{StaticResource Slate}" />
+			<Setter Property="Foreground" Value="{StaticResource Paper}" />
+			<Setter Property="Padding" Value="12,7" />
+			<Setter Property="Margin" Value="0,0,8,8" />
+			<Setter Property="CornerRadius" Value="16" />
+			<Setter Property="FontSize" Value="13" />
+		</Style>
+		<Style Selector="Button.chip.selected">
+			<Setter Property="Background" Value="{StaticResource Lamp}" />
+			<Setter Property="Foreground" Value="{StaticResource Ink}" />
+		</Style>
+		<Style Selector="Button.chip:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="{Binding $parent[Button].Background}" />
+			<Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}" />
+		</Style>
+		<Style Selector="Button.quiet.lit">
+			<Setter Property="Foreground" Value="{StaticResource Lamp}" />
+		</Style>
 		<!-- The All / Downloaded filter: plain text, the chosen one lit and underlined. -->
 		<Style Selector="Button.filter">
 			<Setter Property="Background" Value="Transparent" />
@@ -42,7 +62,7 @@
 		</Style>
 	</UserControl.Styles>
 
-	<Grid RowDefinitions="Auto,Auto,Auto,*">
+	<Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
 
 		<Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" Margin="20,16,8,4">
 			<TextBlock Classes="bookTitle" Text="Library" FontSize="30" VerticalAlignment="Center" />
@@ -71,33 +91,75 @@
 			</Button>
 		</Grid>
 
-		<StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,20,4">
+		<Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" Margin="20,0,12,8">
+			<TextBox Text="{Binding Library.SearchText}" PlaceholderText="Search titles, authors, narrators" />
+			<Button Grid.Column="1" Classes="quiet" Content="Clear" Padding="10,8" Margin="8,0,0,0"
+				IsVisible="{Binding Library.IsSearching}" Command="{Binding Library.ClearSearchCommand}" />
+			<Button Grid.Column="2" Classes="quiet" Classes.lit="{Binding Library.HasActiveFilters}" Content="{Binding Library.FilterButtonText}" Padding="10,8" Margin="8,0,0,0"
+				Command="{Binding Library.ToggleFilterPanelCommand}" />
+			<!-- Narrow the list: by how far through, by length, and by whether the book is part of a series. -->
+			<StackPanel Grid.Row="1" Grid.ColumnSpan="3" Spacing="4" Margin="0,10,0,0" IsVisible="{Binding Library.IsFilterPanelOpen}">
+				<TextBlock Classes="muted" Text="Listening" FontSize="12" />
+				<WrapPanel>
+					<Button Classes="chip" Classes.selected="{Binding Library.IsProgressAny}" Content="Any" Command="{Binding Library.SetProgressFilterCommand}" CommandParameter="any" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsProgressNotStarted}" Content="Not started" Command="{Binding Library.SetProgressFilterCommand}" CommandParameter="notstarted" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsProgressStarted}" Content="In progress" Command="{Binding Library.SetProgressFilterCommand}" CommandParameter="started" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsProgressFinished}" Content="Finished" Command="{Binding Library.SetProgressFilterCommand}" CommandParameter="finished" />
+				</WrapPanel>
+				<TextBlock Classes="muted" Text="Length" FontSize="12" />
+				<WrapPanel>
+					<Button Classes="chip" Classes.selected="{Binding Library.IsLengthAny}" Content="Any" Command="{Binding Library.SetLengthFilterCommand}" CommandParameter="any" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsLengthShort}" Content="Under 5 h" Command="{Binding Library.SetLengthFilterCommand}" CommandParameter="short" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsLengthMedium}" Content="5 to 15 h" Command="{Binding Library.SetLengthFilterCommand}" CommandParameter="medium" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsLengthLong}" Content="Over 15 h" Command="{Binding Library.SetLengthFilterCommand}" CommandParameter="long" />
+				</WrapPanel>
+				<TextBlock Classes="muted" Text="Series and extras" FontSize="12" />
+				<WrapPanel>
+					<Button Classes="chip" Classes.selected="{Binding Library.IsSeriesAny}" Content="Any" Command="{Binding Library.SetSeriesFilterCommand}" CommandParameter="any" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsSeriesOnly}" Content="In a series" Command="{Binding Library.SetSeriesFilterCommand}" CommandParameter="series" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsStandaloneOnly}" Content="Standalone" Command="{Binding Library.SetSeriesFilterCommand}" CommandParameter="standalone" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsPdfOnly}" Content="Has a PDF" Command="{Binding Library.TogglePdfFilterCommand}" />
+				</WrapPanel>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+					<TextBlock Classes="muted" Text="{Binding Library.ResultCountText}" FontSize="13" VerticalAlignment="Center" />
+					<Button Grid.Column="1" Classes="quiet" Content="Clear all" Padding="10,6" Command="{Binding Library.ClearFiltersCommand}" />
+				</Grid>
+			</StackPanel>
+		</Grid>
+
+		<StackPanel Grid.Row="2" Orientation="Horizontal" Margin="20,0,20,4">
 			<Button Classes="filter" Classes.selected="{Binding Library.ShowAll}" Content="All" Command="{Binding Library.ShowAllBooksCommand}" />
 			<Button Classes="filter" Classes.selected="{Binding Library.ShowDownloadedOnly}" Content="Downloaded" Command="{Binding Library.ShowDownloadedBooksCommand}" />
 		</StackPanel>
 
 		<TextBlock
-			Grid.Row="2"
+			Grid.Row="3"
 			Margin="20,4,20,8"
 			Classes="muted"
 			Text="{Binding Library.Message}"
 			IsVisible="{Binding Library.Message, Converter={x:Static ObjectConverters.IsNotNull}}"
 			TextWrapping="Wrap" />
 
-		<StackPanel Grid.Row="3" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding Library.IsLibraryEmpty}">
+		<StackPanel Grid.Row="4" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding Library.IsLibraryEmpty}">
 			<TextBlock Classes="bookTitle" Text="Your library is empty" FontSize="20" />
 			<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
 				Text="Books you buy on Audible appear here. Pull them in with Refresh library." />
 		</StackPanel>
 
-		<StackPanel Grid.Row="3" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding Library.IsDownloadedEmpty}">
+		<StackPanel Grid.Row="4" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding Library.IsSearchEmpty}">
+			<TextBlock Classes="bookTitle" Text="No books match" FontSize="20" />
+			<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
+				Text="Try fewer words or fewer filters." />
+		</StackPanel>
+
+		<StackPanel Grid.Row="4" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding Library.IsDownloadedEmpty}">
 			<TextBlock Classes="bookTitle" Text="Nothing downloaded yet" FontSize="20" />
 			<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
 				Text="Tap the arrow next to a book in All to download it and listen offline." />
 		</StackPanel>
 
 		<!-- ListBox virtualizes: only rows on screen are built, which matters for libraries of hundreds of books. -->
-		<ListBox Grid.Row="3" Classes="books" ItemsSource="{Binding Library.Books}" SelectionMode="Single" Background="Transparent">
+		<ListBox Grid.Row="4" Classes="books" ItemsSource="{Binding Library.Books}" SelectionMode="Single" Background="Transparent">
 				<ListBox.ItemTemplate>
 					<DataTemplate x:DataType="vm:BookItemViewModel">
 						<Grid ColumnDefinitions="*,Auto,Auto">
@@ -162,6 +224,8 @@
 								<PathIcon Data="{StaticResource IconMore}" Width="18" Height="18" Foreground="{StaticResource Dust}" />
 								<Button.Flyout>
 									<MenuFlyout Placement="BottomEdgeAlignedRight">
+										<MenuItem Header="Details and series"
+											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).ShowDetailsCommand}" CommandParameter="{Binding}" />
 										<MenuItem Header="Play from the start" IsVisible="{Binding IsDownloaded}"
 											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).PlayFromStartCommand}" CommandParameter="{Binding}" />
 										<MenuItem Header="Mark as finished" IsVisible="{Binding IsNotFinished}"

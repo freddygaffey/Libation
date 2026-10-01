@@ -21,9 +21,20 @@ public enum DownloadState
 /// <summary>One title in the library list.</summary>
 public partial class BookItemViewModel : ObservableObject
 {
-	public CatalogBook Book { get; }
+	public CatalogBook Book { get; private set; }
 	public string Title => Book.Title;
 	public string Author => Book.Authors;
+	public string SearchableText { get; private set; }
+
+	/// <summary>Take what a library refresh says about this book, keeping the row and any download in progress.</summary>
+	public void Update(CatalogBook book)
+	{
+		if (Book == book)
+			return;
+		Book = book;
+		SearchableText = $"{book.Title} {book.Subtitle} {book.Authors} {book.Narrators}";
+		OnPropertyChanged(string.Empty);
+	}
 
 	private readonly Func<CatalogBook, Task<byte[]?>> loadCoverBytes;
 	private Bitmap? cover;
@@ -83,6 +94,7 @@ public partial class BookItemViewModel : ObservableObject
 	public BookItemViewModel(CatalogBook book, DownloadState state, Func<CatalogBook, Task<byte[]?>> loadCoverBytes)
 	{
 		Book = book;
+		SearchableText = $"{book.Title} {book.Subtitle} {book.Authors} {book.Narrators}";
 		this.state = state;
 		this.loadCoverBytes = loadCoverBytes;
 	}
@@ -126,12 +138,120 @@ public partial class LibraryViewModel : ObservableObject
 
 	/// <summary>The books shown, after the All / Downloaded filter. Replaced as a whole when the filter changes.</summary>
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsDownloadedEmpty))]
+	[NotifyPropertyChangedFor(nameof(IsDownloadedEmpty), nameof(IsSearchEmpty), nameof(ResultCountText))]
 	private IReadOnlyList<BookItemViewModel> books = [];
 
 	[ObservableProperty]
 	[NotifyPropertyChangedFor(nameof(ShowAll))]
 	private bool showDownloadedOnly;
+
+	/// <summary>Words to find in titles, authors and narrators. Empty shows everything.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsSearching), nameof(IsSearchEmpty), nameof(IsDownloadedEmpty))]
+	private string? searchText;
+
+	public bool IsSearching => !string.IsNullOrWhiteSpace(SearchText);
+	public bool IsSearchEmpty => (IsSearching || HasActiveFilters) && Books.Count == 0;
+
+	partial void OnSearchTextChanged(string? value) => ApplyFilter();
+
+	[RelayCommand]
+	private void ClearSearch() => SearchText = null;
+
+	#region Filters
+
+	/// <summary>Whether the filter choices are showing under the search box.</summary>
+	[ObservableProperty]
+	private bool isFilterPanelOpen;
+
+	[RelayCommand]
+	private void ToggleFilterPanel() => IsFilterPanelOpen = !IsFilterPanelOpen;
+
+	// Each filter is one of a few named choices; "any" leaves the list alone.
+	private string progressFilter = "any";
+	private string lengthFilter = "any";
+	private string seriesFilter = "any";
+	private bool pdfFilter;
+	public bool IsPdfOnly => pdfFilter;
+
+	[RelayCommand]
+	private void TogglePdfFilter()
+	{
+		pdfFilter = !pdfFilter;
+		OnPropertyChanged(string.Empty);
+		ApplyFilter();
+	}
+
+	public bool IsProgressAny => progressFilter == "any";
+	public bool IsProgressNotStarted => progressFilter == "notstarted";
+	public bool IsProgressStarted => progressFilter == "started";
+	public bool IsProgressFinished => progressFilter == "finished";
+	public bool IsLengthAny => lengthFilter == "any";
+	public bool IsLengthShort => lengthFilter == "short";
+	public bool IsLengthMedium => lengthFilter == "medium";
+	public bool IsLengthLong => lengthFilter == "long";
+	public bool IsSeriesAny => seriesFilter == "any";
+	public bool IsSeriesOnly => seriesFilter == "series";
+	public bool IsStandaloneOnly => seriesFilter == "standalone";
+
+	private int ActiveFilterCount => (IsProgressAny ? 0 : 1) + (IsLengthAny ? 0 : 1) + (IsSeriesAny ? 0 : 1) + (pdfFilter ? 1 : 0);
+	public bool HasActiveFilters => ActiveFilterCount > 0;
+	public string FilterButtonText => ActiveFilterCount == 0 ? "Filters" : $"Filters ({ActiveFilterCount})";
+	public string ResultCountText => Books.Count == 1 ? "1 book" : $"{Books.Count} books";
+
+	[RelayCommand]
+	private void SetProgressFilter(string choice) => SetFilter(ref progressFilter, choice);
+
+	[RelayCommand]
+	private void SetLengthFilter(string choice) => SetFilter(ref lengthFilter, choice);
+
+	[RelayCommand]
+	private void SetSeriesFilter(string choice) => SetFilter(ref seriesFilter, choice);
+
+	[RelayCommand]
+	private void ClearFilters()
+	{
+		progressFilter = lengthFilter = seriesFilter = "any";
+		pdfFilter = false;
+		SearchText = null;
+		OnPropertyChanged(string.Empty);
+		ApplyFilter();
+	}
+
+	private void SetFilter(ref string filter, string choice)
+	{
+		filter = choice;
+		// Every "is this chosen" property may have changed.
+		OnPropertyChanged(string.Empty);
+		ApplyFilter();
+	}
+
+	private bool PassesFilters(BookItemViewModel book)
+	{
+		var hours = book.Book.Length.TotalHours;
+		return (!pdfFilter || book.Book.HasPdf) && progressFilter switch
+			{
+				"notstarted" => book.Progress <= 0,
+				"started" => book.Progress is > 0 and < 1,
+				"finished" => book.Progress >= 1,
+				_ => true
+			}
+			&& lengthFilter switch
+			{
+				"short" => hours < 5,
+				"medium" => hours is >= 5 and < 15,
+				"long" => hours >= 15,
+				_ => true
+			}
+			&& seriesFilter switch
+			{
+				"series" => book.Book.Series is { Count: > 0 },
+				"standalone" => book.Book.Series is not { Count: > 0 },
+				_ => true
+			};
+	}
+
+	#endregion
 
 	[ObservableProperty]
 	private bool isSyncing;
@@ -145,7 +265,7 @@ public partial class LibraryViewModel : ObservableObject
 
 	public bool ShowAll => !ShowDownloadedOnly;
 	public bool IsLibraryEmpty => IsLoaded && !IsSyncing && allBooks.Count == 0;
-	public bool IsDownloadedEmpty => IsLoaded && ShowDownloadedOnly && Books.Count == 0 && allBooks.Count > 0;
+	public bool IsDownloadedEmpty => IsLoaded && ShowDownloadedOnly && !IsSearching && !HasActiveFilters && Books.Count == 0 && allBooks.Count > 0;
 
 	public LibraryViewModel(LibraryCatalog catalog, AudibleAccount account, BookDownloader downloader, MobileSettings settings, AudibleAnnotations annotations)
 	{
@@ -357,6 +477,11 @@ public partial class LibraryViewModel : ObservableObject
 
 	public BookItemViewModel? Find(string? asin) => allBooks.FirstOrDefault(b => b.Book.Asin == asin);
 
+	/// <summary>A book in the library with this title by this author: another edition of a store listing.</summary>
+	public BookItemViewModel? FindByTitle(string title, string authors)
+		=> allBooks.FirstOrDefault(b => string.Equals(b.Title, title, StringComparison.CurrentCultureIgnoreCase)
+			&& (b.Author.Contains(authors, StringComparison.CurrentCultureIgnoreCase) || authors.Contains(b.Author, StringComparison.CurrentCultureIgnoreCase)));
+
 	public async Task<LocalBook> ToLocalBookAsync(BookItemViewModel item) => new(
 		item.Book.Asin,
 		catalog.BookPath(item.Book.Asin),
@@ -373,18 +498,33 @@ public partial class LibraryViewModel : ObservableObject
 		// Keep the existing row for a book, so a download in progress survives a sync.
 		var existing = allBooks.ToDictionary(b => b.Book.Asin);
 		allBooks = books
-			.Select(b => existing.TryGetValue(b.Asin, out var item) && item.Book == b
+			.Select(b => existing.TryGetValue(b.Asin, out var item)
 				? item
 				: new BookItemViewModel(b, catalog.IsDownloaded(b.Asin) ? DownloadState.Downloaded : DownloadState.NotDownloaded, catalog.GetCoverAsync))
 			.ToList();
+		var latest = books.ToDictionary(b => b.Asin);
 		foreach (var item in allBooks)
+		{
+			item.Update(latest[item.Book.Asin]);
 			RefreshItem(item);
+		}
 		ApplySort();
 		OnPropertyChanged(nameof(IsLibraryEmpty));
 	}
 
 	private void ApplyFilter()
 	{
-		Books = ShowDownloadedOnly ? allBooks.Where(b => b.State != DownloadState.NotDownloaded).ToList() : allBooks;
+		IEnumerable<BookItemViewModel> shown = allBooks;
+		if (ShowDownloadedOnly)
+			shown = shown.Where(b => b.State != DownloadState.NotDownloaded);
+		if (HasActiveFilters)
+			shown = shown.Where(PassesFilters);
+		if (IsSearching)
+		{
+			// Every word must appear somewhere in the title, author or narrator.
+			var words = SearchText!.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+			shown = shown.Where(b => words.All(w => b.SearchableText.Contains(w, StringComparison.CurrentCultureIgnoreCase)));
+		}
+		Books = ReferenceEquals(shown, allBooks) ? allBooks : shown.ToList();
 	}
 }

@@ -100,7 +100,7 @@
 				<Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
 					<StackPanel>
 						<TextBlock Text="{Binding ChapterText}" FontSize="14" Foreground="{StaticResource Lamp}" TextTrimming="CharacterEllipsis" />
-						<TextBlock Classes="muted" Text="{Binding ChapterRemainingText}" FontSize="12" />
+						<TextBlock Classes="muted" Text="{Binding ScrubberDetailText}" FontSize="12" />
 					</StackPanel>
 					<PathIcon Grid.Column="1" Data="{StaticResource IconChapters}" Width="20" Height="20" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
 				</Grid>
@@ -116,11 +116,11 @@
 			<Slider
 				Classes="scrubber"
 				Minimum="0"
-				Maximum="{Binding DurationSeconds}"
-				Value="{Binding PositionSeconds}" />
+				Maximum="{Binding ScrubberMaximum}"
+				Value="{Binding ScrubberSeconds}" />
 			<Grid ColumnDefinitions="*,*" Margin="0,-6,0,0">
-				<TextBlock Classes="muted" Text="{Binding ElapsedText}" FontSize="12" />
-				<TextBlock Grid.Column="1" Classes="muted" Text="{Binding RemainingText}" FontSize="12" HorizontalAlignment="Right" />
+				<TextBlock Classes="muted" Text="{Binding ScrubberElapsedText}" FontSize="12" />
+				<TextBlock Grid.Column="1" Classes="muted" Text="{Binding ScrubberRemainingText}" FontSize="12" HorizontalAlignment="Right" />
 			</Grid>
 		</StackPanel>
 
@@ -129,21 +129,22 @@
 				<PathIcon Data="{StaticResource IconPrevious}" />
 			</Button>
 			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding SkipBackCommand}">
-				<Panel>
+				<Panel Margin="0,0,0,6">
 					<PathIcon Data="{StaticResource IconSkipBack}" Width="30" Height="30" />
-					<TextBlock Text="{Binding SkipText}" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4,0,0" />
+					<TextBlock Text="{Binding SkipText}" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,7,0,0" />
 				</Panel>
 			</Button>
 			<Button Classes="transport play" HorizontalAlignment="Center" Command="{Binding PlayPauseCommand}">
 				<Panel>
-					<PathIcon Data="{StaticResource IconPlay}" Width="28" Height="28" IsVisible="{Binding !IsPlaying}" />
+					<!-- A triangle looks centred by its weight, which is left of the middle of its box. -->
+					<PathIcon Data="{StaticResource IconPlay}" Width="28" Height="28" Margin="7,0,0,0" IsVisible="{Binding !IsPlaying}" />
 					<PathIcon Data="{StaticResource IconPause}" Width="28" Height="28" IsVisible="{Binding IsPlaying}" />
 				</Panel>
 			</Button>
 			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding SkipForwardCommand}">
-				<Panel>
+				<Panel Margin="0,0,0,6">
 					<PathIcon Data="{StaticResource IconSkipForward}" Width="30" Height="30" />
-					<TextBlock Text="{Binding SkipText}" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4,0,0" />
+					<TextBlock Text="{Binding SkipText}" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,7,0,0" />
 				</Panel>
 			</Button>
 			<Button Classes="transport" HorizontalAlignment="Center" Command="{Binding NextChapterCommand}" IsEnabled="{Binding HasChapters}">
@@ -302,7 +303,7 @@
 				<Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
 					<Button Classes="transport" Width="48" Height="48" Command="{Binding PreviewClipCommand}" ToolTip.Tip="Play clip">
 						<Panel>
-							<PathIcon Data="{StaticResource IconPlay}" IsVisible="{Binding !IsPlaying}" />
+							<PathIcon Data="{StaticResource IconPlay}" Margin="5,0,0,0" IsVisible="{Binding !IsPlaying}" />
 							<PathIcon Data="{StaticResource IconPause}" IsVisible="{Binding IsPlaying}" />
 						</Panel>
 					</Button>

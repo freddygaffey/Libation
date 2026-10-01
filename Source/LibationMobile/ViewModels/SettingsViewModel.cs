@@ -22,6 +22,17 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 		}
 	}
 
+	public bool ScrubByChapter
+	{
+		get => settings.ScrubByChapter;
+		set
+		{
+			settings.ScrubByChapter = value;
+			OnPropertyChanged();
+			changed();
+		}
+	}
+
 	public bool HighQualityDownloads
 	{
 		get => settings.HighQualityDownloads;
@@ -38,8 +49,8 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 		get => Math.Round(settings.Nonlinearity * 100);
 		set
 		{
-			settings.Nonlinearity = (float)(Math.Round(value / 5) * 5 / 100);
-			OnPropertyChanged();
+			// The slider snaps to its own steps. Sending the value back to it mid-drag made it catch.
+			settings.Nonlinearity = (float)(value / 100);
 			OnPropertyChanged(nameof(NonlinearityText));
 		}
 	}
@@ -58,7 +69,11 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 	public bool NonlinearAvailable => AudioBackend.NonlinearAvailable;
 
 	[RelayCommand]
-	private void SetNonlinearity(string percent) => Nonlinearity = double.Parse(percent);
+	private void SetNonlinearity(string percent)
+	{
+		Nonlinearity = double.Parse(percent);
+		OnPropertyChanged(nameof(Nonlinearity));
+	}
 
 	#region Time saved
 
@@ -68,8 +83,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 		get => Math.Round(settings.BaselineSpeed, 2);
 		set
 		{
-			settings.BaselineSpeed = (float)(Math.Round(value * 4) / 4);
-			OnPropertyChanged();
+			settings.BaselineSpeed = (float)value;
 			RefreshTimeSaved();
 		}
 	}

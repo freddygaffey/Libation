@@ -56,12 +56,20 @@
 							<TextBlock Text="Compared with listening at" FontSize="14" VerticalAlignment="Center" />
 							<TextBlock Grid.Column="1" Text="{Binding BaselineText}" FontSize="14" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
 						</Grid>
-						<Slider Classes="scrubber" Minimum="1" Maximum="3.5" Value="{Binding BaselineSpeed}" />
+						<Slider Classes="scrubber" Minimum="1" Maximum="3.5" TickFrequency="0.25" IsSnapToTickEnabled="True" Value="{Binding BaselineSpeed}" />
 						<Button Classes="quiet" Content="Start counting again" Padding="12,8" Command="{Binding ResetTimeSavedCommand}" />
 					</StackPanel>
 				</Border>
 
 				<TextBlock Classes="section" Text="Playback" />
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Progress bar shows the chapter" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="The bar on the player runs from the start to the end of the chapter playing. Turn off to have it cover the whole book." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding ScrubByChapter}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
 				<TextBlock Classes="setting" Text="Skip back and forward by" />
 				<StackPanel Orientation="Horizontal">
 					<Button Classes="choice" Classes.selected="{Binding IsSkip10}" Content="10 s" Command="{Binding SetSkipCommand}" CommandParameter="10" />
@@ -88,7 +96,7 @@
 					<TextBlock Text="Keep consonants clear" FontSize="15" VerticalAlignment="Center" />
 					<TextBlock Grid.Column="1" Text="{Binding NonlinearityText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
 				</Grid>
-				<Slider Classes="scrubber" Minimum="0" Maximum="100" Value="{Binding Nonlinearity}" IsVisible="{Binding IsNonlinearMethod}" />
+				<Slider Classes="scrubber" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding Nonlinearity}" IsVisible="{Binding IsNonlinearMethod}" />
 				<StackPanel Orientation="Horizontal" Margin="0,0,0,8" IsVisible="{Binding IsNonlinearMethod}">
 					<Button Classes="quiet" Content="Even" Padding="12,8" Margin="0,0,8,0" Command="{Binding SetNonlinearityCommand}" CommandParameter="0" />
 					<Button Classes="quiet" Content="Full" Padding="12,8" Command="{Binding SetNonlinearityCommand}" CommandParameter="100" />

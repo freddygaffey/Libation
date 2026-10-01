@@ -18,7 +18,8 @@ public enum Page
 	Browser,
 	Library,
 	NowPlaying,
-	Settings
+	Settings,
+	Details
 }
 
 /// <summary>Amazon's sign-in page, shown in the app. Completed with the URL Amazon redirects to after sign-in, or null if cancelled.</summary>
@@ -46,7 +47,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public IReadOnlyList<string> RegionNames { get; } = AudibleAccount.Regions.Select(r => r.DisplayName).ToList();
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsSignInPage), nameof(IsBrowserPage), nameof(IsLibraryPage), nameof(IsNowPlayingPage), nameof(IsSettingsPage), nameof(ShowMiniPlayer))]
+	[NotifyPropertyChangedFor(nameof(IsSignInPage), nameof(IsBrowserPage), nameof(IsLibraryPage), nameof(IsNowPlayingPage), nameof(IsSettingsPage), nameof(IsDetailsPage), nameof(ShowMiniPlayer))]
 	private Page currentPage = Page.Library;
 
 	[ObservableProperty]
@@ -70,6 +71,60 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public bool IsLibraryPage => CurrentPage == Page.Library;
 	public bool IsNowPlayingPage => CurrentPage == Page.NowPlaying;
 	public bool IsSettingsPage => CurrentPage == Page.Settings;
+	public bool IsDetailsPage => CurrentPage == Page.Details;
+
+	/// <summary>The book whose details page is open.</summary>
+	[ObservableProperty]
+	private BookDetailsViewModel? details;
+
+	/// <summary>Opens a web address outside the app. Set by the view, which knows the window.</summary>
+	public Func<Uri, Task>? OpenUri { get; set; }
+
+	private readonly AudibleSeries store;
+
+	[RelayCommand]
+	private void ShowDetails(BookItemViewModel item)
+	{
+		Details = new BookDetailsViewModel(item, store, Library);
+		CurrentPage = Page.Details;
+	}
+
+	/// <summary>A book in a series: show it if it is in the library, or open its store page if not.</summary>
+	[RelayCommand]
+	private async Task OpenSeriesBook(SeriesRowViewModel row)
+	{
+		if (row.Owned is { } owned)
+		{
+			if (!row.IsCurrent)
+				ShowDetails(owned);
+		}
+		else if (OpenUri is not null)
+			await OpenUri(store.StorePage(row.Book.Asin));
+	}
+
+	/// <summary>Open the PDF that comes with the book on the details page, where it can be read and saved.</summary>
+	[RelayCommand]
+	private async Task OpenPdf()
+	{
+		if (Details is not { } details || OpenUri is null)
+			return;
+		try
+		{
+			await OpenUri(await store.GetPdfLinkAsync(details.Item.Book.Asin));
+		}
+		catch (Exception ex)
+		{
+			details.Message = $"The PDF could not be opened: {ex.Message}";
+		}
+	}
+
+	/// <summary>Play the book on the details page, or download it if it is not on the device.</summary>
+	[RelayCommand]
+	private async Task OpenDetailsBook()
+	{
+		if (Details is not null)
+			await OpenBook(Details.Item);
+	}
 	public SettingsViewModel Settings { get; }
 	public bool ShowMiniPlayer => NowPlaying is not null && CurrentPage == Page.Library;
 	public string AccountText => $"Audible {AudibleAccount.DisplayNameOf(settings.RegionName)}";
@@ -79,6 +134,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		settings = new MobileSettings(Path.Combine(dataDirectory, "settings.json"));
 		account = new AudibleAccount(Path.Combine(dataDirectory, "audible-identity.json"), settings);
 		annotations = new AudibleAnnotations(account, settings);
+		store = new AudibleSeries(account);
 		Settings = new SettingsViewModel(settings, () => NowPlaying?.SettingsChanged());
 		localAnnotations = new LocalAnnotations(Path.Combine(dataDirectory, "annotations.json"));
 		var catalog = new LibraryCatalog(dataDirectory);
@@ -332,7 +388,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				CurrentPage = Page.Library;
 				Library.RefreshProgress();
 				return true;
-			case Page.Settings:
+			case Page.Settings or Page.Details:
 				CurrentPage = Page.Library;
 				return true;
 			default:
@@ -429,6 +485,25 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				}
 				AudioBackend.Nonlinearity = settings.Nonlinearity;
 				AudioBackend.UseNonlinear = settings.UseNonlinearSpeed;
+				break;
+			case "open" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } openBook:
+				// Shows the player without playing: playback reports a position to Audible, which a look at the screen must not.
+				await LoadAsync(openBook, showNowPlaying: true);
+				break;
+			case "settings":
+				ShowSettings();
+				break;
+			case "details" when parts.Length > 1 && Library.Find(parts[1]) is { } detailsBook:
+				ShowDetails(detailsBook);
+				for (var i = 0; i < 60 && Details!.IsLoading; i++)
+					await Task.Delay(500);
+				Console.WriteLine($"LIBATION_TEST details: summary={Details!.Summary?.Length ?? 0} chars, message={Details.Message ?? "none"}");
+				foreach (var section in Details.Series)
+				{
+					Console.WriteLine($"LIBATION_TEST details: series '{section.Name}', {section.CountText}");
+					foreach (var row in section.Rows)
+						Console.WriteLine($"LIBATION_TEST details:   {row.SequenceText} | {row.Title} | {row.StatusText}");
+				}
 				break;
 			case "annotest" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } book:
 				await RunAnnotationTestAsync(book);

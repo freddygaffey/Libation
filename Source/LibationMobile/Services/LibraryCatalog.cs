@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 
 namespace LibationMobile.Services;
 
+/// <summary>A series a book belongs to, and the book's place in it.</summary>
+public record BookSeries(string Id, string Name, string? Sequence);
+
 /// <summary>A title in the user's Audible library, whether or not it has been downloaded.</summary>
 public record CatalogBook(
 	string Asin,
@@ -20,7 +23,9 @@ public record CatalogBook(
 	string? Narrators,
 	int LengthMinutes,
 	string? CoverUrl,
-	DateTimeOffset Purchased)
+	DateTimeOffset Purchased,
+	IReadOnlyList<BookSeries>? Series = null,
+	bool HasPdf = false)
 {
 	public TimeSpan Length => TimeSpan.FromMinutes(LengthMinutes);
 }
@@ -118,7 +123,12 @@ public class LibraryCatalog
 		item.Narrators is { Length: > 0 } narrators ? string.Join(", ", narrators.Select(n => n.Name)) : null,
 		item.LengthInMinutes,
 		item.ProductImages?.The500?.ToString(),
-		item.PurchaseDate);
+		item.PurchaseDate,
+		ToSeries(item),
+		item.PdfUrl is not null);
+
+	internal static IReadOnlyList<BookSeries> ToSeries(Item item)
+		=> item.Series?.Where(s => s.SeriesId is not null).Select(s => new BookSeries(s.SeriesId!, s.SeriesName ?? "Series", s.Sequence)).ToList() ?? [];
 }
 
 [JsonSerializable(typeof(List<CatalogBook>))]

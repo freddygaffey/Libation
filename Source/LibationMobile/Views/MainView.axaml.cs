@@ -24,6 +24,8 @@ public partial class MainView : UserControl
 			return;
 
 		topLevel.BackRequested += TopLevel_BackRequested;
+		if (DataContext is MainViewModel vm)
+			vm.OpenUri = async uri => await topLevel.Launcher.LaunchUriAsync(uri);
 		// Colour the system bars to match. TopLevel's AutoSafeAreaPadding already keeps content clear of them.
 		if (topLevel.InsetsManager is IInsetsManager insets)
 			insets.SystemBarColor = (Color)this.FindResource("InkColor")!;

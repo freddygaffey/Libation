@@ -58,7 +58,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public IReadOnlyList<ChapterRowViewModel> ChapterRows { get; }
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(PositionSeconds), nameof(Progress), nameof(ElapsedText), nameof(RemainingText), nameof(ChapterRemainingText))]
+	[NotifyPropertyChangedFor(nameof(PositionSeconds), nameof(Progress), nameof(ElapsedText), nameof(RemainingText), nameof(ChapterRemainingText), nameof(ScrubberSeconds), nameof(ScrubberElapsedText), nameof(ScrubberRemainingText), nameof(ScrubberDetailText))]
 	private TimeSpan position;
 
 	/// <summary>The chapter list, shown over Now Playing.</summary>
@@ -67,7 +67,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	/// <summary>The chapter playing now, or null for a book without chapters.</summary>
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(ChapterText))]
+	[NotifyPropertyChangedFor(nameof(ChapterText), nameof(ScrubberMaximum), nameof(ScrubberSeconds))]
 	private ChapterRowViewModel? currentChapterRow;
 
 	[ObservableProperty]
@@ -83,6 +83,44 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 				Seek(TimeSpan.FromSeconds(value));
 		}
 	}
+
+	#region Scrubber
+
+	/// <summary>Whether the scrubber covers the chapter playing now, as the Audible app's does, or the whole book.</summary>
+	private bool ScrubsChapter => settings.ScrubByChapter && HasChapters && CurrentChapter is not null;
+	private TimeSpan ScrubberStart => ScrubsChapter ? CurrentChapter!.StartOffset : TimeSpan.Zero;
+	private TimeSpan ScrubberLength => ScrubsChapter ? CurrentChapter!.Duration : Duration;
+
+	public double ScrubberMaximum => Math.Max(1, ScrubberLength.TotalSeconds);
+
+	/// <summary>Position along the scrubber, in seconds. Setting it seeks.</summary>
+	public double ScrubberSeconds
+	{
+		get => Math.Clamp((Position - ScrubberStart).TotalSeconds, 0, ScrubberMaximum);
+		set
+		{
+			if (Math.Abs(value - (Position - ScrubberStart).TotalSeconds) >= 1)
+				// Stop just short of the end, so dragging to it does not tip into the next chapter.
+				Seek(ScrubberStart + TimeSpan.FromSeconds(Math.Min(value, ScrubberMaximum - 0.5)));
+		}
+	}
+
+	public string ScrubberElapsedText => FormatTime(Position - ScrubberStart);
+	public string ScrubberRemainingText => ScrubsChapter ? ChapterRemainingText : RemainingText;
+	/// <summary>Under the chapter name: whichever of the chapter and the book the scrubber is not showing.</summary>
+	public string ScrubberDetailText => ScrubsChapter ? $"Book: {RemainingText}" : ChapterRemainingText;
+
+	/// <summary>Pick up a change to the scrubber setting.</summary>
+	private void RefreshScrubber()
+	{
+		OnPropertyChanged(nameof(ScrubberMaximum));
+		OnPropertyChanged(nameof(ScrubberSeconds));
+		OnPropertyChanged(nameof(ScrubberElapsedText));
+		OnPropertyChanged(nameof(ScrubberRemainingText));
+		OnPropertyChanged(nameof(ScrubberDetailText));
+	}
+
+	#endregion
 
 	public double Progress => Duration > TimeSpan.Zero ? Position / Duration : 0;
 	public string ElapsedText => FormatTime(Position);
@@ -108,6 +146,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			OnPropertyChanged(nameof(SpeedText));
 			OnPropertyChanged(nameof(RemainingText));
 			OnPropertyChanged(nameof(ChapterRemainingText));
+			RefreshScrubber();
 			UpdateMediaSession();
 		}
 	}
