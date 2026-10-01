@@ -19,6 +19,7 @@ public sealed class AppleAudioOutput : IAudioOutput
 	private readonly int channels;
 	private readonly AVAudioFormat format;
 	private readonly NSObject configurationObserver;
+	private readonly NSObject routeObserver;
 	/// <summary>Whether playback should be running, so the engine can be restarted when iOS stops it.</summary>
 	private volatile bool wantRunning;
 
@@ -43,6 +44,17 @@ public sealed class AppleAudioOutput : IAudioOutput
 		// iOS stops the engine when the audio route changes: headphones, Bluetooth or a car connecting or going
 		// away. Without restarting it, the lock screen's play button does nothing until the app is opened.
 		configurationObserver = NSNotificationCenter.DefaultCenter.AddObserver(AVAudioEngine.ConfigurationChangeNotification, _ => OnConfigurationChanged(), engine);
+
+		// AirPods or headphones going away: stop here and now, so the restart above cannot play the book out of
+		// the speaker before the player hears about it and pauses.
+		routeObserver = AVAudioSession.Notifications.ObserveRouteChange((_, e) =>
+		{
+			if (e.Reason == AVAudioSessionRouteChangeReason.OldDeviceUnavailable)
+			{
+				wantRunning = false;
+				engine.Pause();
+			}
+		});
 	}
 
 	private void OnConfigurationChanged()
@@ -115,6 +127,7 @@ public sealed class AppleAudioOutput : IAudioOutput
 	{
 		wantRunning = false;
 		NSNotificationCenter.DefaultCenter.RemoveObserver(configurationObserver);
+		routeObserver.Dispose();
 		engine.Stop();
 		engine.DetachNode(sourceNode);
 		sourceNode.Dispose();
