@@ -20,6 +20,9 @@ public interface IMediaSession
 	/// <summary>Nothing is loaded any more.</summary>
 	void Clear();
 
+	/// <summary>Whether play was pressed before a book was loaded to receive it. Reading it clears it.</summary>
+	bool TakePendingPlay();
+
 	event Action? PlayRequested;
 	event Action? PauseRequested;
 	event Action? TogglePlayPauseRequested;

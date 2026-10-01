@@ -23,13 +23,23 @@ public sealed class AppleMediaSession : IMediaSession
 	public event Action<TimeSpan>? SeekRequested;
 
 	private MPNowPlayingInfo? nowPlaying;
+	private bool isPlaying;
+	private bool wasPlayingWhenInterrupted;
+	private bool pendingPlay;
 
 	public AppleMediaSession()
 	{
 		var commands = MPRemoteCommandCenter.Shared;
-		Handle(commands.PlayCommand, () => PlayRequested?.Invoke());
+		Handle(commands.PlayCommand, RequestPlay);
 		Handle(commands.PauseCommand, () => PauseRequested?.Invoke());
-		Handle(commands.TogglePlayPauseCommand, () => TogglePlayPauseRequested?.Invoke());
+		Handle(commands.TogglePlayPauseCommand, () =>
+		{
+			// Before a book is loaded, toggling can only mean play.
+			if (TogglePlayPauseRequested is null)
+				RequestPlay();
+			else
+				TogglePlayPauseRequested.Invoke();
+		});
 
 		// Audiobook controls: 30-second skips rather than next and previous track.
 		commands.SkipForwardCommand.PreferredIntervals = [SKIP_SECONDS];
@@ -51,7 +61,16 @@ public sealed class AppleMediaSession : IMediaSession
 		AVAudioSession.Notifications.ObserveInterruption((_, e) =>
 		{
 			if (e.InterruptionType == AVAudioSessionInterruptionType.Began)
+			{
+				wasPlayingWhenInterrupted = isPlaying;
 				PauseRequested?.Invoke();
+			}
+			// After a call or Siri: carry on if it was playing and iOS says resuming is expected.
+			else if (wasPlayingWhenInterrupted && e.Option == AVAudioSessionInterruptionOptions.ShouldResume)
+			{
+				wasPlayingWhenInterrupted = false;
+				PlayRequested?.Invoke();
+			}
 		});
 		AVAudioSession.Notifications.ObserveRouteChange((_, e) =>
 		{
@@ -59,6 +78,25 @@ public sealed class AppleMediaSession : IMediaSession
 			if (e.Reason == AVAudioSessionRouteChangeReason.OldDeviceUnavailable)
 				PauseRequested?.Invoke();
 		});
+	}
+
+	/// <summary>
+	/// Play, or remember to once a book is loaded: when iOS has closed the app, pressing play on the lock screen
+	/// relaunches it, and the press arrives before the last book has been opened.
+	/// </summary>
+	private void RequestPlay()
+	{
+		if (PlayRequested is null)
+			pendingPlay = true;
+		else
+			PlayRequested.Invoke();
+	}
+
+	public bool TakePendingPlay()
+	{
+		var pending = pendingPlay;
+		pendingPlay = false;
+		return pending;
 	}
 
 	private static void Handle(MPRemoteCommand command, Action action)
@@ -90,6 +128,7 @@ public sealed class AppleMediaSession : IMediaSession
 
 	public void Update(TimeSpan position, double speed, bool isPlaying)
 	{
+		this.isPlaying = isPlaying;
 		if (nowPlaying is null)
 			return;
 

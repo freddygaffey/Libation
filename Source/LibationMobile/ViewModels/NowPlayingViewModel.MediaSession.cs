@@ -23,6 +23,8 @@ public partial class NowPlayingViewModel
 		mediaSession.SeekRequested += OnSeekRequested;
 		mediaSession.Show(new MediaInfo(Title, Author, Book.Cover, Duration));
 		UpdateMediaSession();
+		if (mediaSession.TakePendingPlay())
+			OnPlayRequested();
 	}
 
 	private void StopMediaSession()

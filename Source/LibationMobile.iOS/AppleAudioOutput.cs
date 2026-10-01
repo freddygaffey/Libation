@@ -1,6 +1,7 @@
 using AudioPlayer;
 using AudioToolbox;
 using AVFoundation;
+using Foundation;
 using System;
 using System.Buffers;
 
@@ -16,6 +17,10 @@ public sealed class AppleAudioOutput : IAudioOutput
 	private readonly AVAudioSourceNode sourceNode;
 	private readonly AudioRenderCallback render;
 	private readonly int channels;
+	private readonly AVAudioFormat format;
+	private readonly NSObject configurationObserver;
+	/// <summary>Whether playback should be running, so the engine can be restarted when iOS stops it.</summary>
+	private volatile bool wantRunning;
 
 	public bool IsRunning => engine.Running;
 
@@ -29,11 +34,33 @@ public sealed class AppleAudioOutput : IAudioOutput
 		session.SetCategory(AVAudioSessionCategory.Playback, AVAudioSessionCategoryOptions.AllowAirPlay | AVAudioSessionCategoryOptions.AllowBluetoothA2DP);
 		session.SetMode(AVAudioSessionMode.SpokenAudio, out _);
 
-		var format = new AVAudioFormat(sampleRate, (uint)channels);
+		format = new AVAudioFormat(sampleRate, (uint)channels);
 		sourceNode = new AVAudioSourceNode(format, Render);
 		engine.AttachNode(sourceNode);
 		engine.Connect(sourceNode, engine.MainMixerNode, format);
 		engine.Prepare();
+
+		// iOS stops the engine when the audio route changes: headphones, Bluetooth or a car connecting or going
+		// away. Without restarting it, the lock screen's play button does nothing until the app is opened.
+		configurationObserver = NSNotificationCenter.DefaultCenter.AddObserver(AVAudioEngine.ConfigurationChangeNotification, _ => OnConfigurationChanged(), engine);
+	}
+
+	private void OnConfigurationChanged()
+	{
+		engine.Connect(sourceNode, engine.MainMixerNode, format);
+		engine.Prepare();
+		if (!wantRunning)
+			return;
+		try
+		{
+			StartEngine();
+		}
+		catch (InvalidOperationException ex)
+		{
+			// Left stopped; the player sees it is not running and shows play.
+			wantRunning = false;
+			Console.WriteLine($"Audio could not restart after a route change: {ex.Message}");
+		}
 	}
 
 	private unsafe int Render(ref bool isSilence, ref AudioTimeStamp timestamp, uint frameCount, AudioBuffers outputData)
@@ -62,16 +89,32 @@ public sealed class AppleAudioOutput : IAudioOutput
 
 	public void Start()
 	{
-		AVAudioSession.SharedInstance().SetActive(true);
+		wantRunning = true;
+		StartEngine();
+	}
+
+	private void StartEngine()
+	{
+		// Taken back each time: a call, Siri or another app may have had the audio since.
+		if (!AVAudioSession.SharedInstance().SetActive(true, out var sessionError))
+			throw new InvalidOperationException($"Audio could not start: {sessionError?.LocalizedDescription ?? "another app has the audio"}");
+		if (engine.Running)
+			return;
 		engine.StartAndReturnError(out var error);
 		if (error is not null)
 			throw new InvalidOperationException($"Audio could not start: {error.LocalizedDescription}");
 	}
 
-	public void Stop() => engine.Pause();
+	public void Stop()
+	{
+		wantRunning = false;
+		engine.Pause();
+	}
 
 	public void Dispose()
 	{
+		wantRunning = false;
+		NSNotificationCenter.DefaultCenter.RemoveObserver(configurationObserver);
 		engine.Stop();
 		engine.DetachNode(sourceNode);
 		sourceNode.Dispose();

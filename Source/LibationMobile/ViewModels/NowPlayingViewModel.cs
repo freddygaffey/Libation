@@ -219,7 +219,15 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		{
 			// Ask Audible first (it notes what this device knew before playing), then start without waiting.
 			_ = SyncPositionAsync(whilePlaying: true);
-			player.Play();
+			try
+			{
+				player.Play();
+			}
+			catch (InvalidOperationException ex)
+			{
+				// Another app or a call has the audio. Say so rather than crash; pressing play again retries.
+				ShowStatus(ex.Message);
+			}
 		}
 		Update();
 	}
