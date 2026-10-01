@@ -28,6 +28,13 @@ public sealed class AppleFileTransfer : NSUrlSessionDownloadDelegate, IFileTrans
 		public TaskCompletionSource Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 	}
 
+	/// <summary>NSURLSessionDownloadTaskResumeData: where an interrupted download's state comes in an error.</summary>
+	private static readonly NSString ResumeDataKey = new("NSURLSessionDownloadTaskResumeData");
+
+	/// <summary>Reports of downloads stopped while the app was closed arrive just after the session reconnects.</summary>
+	private static readonly TimeSpan ReconnectSettle = TimeSpan.FromSeconds(2);
+	private readonly DateTime created = DateTime.UtcNow;
+
 	private readonly ConcurrentDictionary<string, Transfer> transfers = new();
 	private readonly NSUrlSession session;
 
@@ -58,29 +65,37 @@ public sealed class AppleFileTransfer : NSUrlSessionDownloadDelegate, IFileTrans
 			return existing;
 		});
 
-		// Still running in the system from before the app was closed: wait for that one rather than start again.
-		var running = (await session.GetAllTasksAsync()).OfType<NSUrlSessionDownloadTask>().FirstOrDefault(t => t.TaskDescription == path && t.State == NSUrlSessionTaskState.Running);
-		var task = running;
-		if (task is null)
-		{
-			// A background download cannot append to a part-file left by an earlier, in-app download.
-			File.Delete(path);
-			var request = new NSMutableUrlRequest(new NSUrl(url.AbsoluteUri));
-			request["User-Agent"] = userAgent;
-			task = session.CreateDownloadTask(request);
-			task.TaskDescription = path;
-			task.Resume();
-			Console.WriteLine($"Background download started: {System.IO.Path.GetFileName(path)}");
-		}
-
-		using var registration = token.Register(() =>
-		{
-			task.Cancel();
-			transfer.Completion.TrySetCanceled(token);
-		});
 		try
 		{
-			await transfer.Completion.Task;
+			var task = await FindOrStartAsync(url, path, userAgent);
+			if (task.BytesExpectedToReceive > 0)
+				progress((double)task.BytesReceived / task.BytesExpectedToReceive);
+
+			// A cancel keeps nothing: the person asked for the download to stop.
+			using var registration = token.Register(() =>
+			{
+				task.Cancel();
+				File.Delete(ResumeDataPath(path));
+				transfer.Completion.TrySetCanceled(token);
+			});
+			try
+			{
+				await transfer.Completion.Task;
+			}
+			catch (IOException) when (task.TaskDescription == ResumedDescription(path) && !token.IsCancellationRequested)
+			{
+				// The saved state was refused, often because the link in it has expired: start again with the new link.
+				Console.WriteLine($"Background download could not resume, starting again: {System.IO.Path.GetFileName(path)}");
+				File.Delete(ResumeDataPath(path));
+				var restarted = transfers.AddOrUpdate(path, _ => new Transfer(path, progress), (_, _) => new Transfer(path, progress));
+				var fresh = Start(url, path, userAgent);
+				using var freshRegistration = token.Register(() =>
+				{
+					fresh.Cancel();
+					restarted.Completion.TrySetCanceled(token);
+				});
+				await restarted.Completion.Task;
+			}
 		}
 		finally
 		{
@@ -89,17 +104,94 @@ public sealed class AppleFileTransfer : NSUrlSessionDownloadDelegate, IFileTrans
 		}
 	}
 
+	/// <summary>
+	/// The download for <paramref name="path"/> already held by the system, else one carried on from where an
+	/// earlier one stopped, else a new one.
+	/// </summary>
+	private async Task<NSUrlSessionDownloadTask> FindOrStartAsync(Uri url, string path, string userAgent)
+	{
+		// Let a stopped download's saved state land first, rather than start it again from nothing.
+		var settle = created + ReconnectSettle - DateTime.UtcNow;
+		if (settle > TimeSpan.Zero)
+			await Task.Delay(settle);
+		var live = (await session.GetAllTasksAsync()).OfType<NSUrlSessionDownloadTask>()
+			.Where(t => IsFor(t, path) && t.State is NSUrlSessionTaskState.Running or NSUrlSessionTaskState.Suspended)
+			.ToList();
+		if (live.Count > 0)
+		{
+			// Keep the one furthest along; any other would race it to the same file.
+			var keep = live.MaxBy(t => t.BytesReceived)!;
+			foreach (var extra in live.Where(t => t != keep))
+				extra.Cancel();
+			if (keep.State == NSUrlSessionTaskState.Suspended)
+				keep.Resume();
+			Console.WriteLine($"Background download reattached at {keep.BytesReceived} bytes: {System.IO.Path.GetFileName(path)}");
+			return keep;
+		}
+
+		if (File.Exists(ResumeDataPath(path)))
+		{
+			try
+			{
+				var resumeData = NSData.FromFile(ResumeDataPath(path));
+				var resumed = session.CreateDownloadTaskFromResumeData(resumeData, null);
+				resumed.TaskDescription = ResumedDescription(path);
+				resumed.Resume();
+				Console.WriteLine($"Background download resumed: {System.IO.Path.GetFileName(path)}");
+				return resumed;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Background download resume data unusable: {ex.Message}");
+				File.Delete(ResumeDataPath(path));
+			}
+		}
+
+		return Start(url, path, userAgent);
+	}
+
+	private NSUrlSessionDownloadTask Start(Uri url, string path, string userAgent)
+	{
+		// A background download cannot append to a part-file left by an earlier, in-app download.
+		File.Delete(path);
+		var request = new NSMutableUrlRequest(new NSUrl(url.AbsoluteUri));
+		request["User-Agent"] = userAgent;
+		var task = session.CreateDownloadTask(request);
+		task.TaskDescription = path;
+		task.Resume();
+		Console.WriteLine($"Background download started: {System.IO.Path.GetFileName(path)}");
+		return task;
+	}
+
+	/// <summary>Where the system's saved state for an interrupted download is kept, so it can carry on rather than restart.</summary>
+	private static string ResumeDataPath(string path) => path + ".resume";
+
+	/// <summary>Marks a task carried on from saved state, so a refusal of that state can fall back to a fresh start.</summary>
+	private static string ResumedDescription(string path) => path + "|resumed";
+
+	private static string? PathOf(NSUrlSessionTask task)
+		=> task.TaskDescription is string description ? description.Split('|')[0] : null;
+
+	private static bool IsFor(NSUrlSessionTask task, string path) => PathOf(task) == path;
+
 	public override void DidWriteData(NSUrlSession session, NSUrlSessionDownloadTask downloadTask, long bytesWritten, long totalBytesWritten, long totalBytesExpectedToWrite)
 	{
-		if (totalBytesExpectedToWrite > 0 && downloadTask.TaskDescription is string path && transfers.TryGetValue(path, out var transfer))
+		if (totalBytesExpectedToWrite > 0 && PathOf(downloadTask) is string path && transfers.TryGetValue(path, out var transfer))
 			transfer.Progress((double)totalBytesWritten / totalBytesExpectedToWrite);
+	}
+
+	public override void DidResume(NSUrlSession session, NSUrlSessionDownloadTask downloadTask, long resumeFileOffset, long expectedTotalBytes)
+	{
+		if (expectedTotalBytes > 0 && PathOf(downloadTask) is string path && transfers.TryGetValue(path, out var transfer))
+			transfer.Progress((double)resumeFileOffset / expectedTotalBytes);
 	}
 
 	public override void DidFinishDownloading(NSUrlSession session, NSUrlSessionDownloadTask downloadTask, NSUrl location)
 	{
 		// The system deletes the file when this returns, so it has to be moved now.
-		if (downloadTask.TaskDescription is not string path || location.Path is not string temporary)
+		if (PathOf(downloadTask) is not string path || location.Path is not string temporary)
 			return;
+		File.Delete(ResumeDataPath(path));
 		if (downloadTask.Response is NSHttpUrlResponse { StatusCode: < 200 or >= 300 } response)
 		{
 			Fail(path, new IOException($"The download failed with status {response.StatusCode}."));
@@ -121,8 +213,15 @@ public sealed class AppleFileTransfer : NSUrlSessionDownloadDelegate, IFileTrans
 
 	public override void DidCompleteWithError(NSUrlSession session, NSUrlSessionTask task, NSError? error)
 	{
-		if (error is not null && task.TaskDescription is string path)
-			Fail(path, new IOException($"{error.LocalizedDescription} ({error.Domain} {error.Code})"));
+		if (error is null || PathOf(task) is not string path)
+			return;
+		// Stopped by the system, such as on a restart or the app being swiped away: keep what it has so far, to carry on later.
+		if (error.UserInfo?[ResumeDataKey] is NSData resumeData)
+		{
+			resumeData.Save(ResumeDataPath(path), atomically: true);
+			Console.WriteLine($"Background download stopped at {task.BytesReceived} bytes, kept to resume: {System.IO.Path.GetFileName(path)}");
+		}
+		Fail(path, new IOException($"{error.LocalizedDescription} ({error.Domain} {error.Code})"));
 	}
 
 	public override void DidFinishEventsForBackgroundSession(NSUrlSession session)

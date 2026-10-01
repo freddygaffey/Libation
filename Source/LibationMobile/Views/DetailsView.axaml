@@ -29,7 +29,7 @@
 						<Image Source="{Binding Item.Cover}" Stretch="UniformToFill" />
 					</Border>
 					<StackPanel Grid.Column="1" Spacing="3">
-						<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="20" TextWrapping="Wrap" />
+						<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="18" TextWrapping="Wrap" />
 						<TextBlock Classes="muted" Text="{Binding Subtitle}" FontSize="13" TextWrapping="Wrap" IsVisible="{Binding HasSubtitle}" />
 						<TextBlock Text="{Binding Author}" FontSize="14" TextWrapping="Wrap" />
 						<TextBlock Classes="muted" Text="{Binding NarratorText}" FontSize="13" TextWrapping="Wrap" />

@@ -49,6 +49,8 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public LocalBook Book { get; }
 	public string Title => Book.Title;
 	public string? Author => Book.Author;
+	/// <summary>Long titles step down a size so they fit in two lines rather than crowding the controls.</summary>
+	public double TitleFontSize => Title.Length switch { <= 24 => 22, <= 40 => 19, _ => 17 };
 	public Bitmap? Cover { get; }
 	public IReadOnlyList<Chapter> Chapters { get; }
 	public bool HasChapters => Chapters.Count > 1;
