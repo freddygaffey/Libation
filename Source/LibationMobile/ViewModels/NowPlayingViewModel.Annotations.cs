@@ -57,12 +57,37 @@ public partial class ClipEditorViewModel : ObservableObject
 	private readonly TimeSpan bookDuration;
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(RangeText), nameof(StartText))]
+	[NotifyPropertyChangedFor(nameof(RangeText), nameof(StartText), nameof(StartSeconds))]
 	private TimeSpan start;
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(RangeText), nameof(EndText))]
+	[NotifyPropertyChangedFor(nameof(RangeText), nameof(EndText), nameof(EndSeconds))]
 	private TimeSpan end;
+
+	/// <summary>The stretch of the book the sliders cover: mostly what was just heard, and a little of what follows.</summary>
+	public double WindowStartSeconds { get; }
+	public double WindowEndSeconds { get; }
+
+	/// <summary>The start, for a slider. Kept at least the shortest clip before the end and no more than the longest.</summary>
+	public double StartSeconds
+	{
+		get => Start.TotalSeconds;
+		set
+		{
+			Start = Clamp(TimeSpan.FromSeconds(value), Max(TimeSpan.Zero, End - MaximumLength), End - MinimumLength);
+			OnPropertyChanged();
+		}
+	}
+
+	public double EndSeconds
+	{
+		get => End.TotalSeconds;
+		set
+		{
+			End = Clamp(TimeSpan.FromSeconds(value), Start + MinimumLength, Min(bookDuration, Start + MaximumLength));
+			OnPropertyChanged();
+		}
+	}
 
 	[ObservableProperty]
 	private string? title;
@@ -82,6 +107,8 @@ public partial class ClipEditorViewModel : ObservableObject
 		start = heardUpTo - initialLength < TimeSpan.Zero ? TimeSpan.Zero : heardUpTo - initialLength;
 		if (end - start < MinimumLength)
 			end = Min(start + initialLength, bookDuration);
+		WindowStartSeconds = Max(TimeSpan.Zero, heardUpTo - TimeSpan.FromSeconds(90)).TotalSeconds;
+		WindowEndSeconds = Min(bookDuration, heardUpTo + TimeSpan.FromSeconds(30)).TotalSeconds;
 	}
 
 	/// <summary>Move the start by a number of seconds, keeping the clip between its shortest and longest.</summary>
@@ -165,7 +192,8 @@ public partial class NowPlayingViewModel
 	/// <param name="whilePlaying">Apply the result even if playback has started, for the check made on pressing play.</param>
 	private async Task SyncPositionAsync(bool whilePlaying = false)
 	{
-		if (annotations is null || syncInProgress || !settings.SyncPosition)
+		// Not while a clip is being made: playback there is a preview, and must not be moved.
+		if (annotations is null || syncInProgress || !settings.SyncPosition || ClipEditor is not null)
 			return;
 
 		// What "here" knew before asking: playback during the request must not make this device look newer.
@@ -302,17 +330,33 @@ public partial class NowPlayingViewModel
 		ClipEditor = new ClipEditorViewModel(Position, Duration, TimeSpan.FromSeconds(settings.ClipSeconds));
 	}
 
-	/// <summary>Hear exactly what would be saved.</summary>
+	private static readonly TimeSpan ClipEndTolerance = TimeSpan.FromSeconds(0.3);
+
+	/// <summary>Play or pause inside the clip being made. Playing from its end starts it again.</summary>
 	[RelayCommand]
 	private void PreviewClip()
 	{
 		if (ClipEditor is not { } editor)
 			return;
-		Seek(editor.Start);
-		clipEnd = editor.End;
-		if (!player.IsPlaying)
-			PlayPause();
+		if (!player.IsPlaying && (Position < editor.Start || Position >= editor.End - ClipEndTolerance))
+			Seek(editor.Start);
+		PlayPause();
 	}
+
+	/// <summary>Where playback is inside the clip being made, for its slider. Setting it seeks.</summary>
+	public double ClipPlayheadSeconds
+	{
+		get => ClipEditor is { } editor ? Math.Clamp(Position.TotalSeconds, editor.StartSeconds, editor.EndSeconds) : 0;
+		set
+		{
+			if (ClipEditor is not null && Math.Abs(value - Position.TotalSeconds) >= 0.5)
+				Seek(TimeSpan.FromSeconds(value));
+		}
+	}
+
+	public string ClipPlayheadText => ClipEditor is { } editor
+		? $"{Math.Max(0, ClipPlayheadSeconds - editor.StartSeconds):0} of {(editor.End - editor.Start).TotalSeconds:0} s"
+		: string.Empty;
 
 	[RelayCommand]
 	private void SaveClip()
@@ -453,7 +497,17 @@ public partial class NowPlayingViewModel
 	/// <summary>Called on each tick: stop at the end of a clip being played, and sync the position now and then.</summary>
 	private void UpdateAnnotations()
 	{
-		if (clipEnd is TimeSpan end && Position >= end)
+		if (ClipEditor is { } editor)
+		{
+			// Keep playback inside the clip as it is played and as its ends are moved.
+			if (player.IsPlaying && Position >= editor.End)
+				PlayPause();
+			else if (player.IsPlaying && Position < editor.Start)
+				Seek(editor.Start);
+			OnPropertyChanged(nameof(ClipPlayheadSeconds));
+			OnPropertyChanged(nameof(ClipPlayheadText));
+		}
+		else if (clipEnd is TimeSpan end && Position >= end)
 		{
 			clipEnd = null;
 			if (player.IsPlaying)

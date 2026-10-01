@@ -32,6 +32,98 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 		}
 	}
 
+	/// <summary>How unevenly speech is sped up, as a percentage for a slider.</summary>
+	public double Nonlinearity
+	{
+		get => Math.Round(settings.Nonlinearity * 100);
+		set
+		{
+			settings.Nonlinearity = (float)(Math.Round(value / 5) * 5 / 100);
+			OnPropertyChanged();
+			OnPropertyChanged(nameof(NonlinearityText));
+		}
+	}
+
+	public bool IsNonlinearMethod => settings.UseNonlinearSpeed && NonlinearAvailable;
+	public bool IsClassicMethod => !IsNonlinearMethod;
+
+	[RelayCommand]
+	private void SetSpeedMethod(string method)
+	{
+		settings.UseNonlinearSpeed = method == "nonlinear";
+		OnPropertyChanged(string.Empty);
+	}
+
+	public string NonlinearityText => Nonlinearity <= 0 ? "Even" : $"{Nonlinearity:0}%";
+	public bool NonlinearAvailable => AudioBackend.NonlinearAvailable;
+
+	[RelayCommand]
+	private void SetNonlinearity(string percent) => Nonlinearity = double.Parse(percent);
+
+	#region Time saved
+
+	/// <summary>The speed to compare against, for a slider.</summary>
+	public double BaselineSpeed
+	{
+		get => Math.Round(settings.BaselineSpeed, 2);
+		set
+		{
+			settings.BaselineSpeed = (float)(Math.Round(value * 4) / 4);
+			OnPropertyChanged();
+			RefreshTimeSaved();
+		}
+	}
+
+	public string BaselineText => $"{BaselineSpeed:0.##}×";
+
+	private TimeSpan Saved
+	{
+		get
+		{
+			var saved = settings.BookTimeHeard / settings.BaselineSpeed - settings.TimeSpentListening;
+			return saved > TimeSpan.Zero ? saved : TimeSpan.Zero;
+		}
+	}
+
+	public string TimeSavedText => settings.ListeningCountedSince is null ? "Nothing yet" : FormatLong(Saved);
+	public string TimeSavedDetail => settings.ListeningCountedSince is DateTimeOffset since
+		? $"{FormatLong(settings.BookTimeHeard)} of books heard in {FormatLong(settings.TimeSpentListening)}, an average of {AverageSpeed:0.0}×. Counted since {since.ToLocalTime():d MMM yyyy}."
+		: "Listen to a book and the time you save over your usual speed adds up here.";
+
+	private double AverageSpeed => settings.TimeSpentListening > TimeSpan.Zero ? settings.BookTimeHeard / settings.TimeSpentListening : 1;
+
+	/// <summary>Called when the settings page opens, to show figures from listening since it was last open.</summary>
+	public void RefreshTimeSaved()
+	{
+		OnPropertyChanged(nameof(BaselineText));
+		OnPropertyChanged(nameof(TimeSavedText));
+		OnPropertyChanged(nameof(TimeSavedDetail));
+	}
+
+	[RelayCommand]
+	private void ResetTimeSaved()
+	{
+		settings.ResetListening();
+		RefreshTimeSaved();
+	}
+
+	/// <summary>Weeks, days, hours, minutes and seconds, leaving out leading units that are zero.</summary>
+	private static string FormatLong(TimeSpan time)
+	{
+		var seconds = (long)time.TotalSeconds;
+		(string Unit, long Size)[] units = [("w", 604800), ("d", 86400), ("h", 3600), ("m", 60), ("s", 1)];
+		var parts = new System.Collections.Generic.List<string>();
+		foreach (var (unit, size) in units)
+		{
+			if (seconds >= size || parts.Count > 0 || size == 1)
+				parts.Add($"{seconds / size}{unit}");
+			seconds %= size;
+		}
+		return string.Join(" ", parts);
+	}
+
+	#endregion
+
 	public bool IsSkip10 => SkipSeconds == 10;
 	public bool IsSkip15 => SkipSeconds == 15;
 	public bool IsSkip30 => SkipSeconds == 30;

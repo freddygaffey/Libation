@@ -56,13 +56,15 @@
 			<Button Grid.Column="2" Classes="transport" Width="48" Height="48" Command="{Binding ShowSettingsCommand}" ToolTip.Tip="Settings">
 				<PathIcon Data="{StaticResource IconSettings}" Width="20" Height="20" />
 			</Button>
-			<Button Grid.Column="3" Classes="transport" Width="48" Height="48" ToolTip.Tip="Account">
+			<Button Grid.Column="3" Classes="transport" Width="48" Height="48" ToolTip.Tip="Sort and account">
 				<PathIcon Data="{StaticResource IconMore}" Width="20" Height="20" />
 				<Button.Flyout>
 					<MenuFlyout Placement="BottomEdgeAlignedRight">
 						<MenuItem Header="{Binding AccountText}" IsEnabled="False" />
-						<MenuItem Header="Refresh library" Command="{Binding Library.SyncCommand}" />
-						<MenuItem Header="Settings" Command="{Binding ShowSettingsCommand}" />
+						<MenuItem Header="{Binding Library.SortRecentText}" Command="{Binding Library.SortByCommand}" CommandParameter="recent" />
+						<MenuItem Header="{Binding Library.SortInProgressText}" Command="{Binding Library.SortByCommand}" CommandParameter="progress" />
+						<MenuItem Header="{Binding Library.SortTitleText}" Command="{Binding Library.SortByCommand}" CommandParameter="title" />
+						<MenuItem Header="{Binding Library.SortAuthorText}" Command="{Binding Library.SortByCommand}" CommandParameter="author" />
 						<MenuItem Header="Sign out" Command="{Binding SignOutCommand}" />
 					</MenuFlyout>
 				</Button.Flyout>
@@ -160,8 +162,12 @@
 								<PathIcon Data="{StaticResource IconMore}" Width="18" Height="18" Foreground="{StaticResource Dust}" />
 								<Button.Flyout>
 									<MenuFlyout Placement="BottomEdgeAlignedRight">
-										<MenuItem Header="Download" IsVisible="{Binding IsNotDownloaded}"
-											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.DownloadCommand}" CommandParameter="{Binding}" />
+										<MenuItem Header="Play from the start" IsVisible="{Binding IsDownloaded}"
+											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).PlayFromStartCommand}" CommandParameter="{Binding}" />
+										<MenuItem Header="Mark as finished" IsVisible="{Binding IsNotFinished}"
+											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).MarkFinishedCommand}" CommandParameter="{Binding}" />
+										<MenuItem Header="Mark as not started" IsVisible="{Binding HasProgress}"
+											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).MarkNotStartedCommand}" CommandParameter="{Binding}" />
 										<MenuItem Header="Cancel download" IsVisible="{Binding IsDownloading}"
 											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.CancelDownloadCommand}" CommandParameter="{Binding}" />
 										<MenuItem Header="Remove download" IsVisible="{Binding IsDownloaded}"

@@ -216,7 +216,11 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	}
 
 	[RelayCommand]
-	private void ShowSettings() => CurrentPage = Page.Settings;
+	private void ShowSettings()
+	{
+		Settings.RefreshTimeSaved();
+		CurrentPage = Page.Settings;
+	}
 
 	[RelayCommand]
 	private void SignOut()
@@ -261,6 +265,39 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			NowPlaying = null;
 		}
 		Library.RemoveDownload(item);
+	}
+
+	[RelayCommand]
+	private void MarkFinished(BookItemViewModel item)
+	{
+		// The player would otherwise carry on from where it was and save over this.
+		if (NowPlaying?.Book.Id == item.Book.Asin)
+		{
+			NowPlaying.Dispose();
+			NowPlaying = null;
+		}
+		Library.MarkFinished(item, finished: true);
+	}
+
+	[RelayCommand]
+	private void MarkNotStarted(BookItemViewModel item)
+	{
+		if (NowPlaying?.Book.Id == item.Book.Asin)
+		{
+			NowPlaying.Dispose();
+			NowPlaying = null;
+		}
+		Library.MarkFinished(item, finished: false);
+	}
+
+	/// <summary>Open a downloaded book at its first second, whatever was listened to before.</summary>
+	[RelayCommand]
+	private async Task PlayFromStart(BookItemViewModel item)
+	{
+		if (item.State != DownloadState.Downloaded)
+			return;
+		MarkNotStarted(item);
+		await OpenBook(item);
 	}
 
 	[RelayCommand]
@@ -363,20 +400,35 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			case "signin":
 				await SignInCommand.ExecuteAsync(null);
 				break;
-			case "benchsonic":
-				// How long Sonic takes to speed up 30s of 44.1 kHz stereo at 10x. It must be well under 3s to play in real time.
-				var sonic = new AudioPlayer.Sonic(44100, 2) { Speed = 10f };
+			case "benchspeed":
+				// How long this device takes to speed up 30s of 44.1 kHz stereo at 10x, which must be well under 3s to
+				// play in real time. Noise in bursts, so the nonlinear analysis has something like speech to work on.
 				var input = new float[4096];
-				for (var i = 0; i < input.Length; i++)
-					input[i] = (float)Math.Sin(i * 0.02) * 0.5f;
+				var random = new Random(1);
 				var output = new float[8192];
-				var watch = System.Diagnostics.Stopwatch.StartNew();
-				for (var frames = 0; frames < 30 * 44100; frames += input.Length / 2)
+				foreach (var amount in new[] { 1f, 0f, -1f })
 				{
-					sonic.Write(input);
-					while (sonic.Read(output) > 0) { }
+					// -1 stands for the original method.
+					AudioBackend.UseNonlinear = amount >= 0;
+					AudioBackend.Nonlinearity = Math.Max(0, amount);
+					using var stretcher = AudioBackend.CreateStretcher(44100, 2);
+					stretcher.Speed = 10f;
+					var produced = 0L;
+					var watch = System.Diagnostics.Stopwatch.StartNew();
+					for (var frames = 0; frames < 30 * 44100; frames += input.Length / 2)
+					{
+						var loud = frames / 4410 % 3 != 0;
+						for (var i = 0; i < input.Length; i++)
+							input[i] = loud ? (float)(Math.Sin((frames + i / 2) * 0.02) * 0.4 + (random.NextDouble() - 0.5) * 0.2) : 0f;
+						stretcher.Write(input);
+						int read;
+						while ((read = stretcher.Read(output)) > 0)
+							produced += read / 2;
+					}
+					Console.WriteLine($"LIBATION_TEST benchspeed: {(amount < 0 ? "original" : $"speedy, nonlinearity {amount}")}: 30s at 10x took {watch.ElapsedMilliseconds} ms (budget 3000 ms), produced {produced / 44100.0:0.00}s");
 				}
-				Console.WriteLine($"LIBATION_TEST benchsonic: 30s of audio at 10x took {watch.ElapsedMilliseconds} ms (budget 3000 ms)");
+				AudioBackend.Nonlinearity = settings.Nonlinearity;
+				AudioBackend.UseNonlinear = settings.UseNonlinearSpeed;
 				break;
 			case "annotest" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } book:
 				await RunAnnotationTestAsync(book);

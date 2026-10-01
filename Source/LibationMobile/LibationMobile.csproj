@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- speechwarp is not on nuget.org yet; its package is kept in LocalPackages. -->
+    <RestoreAdditionalProjectSources>$(MSBuildThisFileDirectory)..\LibationMobile\LocalPackages</RestoreAdditionalProjectSources>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +25,7 @@
     <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.0" />
     <PackageReference Include="AudibleApi" Version="14.1.2" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Speechwarp" Version="0.1.0" />
   </ItemGroup>
 
   <ItemGroup>

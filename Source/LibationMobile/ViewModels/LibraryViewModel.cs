@@ -65,7 +65,7 @@ public partial class BookItemViewModel : ObservableObject
 
 	/// <summary>Listening progress, 0 to 1.</summary>
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(HasProgress))]
+	[NotifyPropertyChangedFor(nameof(HasProgress), nameof(IsFinished), nameof(IsNotFinished))]
 	private double progress;
 
 	[ObservableProperty]
@@ -75,6 +75,8 @@ public partial class BookItemViewModel : ObservableObject
 	public bool IsDownloading => State == DownloadState.Downloading;
 	public bool IsDownloaded => State == DownloadState.Downloaded;
 	public bool HasProgress => Progress > 0;
+	public bool IsFinished => Progress >= 1;
+	public bool IsNotFinished => !IsFinished;
 
 	internal CancellationTokenSource? DownloadCancellation { get; set; }
 
@@ -94,6 +96,7 @@ public partial class BookItemViewModel : ObservableObject
 		StatusText = State switch
 		{
 			DownloadState.Downloading => $"Downloading, {DownloadProgress:P0}",
+			_ when length > TimeSpan.Zero && at >= length => "Finished",
 			_ when at > TimeSpan.Zero => $"{FormatDuration((length - at) / speed)} left at {speed:0.0}×",
 			_ => FormatDuration(length)
 		};
@@ -279,6 +282,73 @@ public partial class LibraryViewModel : ObservableObject
 		ApplyFilter();
 	}
 
+	/// <summary>Set a book to finished, or back to not started, here and on Audible where the book has been downloaded.</summary>
+	public void MarkFinished(BookItemViewModel item, bool finished)
+	{
+		var position = finished ? item.Book.Length : TimeSpan.Zero;
+		// A position of zero is kept, with its time, so an older one from Audible does not come back.
+		settings.SetPosition(item.Book.Asin, position);
+		RefreshItem(item);
+		ApplySort();
+
+		if (!settings.SyncPosition || settings.GetContentReference(item.Book.Asin) is null)
+			return;
+		var asin = item.Book.Asin;
+		_ = Task.Run(async () =>
+		{
+			try
+			{
+				await annotations.SetPositionAsync(asin, position);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Could not send the position of {asin} to Audible: {ex.Message}");
+			}
+		});
+	}
+
+	#region Sorting
+
+	public const string SORT_RECENT = "recent";
+	public const string SORT_TITLE = "title";
+	public const string SORT_AUTHOR = "author";
+	public const string SORT_IN_PROGRESS = "progress";
+
+	private string Sort => settings.LibrarySort ?? SORT_RECENT;
+	public string SortRecentText => SortLabel(SORT_RECENT, "Sort by newest");
+	public string SortTitleText => SortLabel(SORT_TITLE, "Sort by title");
+	public string SortAuthorText => SortLabel(SORT_AUTHOR, "Sort by author");
+	public string SortInProgressText => SortLabel(SORT_IN_PROGRESS, "Sort by in progress first");
+
+	private string SortLabel(string sort, string label) => Sort == sort ? "✓ " + label : label;
+
+	[RelayCommand]
+	private void SortBy(string sort)
+	{
+		settings.LibrarySort = sort;
+		OnPropertyChanged(nameof(SortRecentText));
+		OnPropertyChanged(nameof(SortTitleText));
+		OnPropertyChanged(nameof(SortAuthorText));
+		OnPropertyChanged(nameof(SortInProgressText));
+		ApplySort();
+	}
+
+	private void ApplySort()
+	{
+		IEnumerable<BookItemViewModel> sorted = Sort switch
+		{
+			SORT_TITLE => allBooks.OrderBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase),
+			SORT_AUTHOR => allBooks.OrderBy(b => b.Author, StringComparer.CurrentCultureIgnoreCase).ThenBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase),
+			// Books part-way through first, the furthest along at the top; then the rest, newest first.
+			SORT_IN_PROGRESS => allBooks.OrderByDescending(b => b.Progress is > 0 and < 1).ThenByDescending(b => b.Progress is > 0 and < 1 ? b.Progress : 0).ThenByDescending(b => b.Book.Purchased),
+			_ => allBooks.OrderByDescending(b => b.Book.Purchased)
+		};
+		allBooks = sorted.ToList();
+		ApplyFilter();
+	}
+
+	#endregion
+
 	public void RefreshProgress()
 	{
 		foreach (var item in allBooks)
@@ -309,7 +379,7 @@ public partial class LibraryViewModel : ObservableObject
 			.ToList();
 		foreach (var item in allBooks)
 			RefreshItem(item);
-		ApplyFilter();
+		ApplySort();
 		OnPropertyChanged(nameof(IsLibraryEmpty));
 	}
 

@@ -30,12 +30,43 @@ public class MobileSettings
 		public int ClipSeconds { get; set; } = 30;
 		public bool SyncPosition { get; set; } = true;
 		public bool HighQualityDownloads { get; set; } = true;
+		public float Nonlinearity { get; set; } = 1f;
+		public bool UseNonlinearSpeed { get; set; } = true;
+		public string? LibrarySort { get; set; }
+		public double BookSecondsHeard { get; set; }
+		public double SecondsSpentListening { get; set; }
+		public DateTimeOffset? ListeningCountedSince { get; set; }
+		public float BaselineSpeed { get; set; } = 1f;
 	}
 
 	public MobileSettings(string path)
 	{
 		this.path = path;
 		state = Load(path);
+		AudioBackend.Nonlinearity = state.Nonlinearity;
+		AudioBackend.UseNonlinear = state.UseNonlinearSpeed;
+	}
+
+	/// <summary>Speed up with speechwarp (true) or with the original even method (false).</summary>
+	public bool UseNonlinearSpeed
+	{
+		get { lock (locker) return state.UseNonlinearSpeed; }
+		set
+		{
+			lock (locker) { state.UseNonlinearSpeed = value; Save(); }
+			AudioBackend.UseNonlinear = value;
+		}
+	}
+
+	/// <summary>How unevenly speech is sped up, 0 (evenly) to 1. See <see cref="AudioBackend.Nonlinearity"/>.</summary>
+	public float Nonlinearity
+	{
+		get { lock (locker) return state.Nonlinearity; }
+		set
+		{
+			lock (locker) { state.Nonlinearity = Math.Clamp(value, 0f, 1f); Save(); }
+			AudioBackend.Nonlinearity = value;
+		}
 	}
 
 	public float Speed
@@ -84,6 +115,55 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.HighQualityDownloads; }
 		set { lock (locker) { state.HighQualityDownloads = value; Save(); } }
+	}
+
+	#region Time saved
+
+	/// <summary>How much of books has been heard, in seconds of the book at normal speed.</summary>
+	public TimeSpan BookTimeHeard { get { lock (locker) return TimeSpan.FromSeconds(state.BookSecondsHeard); } }
+
+	/// <summary>How long that took to listen to.</summary>
+	public TimeSpan TimeSpentListening { get { lock (locker) return TimeSpan.FromSeconds(state.SecondsSpentListening); } }
+
+	/// <summary>When counting began. Null if nothing has been counted.</summary>
+	public DateTimeOffset? ListeningCountedSince { get { lock (locker) return state.ListeningCountedSince; } }
+
+	/// <summary>The speed time saved is measured against: what the listener would otherwise listen at.</summary>
+	public float BaselineSpeed
+	{
+		get { lock (locker) return state.BaselineSpeed; }
+		set { lock (locker) { state.BaselineSpeed = Math.Clamp(value, 1f, 3.5f); Save(); } }
+	}
+
+	public void AddListening(TimeSpan bookTime, TimeSpan timeSpent)
+	{
+		lock (locker)
+		{
+			state.ListeningCountedSince ??= DateTimeOffset.UtcNow;
+			state.BookSecondsHeard += bookTime.TotalSeconds;
+			state.SecondsSpentListening += timeSpent.TotalSeconds;
+			Save();
+		}
+	}
+
+	public void ResetListening()
+	{
+		lock (locker)
+		{
+			state.BookSecondsHeard = 0;
+			state.SecondsSpentListening = 0;
+			state.ListeningCountedSince = null;
+			Save();
+		}
+	}
+
+	#endregion
+
+	/// <summary>The order the library is listed in. Null is the newest purchase first.</summary>
+	public string? LibrarySort
+	{
+		get { lock (locker) return state.LibrarySort; }
+		set { lock (locker) { state.LibrarySort = value; Save(); } }
 	}
 
 	public TimeSpan? GetPosition(string bookId)

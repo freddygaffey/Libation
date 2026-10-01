@@ -162,7 +162,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings, AudibleAnnotations? annotations = null, LocalAnnotations? localAnnotations = null)
 	{
 		var chapters = await AudioFileChapters.ReadAsync(book.Path);
-		var player = await Task.Run(() => new AudioFilePlayer(AudioBackend.OpenSource(book.Path), AudioBackend.CreateOutput));
+		var player = await Task.Run(() => new AudioFilePlayer(AudioBackend.OpenSource(book.Path), AudioBackend.CreateOutput, AudioBackend.CreateStretcher));
 		settings.LastBookId = book.Id;
 		return new NowPlayingViewModel(book, player, chapters, settings, annotations, localAnnotations);
 	}
@@ -251,6 +251,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			UpdateMediaSession();
 		UpdateCurrentChapter();
 		UpdateAnnotations();
+		CountListening();
 		if (IsPlaying && DateTime.UtcNow - lastSaved > SaveInterval)
 			SavePosition();
 	}
@@ -273,8 +274,32 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		}
 	}
 
+	private DateTime? lastListeningTick;
+	private TimeSpan uncountedTimeSpent;
+	private TimeSpan uncountedBookTime;
+	/// <summary>Longer gaps between ticks than this are not counted, since the app may have been suspended.</summary>
+	private static readonly TimeSpan LongestCountedTick = TimeSpan.FromSeconds(30);
+
+	/// <summary>Add up listening for the time-saved figures: time spent, and how much of the book that covered.</summary>
+	private void CountListening()
+	{
+		var now = DateTime.UtcNow;
+		// Previewing a clip is not listening to the book.
+		if (IsPlaying && ClipEditor is null && lastListeningTick is DateTime last && now - last < LongestCountedTick)
+		{
+			uncountedTimeSpent += now - last;
+			uncountedBookTime += (now - last) * Speed;
+		}
+		lastListeningTick = IsPlaying ? now : null;
+	}
+
 	private void SavePosition()
 	{
+		if (uncountedTimeSpent > TimeSpan.Zero)
+		{
+			settings.AddListening(uncountedBookTime, uncountedTimeSpent);
+			uncountedBookTime = uncountedTimeSpent = TimeSpan.Zero;
+		}
 		lastSaved = DateTime.UtcNow;
 		settings.SetPosition(Book.Id, player.Position);
 	}

@@ -25,23 +25,19 @@ public sealed class AudioFilePlayer : IDisposable
 	/// <summary>Playback speed, clamped to [<see cref="MIN_SPEED"/>, <see cref="MAX_SPEED"/>].</summary>
 	public float Speed
 	{
-		get => sonic.Speed;
+		get => stretcher.Speed;
 		set
 		{
 			lock (locker)
-				sonic.Speed = Math.Clamp(value, MIN_SPEED, MAX_SPEED);
+				stretcher.Speed = Math.Clamp(value, MIN_SPEED, MAX_SPEED);
 		}
 	}
 
 	/// <summary>Output gain, where 1 is unchanged.</summary>
 	public float Volume
 	{
-		get => sonic.Volume;
-		set
-		{
-			lock (locker)
-				sonic.Volume = Math.Max(0f, value);
-		}
+		get => volume;
+		set => volume = Math.Max(0f, value);
 	}
 
 	/// <summary>Position in the source that is currently being heard.</summary>
@@ -51,32 +47,33 @@ public sealed class AudioFilePlayer : IDisposable
 		{
 			lock (locker)
 			{
-				// Frames handed to Sonic but not yet heard: its pending input, plus its pending output scaled back to source time.
-				var bufferedFrames = sonic.InputFramesPending + (long)(sonic.FramesAvailable * sonic.Speed);
-				return TimeSpan.FromSeconds(Math.Max(0, sourceFrame - bufferedFrames) / (double)source.SampleRate);
+				// Frames handed to the speed changer but not yet heard.
+				return TimeSpan.FromSeconds(Math.Max(0, sourceFrame - stretcher.BufferedSourceFrames) / (double)source.SampleRate);
 			}
 		}
 	}
 
 	private readonly Lock locker = new();
 	private readonly IPcmSource source;
-	private readonly Sonic sonic;
+	private readonly ITimeStretcher stretcher;
+	private volatile float volume = 1f;
 	private readonly IAudioOutput output;
 	private readonly float[] decodeBuffer;
-	/// <summary>Index of the next source frame to be handed to <see cref="sonic"/>.</summary>
+	/// <summary>Index of the next source frame to be handed to <see cref="stretcher"/>.</summary>
 	private long sourceFrame;
 	private bool sourceEnded;
-	private bool sonicFlushed;
+	private bool stretcherFlushed;
 	private bool endRaised;
 
 	/// <param name="source">The audio to play. Ownership passes to the player, which disposes it.</param>
 	/// <param name="outputFactory">Where to play it. Defaults to <see cref="SoundFlowAudioOutput"/>.</param>
-	public AudioFilePlayer(IPcmSource source, AudioOutputFactory? outputFactory = null)
+	/// <param name="stretcherFactory">How to change speed. Defaults to <see cref="SonicTimeStretcher"/>.</param>
+	public AudioFilePlayer(IPcmSource source, AudioOutputFactory? outputFactory = null, TimeStretcherFactory? stretcherFactory = null)
 	{
 		ArgumentNullException.ThrowIfNull(source, nameof(source));
 
 		this.source = source;
-		sonic = new Sonic(source.SampleRate, source.Channels);
+		stretcher = stretcherFactory?.Invoke(source.SampleRate, source.Channels) ?? new SonicTimeStretcher(source.SampleRate, source.Channels);
 		decodeBuffer = new float[DECODE_CHUNK_FRAMES * source.Channels];
 		output = (outputFactory ?? ((rate, channels, render) => new SoundFlowAudioOutput(rate, channels, render)))
 			(source.SampleRate, source.Channels, FillBuffer);
@@ -103,9 +100,9 @@ public sealed class AudioFilePlayer : IDisposable
 	private void SeekInternal(TimeSpan position)
 	{
 		sourceFrame = source.Seek(position);
-		sonic.Clear();
+		stretcher.Clear();
 		sourceEnded = false;
-		sonicFlushed = false;
+		stretcherFlushed = false;
 		endRaised = false;
 	}
 
@@ -117,7 +114,7 @@ public sealed class AudioFilePlayer : IDisposable
 			var written = 0;
 			while (written < buffer.Length)
 			{
-				var read = sonic.Read(buffer[written..]);
+				var read = stretcher.Read(buffer[written..]);
 				written += read;
 				if (read > 0)
 					continue;
@@ -127,16 +124,16 @@ public sealed class AudioFilePlayer : IDisposable
 					var decoded = source.Read(decodeBuffer);
 					if (decoded > 0)
 					{
-						sonic.Write(decodeBuffer.AsSpan(0, decoded));
+						stretcher.Write(decodeBuffer.AsSpan(0, decoded));
 						sourceFrame += decoded / source.Channels;
 					}
 					else
 						sourceEnded = true;
 				}
-				else if (!sonicFlushed)
+				else if (!stretcherFlushed)
 				{
-					sonic.Flush();
-					sonicFlushed = true;
+					stretcher.Flush();
+					stretcherFlushed = true;
 				}
 				else
 				{
@@ -149,6 +146,13 @@ public sealed class AudioFilePlayer : IDisposable
 					break;
 				}
 			}
+
+			var gain = volume;
+			if (gain != 1f)
+			{
+				foreach (ref var sample in buffer[..written])
+					sample *= gain;
+			}
 		}
 	}
 
@@ -156,5 +160,6 @@ public sealed class AudioFilePlayer : IDisposable
 	{
 		output.Dispose();
 		source.Dispose();
+		stretcher.Dispose();
 	}
 }
