@@ -144,10 +144,7 @@
 			</StackPanel>
 		</Grid>
 
-		<StackPanel Grid.Row="2" Orientation="Horizontal" Margin="20,0,20,4">
-			<Button Classes="filter" Classes.selected="{Binding Library.ShowAll}" Content="All" Command="{Binding Library.ShowAllBooksCommand}" />
-			<Button Classes="filter" Classes.selected="{Binding Library.ShowDownloadedOnly}" Content="Downloaded" Command="{Binding Library.ShowDownloadedBooksCommand}" />
-		</StackPanel>
+		<!-- Row 2 held the All / Downloaded filter, now the Downloads tab. -->
 
 		<TextBlock
 			Grid.Row="3"
@@ -167,12 +164,6 @@
 			<TextBlock Classes="bookTitle" Text="No books match" FontSize="20" />
 			<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
 				Text="Try fewer words or fewer filters." />
-		</StackPanel>
-
-		<StackPanel Grid.Row="4" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding Library.IsDownloadedEmpty}">
-			<TextBlock Classes="bookTitle" Text="Nothing downloaded yet" FontSize="20" />
-			<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
-				Text="Tap the arrow next to a book in All to download it and listen offline." />
 		</StackPanel>
 
 		<!-- ListBox virtualizes: only rows on screen are built, which matters for libraries of hundreds of books. -->

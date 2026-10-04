@@ -555,6 +555,9 @@ public partial class LibraryViewModel : ObservableObject
 			RefreshItem(item);
 	}
 
+	/// <summary>Downloaded and downloading books, in the library's order, for the Downloads tab.</summary>
+	public IReadOnlyList<BookItemViewModel> AllDownloaded() => allBooks.Where(b => b.State != DownloadState.NotDownloaded).ToList();
+
 	public BookItemViewModel? Find(string? asin) => allBooks.FirstOrDefault(b => b.Book.Asin == asin);
 
 	/// <summary>A book in the library with this title by this author: another edition of a store listing.</summary>

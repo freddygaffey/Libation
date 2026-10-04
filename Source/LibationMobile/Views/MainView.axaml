@@ -6,9 +6,29 @@
              x:DataType="vm:MainViewModel"
              Background="{StaticResource Ink}">
 
-	<Grid Name="safeArea" RowDefinitions="*,Auto,Auto">
+	<UserControl.Styles>
+		<Style Selector="Button.tab">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="Foreground" Value="{StaticResource Dust}" />
+			<Setter Property="HorizontalAlignment" Value="Stretch" />
+			<Setter Property="HorizontalContentAlignment" Value="Center" />
+			<Setter Property="Padding" Value="0,8,0,6" />
+			<Setter Property="CornerRadius" Value="0" />
+		</Style>
+		<Style Selector="Button.tab.selected">
+			<Setter Property="Foreground" Value="{StaticResource Lamp}" />
+		</Style>
+		<Style Selector="Button.tab:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}" />
+		</Style>
+	</UserControl.Styles>
+
+	<Grid Name="safeArea" RowDefinitions="*,Auto,Auto,Auto">
 
 		<views:LibraryView Grid.Row="0" IsVisible="{Binding IsLibraryPage}" />
+		<views:PodcastsView Grid.Row="0" IsVisible="{Binding IsPodcastsPage}" />
+		<views:DownloadsView Grid.Row="0" IsVisible="{Binding IsDownloadsPage}" />
 
 		<TextBlock
 			Grid.Row="1"
@@ -68,16 +88,38 @@
 			</Grid>
 		</Border>
 
+		<!-- The three tabs. -->
+		<UniformGrid Grid.Row="3" Columns="3" Background="{StaticResource Ink}" IsVisible="{Binding IsTabPage}">
+			<Button Classes="tab" Classes.selected="{Binding IsLibraryPage}" Command="{Binding ShowTabCommand}" CommandParameter="library">
+				<StackPanel Spacing="2">
+					<PathIcon Data="{StaticResource IconLibrary}" Width="20" Height="20" />
+					<TextBlock Text="Library" FontSize="11" HorizontalAlignment="Center" />
+				</StackPanel>
+			</Button>
+			<Button Classes="tab" Classes.selected="{Binding IsPodcastsPage}" Command="{Binding ShowTabCommand}" CommandParameter="podcasts">
+				<StackPanel Spacing="2">
+					<PathIcon Data="{StaticResource IconPodcast}" Width="20" Height="20" />
+					<TextBlock Text="Podcasts" FontSize="11" HorizontalAlignment="Center" />
+				</StackPanel>
+			</Button>
+			<Button Classes="tab" Classes.selected="{Binding IsDownloadsPage}" Command="{Binding ShowTabCommand}" CommandParameter="downloads">
+				<StackPanel Spacing="2">
+					<PathIcon Data="{StaticResource IconDownloads}" Width="20" Height="20" />
+					<TextBlock Text="Downloads" FontSize="11" HorizontalAlignment="Center" />
+				</StackPanel>
+			</Button>
+		</UniformGrid>
+
 		<views:NowPlayingView
 			Grid.Row="0"
-			Grid.RowSpan="3"
+			Grid.RowSpan="4"
 			DataContext="{Binding NowPlaying}"
 			IsVisible="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).IsNowPlayingPage}" />
 
-		<views:ListeningLogView Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding IsLogPage}" />
-		<views:DetailsView Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding IsDetailsPage}" />
-		<views:SettingsView Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding IsSettingsPage}" />
-		<views:SignInView Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding IsSignInPage}" />
-		<views:BrowserView Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding IsBrowserPage}" />
+		<views:ListeningLogView Grid.Row="0" Grid.RowSpan="4" IsVisible="{Binding IsLogPage}" />
+		<views:DetailsView Grid.Row="0" Grid.RowSpan="4" IsVisible="{Binding IsDetailsPage}" />
+		<views:SettingsView Grid.Row="0" Grid.RowSpan="4" IsVisible="{Binding IsSettingsPage}" />
+		<views:SignInView Grid.Row="0" Grid.RowSpan="4" IsVisible="{Binding IsSignInPage}" />
+		<views:BrowserView Grid.Row="0" Grid.RowSpan="4" IsVisible="{Binding IsBrowserPage}" />
 	</Grid>
 </UserControl>

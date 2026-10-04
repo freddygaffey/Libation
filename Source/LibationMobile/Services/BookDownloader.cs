@@ -162,12 +162,12 @@ public class BookDownloader
 	/// Download to <paramref name="path"/>, resuming from what is already there. A phone connection can drop
 	/// halfway through a book, and restarting a 500 MB download from zero would be wasteful.
 	/// </summary>
-	private static async Task DownloadFileAsync(string url, string path, Action<double> progress, CancellationToken token)
+	internal static async Task DownloadFileAsync(string url, string path, Action<double> progress, CancellationToken token, string? userAgent = null)
 	{
 		var existing = File.Exists(path) ? new FileInfo(path).Length : 0;
 
 		using var request = new HttpRequestMessage(HttpMethod.Get, url);
-		request.Headers.TryAddWithoutValidation("User-Agent", DeviceRegistrationProfile.Default.DownloadUserAgent);
+		request.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? DeviceRegistrationProfile.Default.DownloadUserAgent);
 		if (existing > 0)
 			request.Headers.Range = new RangeHeaderValue(existing, null);
 

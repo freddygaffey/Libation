@@ -17,11 +17,16 @@ public enum Page
 	SignIn,
 	Browser,
 	Library,
+	Podcasts,
+	Downloads,
 	NowPlaying,
 	Settings,
 	Details,
 	Log
 }
+
+/// <summary>A heading in the Downloads tab.</summary>
+public record DownloadsHeading(string Text);
 
 /// <summary>Amazon's sign-in page, shown in the app. Completed with the URL Amazon redirects to after sign-in, or null if cancelled.</summary>
 public class LoginRequest(string url, CookieCollection? cookies)
@@ -48,7 +53,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public IReadOnlyList<string> RegionNames { get; } = AudibleAccount.Regions.Select(r => r.DisplayName).ToList();
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsSignInPage), nameof(IsBrowserPage), nameof(IsLibraryPage), nameof(IsNowPlayingPage), nameof(IsSettingsPage), nameof(IsDetailsPage), nameof(IsLogPage), nameof(ShowMiniPlayer))]
+	[NotifyPropertyChangedFor(nameof(IsSignInPage), nameof(IsBrowserPage), nameof(IsLibraryPage), nameof(IsNowPlayingPage), nameof(IsSettingsPage), nameof(IsDetailsPage), nameof(IsLogPage), nameof(ShowMiniPlayer),
+		nameof(IsPodcastsPage), nameof(IsDownloadsPage), nameof(IsTabPage))]
 	private Page currentPage = Page.Library;
 
 	[ObservableProperty]
@@ -70,6 +76,10 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public bool IsSignInPage => CurrentPage == Page.SignIn;
 	public bool IsBrowserPage => CurrentPage == Page.Browser;
 	public bool IsLibraryPage => CurrentPage == Page.Library;
+	public bool IsPodcastsPage => CurrentPage == Page.Podcasts;
+	public bool IsDownloadsPage => CurrentPage == Page.Downloads;
+	/// <summary>One of the three tabs, which show the tab bar and the mini player.</summary>
+	public bool IsTabPage => CurrentPage is Page.Library or Page.Podcasts or Page.Downloads;
 	public bool IsNowPlayingPage => CurrentPage == Page.NowPlaying;
 	public bool IsSettingsPage => CurrentPage == Page.Settings;
 	public bool IsDetailsPage => CurrentPage == Page.Details;
@@ -154,7 +164,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			await OpenBook(Details.Item);
 	}
 	public SettingsViewModel Settings { get; }
-	public bool ShowMiniPlayer => NowPlaying is not null && CurrentPage == Page.Library;
+	public bool ShowMiniPlayer => NowPlaying is not null && IsTabPage;
 	public string AccountText => $"Audible {AudibleAccount.DisplayNameOf(settings.RegionName)}";
 
 	public MainViewModel(string dataDirectory)
@@ -169,6 +179,14 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		Log = new ListeningLogViewModel(listeningLog);
 		var catalog = new LibraryCatalog(dataDirectory);
 		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog);
+		Podcasts = new PodcastsViewModel(new PodcastLibrary(dataDirectory), settings);
+		Podcasts.PlayRequested += row => _ = PlayEpisodeAsync(row);
+		Podcasts.DownloadsChanged += RefreshDownloads;
+		Library.PropertyChanged += (_, e) =>
+		{
+			if (e.PropertyName == nameof(LibraryViewModel.Books) && IsDownloadsPage)
+				RefreshDownloads();
+		};
 		// The refresh button refreshes everything Audible holds, including the loaded book's position and bookmarks.
 		Library.SyncCommand.PropertyChanged += (_, e) =>
 		{
@@ -202,17 +220,19 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		// Put the last book back in the mini player, paused, so one tap resumes it.
 		if (Library.Find(settings.LastBookId) is { IsDownloaded: true } last)
 			await LoadAsync(last, showNowPlaying: false);
+		else if (Podcasts.FindDownloaded(settings.LastBookId) is { } lastEpisode)
+			await LoadEpisodeAsync(lastEpisode, showNowPlaying: false);
 	}
 
 	/// <summary>Shows the book in the player, without playing: the widget's play button is for that.</summary>
 	private async void OpenFromWidget(string bookId)
 	{
-		if (Library.Find(bookId) is not { IsDownloaded: true } item)
-			return;
 		if (NowPlaying?.Book.Id == bookId)
 			CurrentPage = Page.NowPlaying;
-		else
+		else if (Library.Find(bookId) is { IsDownloaded: true } item)
 			await LoadAsync(item, showNowPlaying: true);
+		else if (Podcasts.FindDownloaded(bookId) is { } episode)
+			await LoadEpisodeAsync(episode, showNowPlaying: true);
 	}
 
 	#region Sign in
@@ -402,6 +422,27 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	[RelayCommand]
 	private void GoToLibrary() => ShowLibrary();
 
+	/// <summary>The tab last shown, which leaving the player or settings goes back to.</summary>
+	private Page lastTab = Page.Library;
+
+	partial void OnCurrentPageChanged(Page value)
+	{
+		if (value is Page.Library or Page.Podcasts or Page.Downloads)
+			lastTab = value;
+		if (value == Page.Downloads)
+			RefreshDownloads();
+	}
+
+	[RelayCommand]
+	private void ShowTab(string tab)
+	{
+		CurrentPage = tab switch { "podcasts" => Page.Podcasts, "downloads" => Page.Downloads, _ => Page.Library };
+		if (CurrentPage == Page.Library)
+			Library.RefreshProgress();
+		else if (CurrentPage == Page.Podcasts)
+			Podcasts.RefreshProgress();
+	}
+
 	/// <summary>Leave Now Playing or the sign-in browser. Playback continues.</summary>
 	/// <returns>False if there is nowhere to go back to, so a back press can close the app instead.</returns>
 	public bool ShowLibrary()
@@ -424,10 +465,17 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				NowPlaying.IsAnnotationListOpen = false;
 				return true;
 			case Page.NowPlaying:
-				CurrentPage = Page.Library;
+				CurrentPage = lastTab;
 				Library.RefreshProgress();
+				Podcasts.RefreshProgress();
 				return true;
 			case Page.Settings:
+				CurrentPage = lastTab;
+				return true;
+			case Page.Podcasts when Podcasts.IsShowOpen:
+				Podcasts.CloseShowCommand.Execute(null);
+				return true;
+			case Page.Podcasts or Page.Downloads:
 				CurrentPage = Page.Library;
 				return true;
 			case Page.Details or Page.Log:
@@ -463,9 +511,93 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 
 	private void NowPlaying_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
 	{
-		if (sender is NowPlayingViewModel np && e.PropertyName is nameof(NowPlayingViewModel.Position) or nameof(NowPlayingViewModel.Speed))
-			Library.Find(np.Book.Id)?.Refresh(np.Position, np.Speed);
+		if (sender is not NowPlayingViewModel np || e.PropertyName is not (nameof(NowPlayingViewModel.Position) or nameof(NowPlayingViewModel.Speed)))
+			return;
+		if (Library.Find(np.Book.Id) is { } book)
+			book.Refresh(np.Position, np.Speed);
+		else if (Podcasts.FindDownloaded(np.Book.Id) is { } episode)
+			Podcasts.RefreshRow(episode);
 	}
+
+	#region Podcasts and downloads
+
+	public PodcastsViewModel Podcasts { get; }
+
+	/// <summary>The Downloads tab: audiobooks, then podcast episodes, each under a heading.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(HasNoDownloads))]
+	private IReadOnlyList<object> downloadRows = [];
+
+	public bool HasNoDownloads => DownloadRows.Count == 0;
+
+	private void RefreshDownloads()
+	{
+		var rows = new List<object>();
+		var books = Library.AllDownloaded();
+		if (books.Count > 0)
+		{
+			rows.Add(new DownloadsHeading(books.Count == 1 ? "1 audiobook" : $"{books.Count} audiobooks"));
+			rows.AddRange(books);
+		}
+		var episodes = Podcasts.DownloadedRows();
+		if (episodes.Count > 0)
+		{
+			rows.Add(new DownloadsHeading(episodes.Count == 1 ? "1 podcast episode" : $"{episodes.Count} podcast episodes"));
+			rows.AddRange(episodes);
+		}
+		DownloadRows = rows;
+	}
+
+	private async Task PlayEpisodeAsync(EpisodeItemViewModel row)
+	{
+		if (NowPlaying?.Book.Id != row.Episode.Id && !await LoadEpisodeAsync(row, showNowPlaying: true))
+			return;
+		CurrentPage = Page.NowPlaying;
+		if (!NowPlaying!.IsPlaying)
+			NowPlaying.PlayPause();
+	}
+
+	[RelayCommand]
+	private async Task OpenEpisode(EpisodeItemViewModel row)
+	{
+		if (row.IsDownloaded)
+			await PlayEpisodeAsync(row);
+		else
+			await Podcasts.PlayCommand.ExecuteAsync(row);
+	}
+
+	[RelayCommand]
+	private void RemoveEpisodeDownload(EpisodeItemViewModel row)
+	{
+		if (NowPlaying?.Book.Id == row.Episode.Id)
+		{
+			NowPlaying.Dispose();
+			NowPlaying = null;
+		}
+		Podcasts.RemoveDownloadCommand.Execute(row);
+	}
+
+	/// <summary>Open an episode in the player. No Audible sync: Audible knows nothing of podcasts.</summary>
+	private async Task<bool> LoadEpisodeAsync(EpisodeItemViewModel row, bool showNowPlaying)
+	{
+		Error = null;
+		NowPlaying?.Dispose();
+		NowPlaying = null;
+		try
+		{
+			NowPlaying = await NowPlayingViewModel.OpenAsync(await Podcasts.ToLocalBookAsync(row), settings, annotations: null, localAnnotations, listeningLog);
+			if (showNowPlaying)
+				CurrentPage = Page.NowPlaying;
+			return true;
+		}
+		catch (Exception ex)
+		{
+			Error = $"{row.Title} could not be opened: {ex.Message}";
+			return false;
+		}
+	}
+
+	#endregion
 
 	private async Task<bool> LoadAsync(BookItemViewModel item, bool showNowPlaying)
 	{
@@ -548,6 +680,28 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 						Console.WriteLine($"LIBATION_TEST download {DateTime.Now:HH:mm:ss}: {downloadBook.State} {downloadBook.StatusText}");
 				};
 				_ = Library.DownloadCommand.ExecuteAsync(downloadBook);
+				break;
+			// "podcasts:term" searches and opens the first podcast; "podcastdl:term" also follows it, downloads its
+			// newest episode and shows Downloads. Neither plays anything.
+			case "podcasts" or "podcastdl" when parts.Length > 1:
+				ShowTab("podcasts");
+				Podcasts.SearchText = parts[1];
+				await Podcasts.SearchCommand.ExecuteAsync(null);
+				if (Podcasts.SearchResults.FirstOrDefault() is not { } found)
+					break;
+				await Podcasts.OpenCommand.ExecuteAsync(found);
+				if (parts[0] == "podcasts")
+					break;
+				if (!found.IsSubscribed)
+					await Podcasts.ToggleSubscriptionCommand.ExecuteAsync(found);
+				if (Podcasts.Episodes.FirstOrDefault() is { } newest)
+					await Podcasts.DownloadCommand.ExecuteAsync(newest);
+				Podcasts.CloseShowCommand.Execute(null);
+				Podcasts.SearchText = null;
+				ShowTab("downloads");
+				break;
+			case "openepisode" when Podcasts.DownloadedRows().FirstOrDefault() is { } downloadedEpisode:
+				await LoadEpisodeAsync(downloadedEpisode, showNowPlaying: true);
 				break;
 			case "settings":
 				ShowSettings();

@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             xmlns:controls="using:LibationMobile.Controls"
+             x:Class="LibationMobile.Views.DownloadsView"
+             x:DataType="vm:MainViewModel">
+
+	<UserControl.Styles>
+		<Style Selector="ListBox.rows ListBoxItem">
+			<Setter Property="Padding" Value="0" />
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="ListBox.rows ListBoxItem:selected /template/ ContentPresenter, ListBox.rows ListBoxItem:pointerover /template/ ContentPresenter, ListBox.rows ListBoxItem:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.row:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.row:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Hairline}" />
+		</Style>
+	</UserControl.Styles>
+
+	<UserControl.DataTemplates>
+		<DataTemplate DataType="vm:DownloadsHeading">
+			<TextBlock Classes="muted" Text="{Binding Text}" FontSize="13" Margin="20,18,20,6" />
+		</DataTemplate>
+		<!-- A downloaded audiobook: as in the library, without the download button. -->
+		<DataTemplate DataType="vm:BookItemViewModel">
+			<Grid ColumnDefinitions="*,Auto">
+				<Button Classes="row" Background="Transparent" CornerRadius="0" Padding="20,10,8,10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+					Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).OpenBookCommand}" CommandParameter="{Binding}">
+					<Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+						<Border Width="56" Height="56" CornerRadius="3" ClipToBounds="True" Background="{StaticResource Slate}">
+							<Image Source="{Binding Cover}" Stretch="UniformToFill" />
+						</Border>
+						<StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+							<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="15" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+							<TextBlock Classes="muted" Text="{Binding StatusText}" FontSize="12" />
+							<ProgressBar Height="2" MinHeight="2" Margin="0,4,0,0" Minimum="0" Maximum="1" Value="{Binding Progress}" IsVisible="{Binding HasProgress}"
+								Foreground="{StaticResource Lamp}" Background="{StaticResource Hairline}" />
+						</StackPanel>
+					</Grid>
+				</Button>
+				<Button Grid.Column="1" Classes="transport" Width="40" Height="48" Margin="0,0,4,0" ToolTip.Tip="More">
+					<PathIcon Data="{StaticResource IconMore}" Width="18" Height="18" Foreground="{StaticResource Dust}" />
+					<Button.Flyout>
+						<MenuFlyout Placement="BottomEdgeAlignedRight">
+							<MenuItem Header="Cancel download" IsVisible="{Binding IsDownloading}"
+								Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Library.CancelDownloadCommand}" CommandParameter="{Binding}" />
+							<MenuItem Header="Remove download" IsVisible="{Binding IsDownloaded}"
+								Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).RemoveDownloadCommand}" CommandParameter="{Binding}" />
+						</MenuFlyout>
+					</Button.Flyout>
+				</Button>
+				<Border Grid.ColumnSpan="2" Height="1" VerticalAlignment="Bottom" Margin="20,0,0,0" Background="{StaticResource Hairline}" />
+			</Grid>
+		</DataTemplate>
+	</UserControl.DataTemplates>
+
+	<Grid RowDefinitions="Auto,*">
+		<TextBlock Classes="bookTitle" Text="Downloads" FontSize="30" Margin="20,16,20,4" />
+		<StackPanel Grid.Row="1" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding HasNoDownloads}">
+			<TextBlock Classes="bookTitle" Text="Nothing downloaded yet" FontSize="20" />
+			<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
+				Text="Download a book from Library or an episode from Podcasts to listen offline. Everything on this phone shows here." />
+		</StackPanel>
+		<ListBox Grid.Row="1" Classes="rows" ItemsSource="{Binding DownloadRows}" Background="Transparent" />
+	</Grid>
+</UserControl>

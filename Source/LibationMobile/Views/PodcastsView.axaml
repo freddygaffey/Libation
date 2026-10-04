@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LibationMobile.ViewModels"
+             xmlns:controls="using:LibationMobile.Controls"
+             x:Class="LibationMobile.Views.PodcastsView"
+             x:DataType="vm:MainViewModel">
+
+	<UserControl.Styles>
+		<Style Selector="ListBox.rows ListBoxItem">
+			<Setter Property="Padding" Value="0" />
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="ListBox.rows ListBoxItem:selected /template/ ContentPresenter, ListBox.rows ListBoxItem:pointerover /template/ ContentPresenter, ListBox.rows ListBoxItem:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.row:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.row:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Hairline}" />
+		</Style>
+	</UserControl.Styles>
+
+
+	<Panel>
+		<!-- Followed podcasts, and search. -->
+		<Grid RowDefinitions="Auto,Auto,Auto,*" IsVisible="{Binding !Podcasts.IsShowOpen}">
+			<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="20,16,8,4">
+				<TextBlock Classes="bookTitle" Text="Podcasts" FontSize="30" VerticalAlignment="Center" />
+				<Panel Grid.Column="1" Width="48" Height="48">
+					<ProgressBar IsIndeterminate="True" IsVisible="{Binding Podcasts.IsBusy}" MinWidth="0" Width="28" VerticalAlignment="Center" Foreground="{StaticResource Lamp}" />
+					<Button Classes="transport" Width="48" Height="48" Command="{Binding Podcasts.RefreshAllCommand}" IsVisible="{Binding !Podcasts.IsBusy}"
+						ToolTip.Tip="Check for new episodes">
+						<PathIcon Data="{StaticResource IconRefresh}" Width="20" Height="20" />
+					</Button>
+				</Panel>
+			</Grid>
+			<Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="20,0,12,8">
+				<TextBox Name="searchBox" Text="{Binding Podcasts.SearchText}" PlaceholderText="Search podcasts, or paste a feed address" />
+				<StackPanel Grid.Column="1" Orientation="Horizontal" IsVisible="{Binding Podcasts.IsSearching}">
+					<Button Classes="quiet" Content="Search" Padding="10,8" Margin="8,0,0,0" Command="{Binding Podcasts.SearchCommand}" />
+					<Button Classes="quiet" Content="Clear" Padding="10,8" Command="{Binding Podcasts.ClearSearchCommand}" />
+				</StackPanel>
+			</Grid>
+			<TextBlock Grid.Row="2" Margin="20,4,20,8" Classes="muted" Text="{Binding Podcasts.Message}" TextWrapping="Wrap"
+				IsVisible="{Binding Podcasts.Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+			<StackPanel Grid.Row="3" Margin="20,40,20,0" Spacing="10" IsVisible="{Binding Podcasts.HasNoSubscriptions}">
+				<TextBlock Classes="bookTitle" Text="No podcasts yet" FontSize="20" />
+				<TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
+					Text="Search for a podcast and tap Follow. Podcasts are free and need no account; episodes download like books and play with the same speed controls." />
+			</StackPanel>
+			<ListBox Grid.Row="3" Classes="rows" ItemsSource="{Binding Podcasts.Subscriptions}" Background="Transparent" IsVisible="{Binding !Podcasts.IsSearching}" />
+			<ListBox Grid.Row="3" Classes="rows" ItemsSource="{Binding Podcasts.SearchResults}" Background="Transparent" IsVisible="{Binding Podcasts.IsSearching}" />
+		</Grid>
+
+		<!-- One podcast: about it, and its episodes. -->
+		<Grid RowDefinitions="Auto,Auto,Auto,*" IsVisible="{Binding Podcasts.IsShowOpen}">
+			<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
+				<Button Classes="transport" Width="48" Height="48" Command="{Binding Podcasts.CloseShowCommand}" ToolTip.Tip="Back">
+					<PathIcon Data="{StaticResource IconChevronDown}" RenderTransform="rotate(90deg)" />
+				</Button>
+			</Grid>
+			<Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="14" Margin="20,0,20,8" DataContext="{Binding Podcasts.OpenShow}" x:DataType="vm:ShowItemViewModel">
+				<Border Width="88" Height="88" CornerRadius="4" ClipToBounds="True" Background="{StaticResource Slate}" VerticalAlignment="Top">
+					<Image Source="{Binding Artwork}" Stretch="UniformToFill" />
+				</Border>
+				<StackPanel Grid.Column="1" Spacing="4">
+					<TextBlock Classes="bookTitle" Text="{Binding Title}" FontSize="20" TextWrapping="Wrap" />
+					<TextBlock Classes="muted" Text="{Binding Author}" FontSize="13" />
+					<TextBlock Classes="muted" Text="{Binding Description}" FontSize="12" TextWrapping="Wrap" MaxLines="4" TextTrimming="CharacterEllipsis" />
+				</StackPanel>
+			</Grid>
+			<StackPanel Grid.Row="2" Orientation="Horizontal" Margin="20,0,20,8" Spacing="8">
+				<Button Classes="quiet" Padding="12,8"
+					Command="{Binding Podcasts.ToggleSubscriptionCommand}" CommandParameter="{Binding Podcasts.OpenShow}">
+					<Panel>
+						<TextBlock Text="Follow" IsVisible="{Binding !Podcasts.OpenShowIsSubscribed}" />
+						<TextBlock Text="Following" Foreground="{StaticResource Lamp}" IsVisible="{Binding Podcasts.OpenShowIsSubscribed}" />
+					</Panel>
+				</Button>
+				<ProgressBar IsIndeterminate="True" IsVisible="{Binding Podcasts.IsLoadingEpisodes}" MinWidth="0" Width="28" VerticalAlignment="Center" Foreground="{StaticResource Lamp}" />
+			</StackPanel>
+			<ListBox Grid.Row="3" Classes="rows" ItemsSource="{Binding Podcasts.Episodes}" Background="Transparent" />
+		</Grid>
+	</Panel>
+</UserControl>
