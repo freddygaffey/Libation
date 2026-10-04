@@ -27,10 +27,20 @@ public interface IHomeWidget
 
 	/// <summary>A book tapped before the app was ready to open it. Reading it clears it.</summary>
 	string? TakePendingOpen();
+
+	/// <summary>
+	/// The widget opened the app with a link (see <see cref="HomeWidget.LINK_SCHEME"/>): "play" to play the last book, or
+	/// "open/ID" for a recent one. Buttons that need the app on screen use links; iOS only runs an action that opens
+	/// the app if the app itself declares it, which this app cannot.
+	/// </summary>
+	void OpenLink(Uri link);
 }
 
 public static class HomeWidget
 {
 	/// <summary>Set by the platform head at startup. Null where there is no widget.</summary>
 	public static IHomeWidget? Platform { get; set; }
+
+	/// <summary>The URL scheme of the widget's links, registered in the iOS Info.plist.</summary>
+	public const string LINK_SCHEME = "libation-player";
 }

@@ -282,7 +282,7 @@ struct FullPlayerLarge: View {
                     Divider().overlay(Color.white.opacity(0.15))
                     HStack(spacing: 10) {
                         ForEach(entry.recent.prefix(2), id: \.book) { recent in
-                            Button(intent: OpenBookIntent(bookId: recent.book.bookId)) {
+                            Link(destination: WidgetLink.open(recent.book.bookId)) {
                                 HStack(spacing: 6) {
                                     Cover(image: recent.cover, size: 28)
                                     Text(recent.book.title)

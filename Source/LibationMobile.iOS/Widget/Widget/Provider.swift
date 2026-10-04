@@ -46,6 +46,7 @@ struct WidgetFrame<Content: View, Background: View>: View {
     let entry: Entry
     @ViewBuilder let content: (WidgetState) -> Content
     @ViewBuilder var background: () -> Background
+    @Environment(\.widgetFamily) private var family
 
     var body: some View {
         Group {
@@ -56,6 +57,13 @@ struct WidgetFrame<Content: View, Background: View>: View {
             }
         }
         .containerBackground(for: .widget) { background() }
+        .widgetURL(tapLink)
+    }
+
+    /// A small widget ignores links inside it, so its play button would only open the app. Instead a tap anywhere
+    /// but the speed buttons plays, as the play button would.
+    private var tapLink: URL? {
+        family == .systemSmall && entry.state?.isPlaying == false ? WidgetLink.play : nil
     }
 }
 

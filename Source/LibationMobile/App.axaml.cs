@@ -19,6 +19,16 @@ public partial class App : Application
 
 	public override void OnFrameworkInitializationCompleted()
 	{
+		// Subscribed before the view exists, so a link that started the app is not missed.
+		if (this.TryGetFeature<IActivatableLifetime>() is { } links)
+		{
+			links.Activated += (_, e) =>
+			{
+				if (e is ProtocolActivatedEventArgs { Uri: { } uri } && uri.Scheme == Services.HomeWidget.LINK_SCHEME)
+					Services.HomeWidget.Platform?.OpenLink(uri);
+			};
+		}
+
 		if (ApplicationLifetime is IActivityApplicationLifetime activityLifetime)
 			activityLifetime.MainViewFactory = CreateMainView;
 		else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)

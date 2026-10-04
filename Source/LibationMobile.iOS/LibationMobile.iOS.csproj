@@ -40,14 +40,14 @@
   <PropertyGroup>
     <DefaultItemExcludes>$(DefaultItemExcludes);Widget/**</DefaultItemExcludes>
     <_WidgetProducts>$(MSBuildThisFileDirectory)Widget/build/Build/Products</_WidgetProducts>
-    <_WidgetPlatform Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">Release-iphoneos</_WidgetPlatform>
-    <_WidgetPlatform Condition="'$(RuntimeIdentifier)' != 'ios-arm64'">Release-iphonesimulator</_WidgetPlatform>
+    <_WidgetPlatform Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">Debug-iphoneos</_WidgetPlatform>
+    <_WidgetPlatform Condition="'$(RuntimeIdentifier)' != 'ios-arm64'">Debug-iphonesimulator</_WidgetPlatform>
   </PropertyGroup>
   <ItemGroup Condition="Exists('$(_WidgetProducts)/$(_WidgetPlatform)/LibationWidgetExtension.appex') And Exists('$(_WidgetProducts)/$(_WidgetPlatform)/LibationWidgetBridge.framework')">
     <AdditionalAppExtensions Include="$(_WidgetProducts)">
       <Name>LibationWidgetExtension</Name>
       <BuildOutput>$(_WidgetPlatform)</BuildOutput>
-      <CodesignEntitlements Condition="'$(_WidgetPlatform)' == 'Release-iphoneos'">$(_WidgetProducts)/LibationWidgetExtension.entitlements</CodesignEntitlements>
+      <CodesignEntitlements Condition="'$(_WidgetPlatform)' == 'Debug-iphoneos'">$(_WidgetProducts)/LibationWidgetExtension.entitlements</CodesignEntitlements>
     </AdditionalAppExtensions>
     <NativeReference Include="$(_WidgetProducts)/$(_WidgetPlatform)/LibationWidgetBridge.framework">
       <Kind>Framework</Kind>

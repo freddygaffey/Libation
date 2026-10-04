@@ -1,9 +1,10 @@
 import AppIntents
 import Foundation
 
-/// Sets the speed, keeping the countdown right, and tells the app.
-private func setSpeed(_ speed: Double) {
-    guard var state = WidgetState.load() else { return }
+/// Sets the speed, keeping the countdown right, and tells the app. One keychain read and two writes: iOS will not take
+/// another tap on the widget until this returns and the widget is redrawn.
+private func setSpeed(_ speed: Double, in loaded: WidgetState? = nil) {
+    guard var state = loaded ?? WidgetState.load() else { return }
     let now = Date()
     state.settle(at: now)
     state.speed = min(WidgetState.maxSpeed, max(WidgetState.minSpeed, (speed * 100).rounded() / 100))
@@ -29,7 +30,7 @@ struct ChangeSpeedIntent: AppIntent {
         guard let state = WidgetState.load() else { return .result() }
         let step = fine ? WidgetState.fineSpeedStep : WidgetState.speedStep
         let steps = state.speed / step
-        setSpeed((faster ? (steps + 0.001).rounded(.down) + 1 : (steps - 0.001).rounded(.up) - 1) * step)
+        setSpeed((faster ? (steps + 0.001).rounded(.down) + 1 : (steps - 0.001).rounded(.up) - 1) * step, in: state)
         return .result()
     }
 }
@@ -66,15 +67,16 @@ struct PauseIntent: AppIntent {
     }
 }
 
-/// Playing opens the app, which iOS may have closed while it was paused, and it starts the last book.
+/// The Control Centre play tile. Playing opens the app, which iOS may have closed while it was paused, with the
+/// widget's play link. (openAppWhenRun would need the intent declared in the app as well, which the .NET app
+/// cannot do; home-screen widgets use the link directly.)
+@available(iOS 18.0, *)
 struct PlayIntent: AppIntent {
     static var title: LocalizedStringResource = "Play"
     static var isDiscoverable = false
-    static var openAppWhenRun = true
 
-    func perform() async throws -> some IntentResult {
-        WidgetCommand.post(WidgetCommand(command: "play", bookId: WidgetState.load()?.bookId, at: Date().timeIntervalSince1970))
-        return .result()
+    func perform() async throws -> some IntentResult & OpensIntent {
+        return .result(opensIntent: OpenURLIntent(WidgetLink.play))
     }
 }
 
@@ -98,23 +100,6 @@ struct SkipIntent: AppIntent {
         state.chapterRemainingSeconds = state.chapterRemainingSeconds.map { max(0, $0 + skip) }
         state.save()
         WidgetCommand.post(WidgetCommand(command: "skip", bookId: state.bookId, forward: forward, at: now.timeIntervalSince1970))
-        return .result()
-    }
-}
-
-/// A recent book: opens it in the app.
-struct OpenBookIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open book"
-    static var isDiscoverable = false
-    static var openAppWhenRun = true
-
-    @Parameter(title: "Book") var bookId: String
-
-    init() {}
-    init(bookId: String) { self.bookId = bookId }
-
-    func perform() async throws -> some IntentResult {
-        WidgetCommand.post(WidgetCommand(command: "open", bookId: bookId, at: Date().timeIntervalSince1970))
         return .result()
     }
 }

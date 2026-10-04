@@ -106,6 +106,15 @@ struct RecentBook: Codable, Hashable {
     var cover: Data? { SharedKeychain.read("cover-" + bookId) }
 }
 
+/// Links that open the app, for buttons that need it on screen. The scheme is registered in the app's Info.plist
+/// and matches HomeWidget.LINK_SCHEME.
+enum WidgetLink {
+    static let play = URL(string: "libation-player://play")!
+    static func open(_ bookId: String) -> URL {
+        URL(string: "libation-player://open/" + (bookId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? bookId))!
+    }
+}
+
 /// A request from the widget for the app: "play", "pause", "speed", "skip" or "open".
 struct WidgetCommand: Codable {
     var command: String
@@ -149,15 +158,18 @@ enum SharedKeychain {
         return SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
     }
 
-    static func write(_ account: String, _ data: Data) {
+    @discardableResult
+    static func write(_ account: String, _ data: Data) -> OSStatus {
         let q = query(account)
         let update: [String: Any] = [kSecValueData as String: data]
-        if SecItemUpdate(q as CFDictionary, update as CFDictionary) == errSecItemNotFound {
+        var status = SecItemUpdate(q as CFDictionary, update as CFDictionary)
+        if status == errSecItemNotFound {
             var add = q
             add[kSecValueData as String] = data
             // The widget is drawn while the phone is locked.
             add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            SecItemAdd(add as CFDictionary, nil)
+            status = SecItemAdd(add as CFDictionary, nil)
         }
+        return status
     }
 }

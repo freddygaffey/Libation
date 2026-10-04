@@ -112,6 +112,28 @@ public sealed class AppleHomeWidget : IHomeWidget
 		return open;
 	}
 
+	public void OpenLink(Uri link)
+	{
+		Console.WriteLine($"Widget link: {link}");
+		switch (link.Host)
+		{
+			case "play":
+				mediaSession.RequestPlay();
+				break;
+			case "open" when link.AbsolutePath.Trim('/') is { Length: > 0 } bookId:
+				Open(bookId);
+				break;
+		}
+	}
+
+	private void Open(string bookId)
+	{
+		if (OpenRequested is null)
+			pendingOpen = bookId;
+		else
+			OpenRequested.Invoke(bookId);
+	}
+
 	public double? TakePendingSpeed(string bookId) => pendingSpeeds.TryRemove(bookId, out var speed) ? speed : null;
 
 	private void TakeCommand()
@@ -146,12 +168,12 @@ public sealed class AppleHomeWidget : IHomeWidget
 				mediaSession.RequestSkip(command.Forward == true);
 				break;
 			case "open" when !stale && command.BookId is string openId:
-				if (OpenRequested is null)
-					pendingOpen = openId;
-				else
-					OpenRequested.Invoke(openId);
+				Open(openId);
 				break;
 			case "speed" when command.BookId is string bookId && command.Speed is double speed:
+				// The widget has already drawn this speed; redrawing it again would block its buttons a second time.
+				if (shown?.BookId == bookId)
+					shown = shown with { Speed = speed };
 				if (SpeedRequested is null)
 					pendingSpeeds[bookId] = speed;
 				else
