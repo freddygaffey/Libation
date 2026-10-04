@@ -114,50 +114,113 @@
 				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
 					<StackPanel VerticalAlignment="Center">
 						<TextBlock Text="Show syllables a second" FontSize="15" />
-						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
-							Text="Under the speed in the player, measured from the audio. The usual measure in speech research: untrained listeners manage about 8, trained blind screen-reader users 17 to 22." />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Under the speed in the player, measured from the audio. The usual measure in speech research: untrained listeners manage about 8, trained blind screen-reader users 17 to 22." />
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowSyllableRate}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
 				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
 					<StackPanel VerticalAlignment="Center">
 						<TextBlock Text="Training mode" FontSize="15" />
-						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
-							Text="Each time you start listening, begin below the book's speed and step up to it. Ears adapt to fast speech within minutes, and lose some of it between sessions. Changing the speed yourself ends the warm-up." />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Each time you start listening, warm up from a speed you are already comfortable at and step up to the book's speed. Ears adapt to fast speech within minutes, and lose some of it between sessions. Changing the speed yourself ends the warm-up." />
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding Training}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
 				<StackPanel IsVisible="{Binding Training}">
-					<TextBlock Classes="setting" Text="Start below the book's speed by" />
-					<StackPanel Orientation="Horizontal">
-						<Button Classes="choice" Classes.selected="{Binding IsStartBelow05}" Content="0.5×" Command="{Binding SetTrainingStartBelowCommand}" CommandParameter="0.5" />
-						<Button Classes="choice" Classes.selected="{Binding IsStartBelow1}" Content="1×" Command="{Binding SetTrainingStartBelowCommand}" CommandParameter="1" />
-						<Button Classes="choice" Classes.selected="{Binding IsStartBelow15}" Content="1.5×" Command="{Binding SetTrainingStartBelowCommand}" CommandParameter="1.5" />
-						<Button Classes="choice" Classes.selected="{Binding IsStartBelow2}" Content="2×" Command="{Binding SetTrainingStartBelowCommand}" CommandParameter="2" />
-					</StackPanel>
-					<TextBlock Classes="setting" Text="Step up by" Margin="0,20,0,8" />
-					<StackPanel Orientation="Horizontal">
-						<Button Classes="choice" Classes.selected="{Binding IsStep005}" Content="0.05×" Command="{Binding SetTrainingStepCommand}" CommandParameter="0.05" />
-						<Button Classes="choice" Classes.selected="{Binding IsStep01}" Content="0.1×" Command="{Binding SetTrainingStepCommand}" CommandParameter="0.1" />
-						<Button Classes="choice" Classes.selected="{Binding IsStep02}" Content="0.2×" Command="{Binding SetTrainingStepCommand}" CommandParameter="0.2" />
-						<Button Classes="choice" Classes.selected="{Binding IsStep05}" Content="0.5×" Command="{Binding SetTrainingStepCommand}" CommandParameter="0.5" />
-					</StackPanel>
-					<TextBlock Classes="setting" Text="Every" Margin="0,20,0,8" />
-					<StackPanel Orientation="Horizontal">
-						<Button Classes="choice" Classes.selected="{Binding IsEvery1}" Content="1 min" Command="{Binding SetTrainingMinutesCommand}" CommandParameter="1" />
-						<Button Classes="choice" Classes.selected="{Binding IsEvery2}" Content="2 min" Command="{Binding SetTrainingMinutesCommand}" CommandParameter="2" />
-						<Button Classes="choice" Classes.selected="{Binding IsEvery5}" Content="5 min" Command="{Binding SetTrainingMinutesCommand}" CommandParameter="5" />
-						<Button Classes="choice" Classes.selected="{Binding IsEvery10}" Content="10 min" Command="{Binding SetTrainingMinutesCommand}" CommandParameter="10" />
-					</StackPanel>
-					<Grid ColumnDefinitions="*,Auto" Margin="0,16,0,0">
-						<StackPanel VerticalAlignment="Center">
-							<TextBlock Text="Keep climbing" FontSize="15" />
-							<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
-								Text="Carry on stepping up past the book's speed, and keep the speed reached for next time. Change the speed yourself when it gets too fast." />
-						</StackPanel>
-						<ToggleSwitch Grid.Column="1" IsChecked="{Binding TrainingClimb}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				<StackPanel Margin="0,4,0,12">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Start at" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding TrainingStartText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
 					</Grid>
+					<Slider Classes="scrubber" Minimum="1" Maximum="10" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding TrainingStartSpeed}" />
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="A speed you can follow with no warm-up. Books set at or below it start at their own speed." />
 				</StackPanel>
+				<StackPanel Margin="0,4,0,12">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Step up by" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding TrainingStepText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+					</Grid>
+					<Slider Classes="scrubber" Minimum="0.05" Maximum="0.5" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding TrainingStep}" />
+				</StackPanel>
+				<StackPanel Margin="0,4,0,12">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Every" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding TrainingMinutesText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+					</Grid>
+					<Slider Classes="scrubber" Minimum="0.5" Maximum="10" TickFrequency="0.5" IsSnapToTickEnabled="True" Value="{Binding TrainingMinutes}" />
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Minutes of listening, not of the clock." />
+				</StackPanel>
+				<StackPanel Margin="0,4,0,12">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Warm up again after a break of" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding TrainingRestartText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+					</Grid>
+					<Slider Classes="scrubber" Minimum="1" Maximum="120" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding TrainingRestartMinutes}" />
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="A shorter pause carries on where the climb was." />
+				</StackPanel>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Keep climbing" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Carry on past the book's speed up to the ceiling below, and keep the speed reached for next time." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding TrainingClimb}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<StackPanel Margin="0,4,0,12" IsVisible="{Binding TrainingClimb}">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Ceiling" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding TrainingCeilingText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+					</Grid>
+					<Slider Classes="scrubber" Minimum="1" Maximum="10" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding TrainingCeiling}" />
+				</StackPanel>
+				</StackPanel>
+
+				<TextBlock Classes="section" Text="Very high speeds" />
+				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Margin="0,0,0,12"
+					Text="For 5× and faster. Each one changes how the time is spent, not the speed you set. They take effect while a book plays, so you can compare by ear." />
+				<StackPanel Margin="0,4,0,12">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Shorten pauses to" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding PauseCapText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+					</Grid>
+					<Slider Classes="scrubber" Minimum="0" Maximum="300" TickFrequency="10" IsSnapToTickEnabled="True" Value="{Binding PauseCapMs}" />
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Every pause is cut to at most this before speeding up, so the speed goes to the words. Around 60 ms keeps just enough to hear that there was a pause." />
+				</StackPanel>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Keep the overall speed" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="With pauses shortened or rhythm on, the book still finishes at the speed set: time saved in pauses plays the words slower. Off, shortened pauses simply make it faster." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding KeepSpeed}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<StackPanel Margin="0,4,0,12" IsVisible="{Binding UsesSpeedySpeedUp}">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Speed floor" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding SpeedFloorText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+					</Grid>
+					<Slider Classes="scrubber" Minimum="0" Maximum="90" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding SpeedFloorPercent}" />
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Speedy slows the hardest sounds, sometimes to normal speed, and races the rest to make up for it. A floor of 50% keeps every part at half the speed or more: at 8×, never below 4×." />
+				</StackPanel>
+				<StackPanel Margin="0,4,0,12">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Rhythm gaps" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding RhythmGapText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+					</Grid>
+					<Slider Classes="scrubber" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding RhythmGapMs}" />
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Short silences at a steady beat. At 3× they made squeezed speech much easier to follow; the words play faster to make room. Try 30 to 50 ms." />
+				</StackPanel>
+				<StackPanel Margin="0,4,0,12" IsVisible="{Binding RhythmOn}">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Gaps a second" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding RhythmRateText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+					</Grid>
+					<Slider Classes="scrubber" Minimum="2" Maximum="12" TickFrequency="0.5" IsSnapToTickEnabled="True" Value="{Binding RhythmRate}" />
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Near the beat of syllables, about 4 to 8 a second." />
+				</StackPanel>
+				<StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+					<Button Classes="quiet" Content="Suggested" Padding="12,8" Margin="0,0,8,0" Command="{Binding SuggestHighSpeedCommand}" />
+					<Button Classes="quiet" Content="All off" Padding="12,8" Command="{Binding ResetHighSpeedCommand}" />
+				</StackPanel>
+				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+					Text="Suggested: pauses shortened to 60 ms, keep the overall speed, floor at 50%. Rhythm is left off: whether it helps above 3× is not known yet." />
 
 				<TextBlock Classes="section" Text="Sync" />
 				<Grid ColumnDefinitions="*,Auto">

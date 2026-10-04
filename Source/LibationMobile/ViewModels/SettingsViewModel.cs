@@ -107,37 +107,106 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 		}
 	}
 
-	public bool IsStartBelow05 => settings.TrainingStartBelow == 0.5f;
-	public bool IsStartBelow1 => settings.TrainingStartBelow == 1f;
-	public bool IsStartBelow15 => settings.TrainingStartBelow == 1.5f;
-	public bool IsStartBelow2 => settings.TrainingStartBelow == 2f;
-	public bool IsStep005 => settings.TrainingStep == 0.05f;
-	public bool IsStep01 => settings.TrainingStep == 0.1f;
-	public bool IsStep02 => settings.TrainingStep == 0.2f;
-	public bool IsStep05 => settings.TrainingStep == 0.5f;
-	public bool IsEvery1 => settings.TrainingMinutes == 1f;
-	public bool IsEvery2 => settings.TrainingMinutes == 2f;
-	public bool IsEvery5 => settings.TrainingMinutes == 5f;
-	public bool IsEvery10 => settings.TrainingMinutes == 10f;
+	// Sliders: each setter saves and updates only its text. Sending the value back to a slider mid-drag made it catch.
+
+	public double TrainingStartSpeed
+	{
+		get => Math.Round(settings.TrainingStartSpeed, 1);
+		set { settings.TrainingStartSpeed = (float)value; OnPropertyChanged(nameof(TrainingStartText)); }
+	}
+	public string TrainingStartText => $"{TrainingStartSpeed:0.0}×";
+
+	public double TrainingStep
+	{
+		get => Math.Round(settings.TrainingStep, 2);
+		set { settings.TrainingStep = (float)value; OnPropertyChanged(nameof(TrainingStepText)); }
+	}
+	public string TrainingStepText => $"+{TrainingStep:0.0#}×";
+
+	public double TrainingMinutes
+	{
+		get => Math.Round(settings.TrainingMinutes, 1);
+		set { settings.TrainingMinutes = (float)value; OnPropertyChanged(nameof(TrainingMinutesText)); }
+	}
+	public string TrainingMinutesText => TrainingMinutes < 1 ? $"{TrainingMinutes * 60:0} s" : $"{TrainingMinutes:0.#} min";
+
+	public double TrainingCeiling
+	{
+		get => Math.Round(settings.TrainingCeiling, 1);
+		set { settings.TrainingCeiling = (float)value; OnPropertyChanged(nameof(TrainingCeilingText)); }
+	}
+	public string TrainingCeilingText => $"{TrainingCeiling:0.0}×";
+
+	public double TrainingRestartMinutes
+	{
+		get => Math.Round(settings.TrainingRestartMinutes);
+		set { settings.TrainingRestartMinutes = (float)value; OnPropertyChanged(nameof(TrainingRestartText)); }
+	}
+	public string TrainingRestartText => TrainingRestartMinutes >= 60 ? $"{TrainingRestartMinutes / 60:0.#} h" : $"{TrainingRestartMinutes:0} min";
+
+	#endregion
+
+	#region High speeds (speechwarp's options)
+
+	/// <summary>Pause cap in milliseconds; 0 is off.</summary>
+	public double PauseCapMs
+	{
+		get => Math.Round(settings.PauseCap * 1000);
+		set { settings.PauseCap = (float)(value / 1000); OnPropertyChanged(nameof(PauseCapText)); OnPropertyChanged(nameof(UsesSpeedySpeedUp)); }
+	}
+	public string PauseCapText => PauseCapMs <= 0 ? "Off" : $"{PauseCapMs:0} ms";
+
+	public bool KeepSpeed
+	{
+		get => settings.KeepSpeed;
+		set { settings.KeepSpeed = value; OnPropertyChanged(); }
+	}
+
+	/// <summary>Speed floor as a percentage of the speed; 0 is off.</summary>
+	public double SpeedFloorPercent
+	{
+		get => Math.Round(settings.SpeedFloor * 100);
+		set { settings.SpeedFloor = (float)(value / 100); OnPropertyChanged(nameof(SpeedFloorText)); }
+	}
+	public string SpeedFloorText => SpeedFloorPercent <= 0 ? "Off" : $"{SpeedFloorPercent:0}% of the speed";
+
+	/// <summary>Rhythm gap in milliseconds; 0 is off.</summary>
+	public double RhythmGapMs
+	{
+		get => Math.Round(settings.RhythmGap * 1000);
+		set { settings.RhythmGap = (float)(value / 1000); OnPropertyChanged(nameof(RhythmGapText)); OnPropertyChanged(nameof(RhythmOn)); }
+	}
+	public string RhythmGapText => RhythmGapMs <= 0 ? "Off" : $"{RhythmGapMs:0} ms";
+	public bool RhythmOn => RhythmGapMs > 0;
+
+	public double RhythmRate
+	{
+		get => Math.Round(settings.RhythmRate, 1);
+		set { settings.RhythmRate = (float)value; OnPropertyChanged(nameof(RhythmRateText)); }
+	}
+	public string RhythmRateText => $"{RhythmRate:0.#} a second";
+
+	/// <summary>The floor only applies to Speedy; the others work with either method.</summary>
+	public bool UsesSpeedySpeedUp => IsNonlinearMethod;
 
 	[RelayCommand]
-	private void SetTrainingStartBelow(string value)
+	private void ResetHighSpeed()
 	{
-		settings.TrainingStartBelow = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+		settings.PauseCap = 0;
+		settings.KeepSpeed = true;
+		settings.SpeedFloor = 0;
+		settings.RhythmGap = 0;
+		settings.RhythmRate = 6;
 		OnPropertyChanged(string.Empty);
 	}
 
+	/// <summary>The settings the library's own evaluation used at 5x to 8x, as a starting point.</summary>
 	[RelayCommand]
-	private void SetTrainingStep(string value)
+	private void SuggestHighSpeed()
 	{
-		settings.TrainingStep = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-		OnPropertyChanged(string.Empty);
-	}
-
-	[RelayCommand]
-	private void SetTrainingMinutes(string value)
-	{
-		settings.TrainingMinutes = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+		settings.PauseCap = 0.06f;
+		settings.KeepSpeed = true;
+		settings.SpeedFloor = 0.5f;
 		OnPropertyChanged(string.Empty);
 	}
 

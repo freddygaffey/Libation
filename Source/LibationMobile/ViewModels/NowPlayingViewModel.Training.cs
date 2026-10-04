@@ -10,9 +10,6 @@ namespace LibationMobile.ViewModels;
 /// </summary>
 public partial class NowPlayingViewModel
 {
-	/// <summary>A pause shorter than this carries on the same climb; a longer one starts the warm-up again.</summary>
-	private static readonly TimeSpan TrainingRestartAfter = TimeSpan.FromMinutes(10);
-
 	/// <summary>The speed the climb is heading for, while one is under way.</summary>
 	private double? trainingTarget;
 	private TimeSpan untilNextStep;
@@ -25,12 +22,13 @@ public partial class NowPlayingViewModel
 
 	private void StartTraining()
 	{
-		var resuming = DateTime.UtcNow - lastTrainingTick < TrainingRestartAfter;
+		// A short break carries on the same climb; a longer one starts the warm-up again.
+		var resuming = DateTime.UtcNow - lastTrainingTick < TimeSpan.FromMinutes(settings.TrainingRestartMinutes);
 		if (!settings.Training || resuming)
 			return;
 		var target = settings.GetBookSpeed(Book.Id) ?? Speed;
-		var start = Math.Max(1, target - settings.TrainingStartBelow);
-		if (start >= target && !settings.TrainingClimb)
+		var start = Math.Min(target, settings.TrainingStartSpeed);
+		if (start >= target && (!settings.TrainingClimb || target >= settings.TrainingCeiling))
 			return;
 		trainingTarget = target;
 		untilNextStep = TimeSpan.FromMinutes(settings.TrainingMinutes);
@@ -65,9 +63,10 @@ public partial class NowPlayingViewModel
 		{
 			untilNextStep = TimeSpan.FromMinutes(settings.TrainingMinutes);
 			var next = Speed + settings.TrainingStep;
-			if (next >= target - 0.001 && !settings.TrainingClimb)
+			var top = settings.TrainingClimb ? Math.Max(target, settings.TrainingCeiling) : target;
+			if (next >= top - 0.001)
 			{
-				ApplySpeed(target, save: false);
+				ApplySpeed(top, save: top > target + 0.001);
 				StopTraining();
 				return;
 			}

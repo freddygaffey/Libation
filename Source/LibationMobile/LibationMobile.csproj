@@ -19,7 +19,7 @@
     <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.0" />
     <PackageReference Include="AudibleApi" Version="14.1.2" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="Speechwarp" Version="0.1.0" />
+    <PackageReference Include="Speechwarp" Version="0.2.0" />
   </ItemGroup>
 
   <ItemGroup>

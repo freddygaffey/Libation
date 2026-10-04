@@ -34,6 +34,32 @@ public static class AudioBackend
 		set => useNonlinear = value;
 	}
 
+	// Options for very high speeds, from speechwarp 0.2; see its docs/how-it-works.md. Read by the speed changer
+	// on the audio thread, so changes take effect during playback.
+	private static volatile float pauseCap;
+	private static volatile bool keepSpeed = true;
+	private static volatile float speedFloor;
+	private static volatile float rhythmGap;
+	private static volatile float rhythmRate = 6f;
+
+	/// <summary>Shorten every pause to at most this many seconds before speeding up. 0 is off.</summary>
+	public static float PauseCap { get => pauseCap; set => pauseCap = Math.Clamp(value, 0f, 1f); }
+
+	/// <summary>With the pause cap or rhythm on, hold the overall speed: time saved in pauses plays the words slower.</summary>
+	public static bool KeepSpeed { get => keepSpeed; set => keepSpeed = value; }
+
+	/// <summary>No stretch of speech slower than this fraction of the speed. 0 is off. Speedy only.</summary>
+	public static float SpeedFloor { get => speedFloor; set => speedFloor = Math.Clamp(value, 0f, 1f); }
+
+	/// <summary>A silence of this many seconds put into the speech <see cref="RhythmRate"/> times a second. 0 is off.</summary>
+	public static float RhythmGap { get => rhythmGap; set => rhythmGap = Math.Clamp(value, 0f, 0.2f); }
+
+	/// <summary>Rhythm gaps a second.</summary>
+	public static float RhythmRate { get => rhythmRate; set => rhythmRate = Math.Clamp(value, 1f, 16f); }
+
+	/// <summary>Whether a high-speed option is on that the original method does not have, so speechwarp must play even then.</summary>
+	public static bool NeedsSpeechwarp => PauseCap > 0 || RhythmGap > 0;
+
 	/// <summary>False if the speechwarp library could not be loaded on this device, so speed-up is always even.</summary>
 	public static bool NonlinearAvailable { get; private set; } = true;
 

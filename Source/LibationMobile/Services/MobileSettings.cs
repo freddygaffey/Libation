@@ -42,7 +42,14 @@ public class MobileSettings
 		/// <summary>When each downloaded book's download was asked for, so a new download sorts as just listened to.</summary>
 		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
 		public bool Training { get; set; }
-		public float TrainingStartBelow { get; set; } = 1f;
+		public float TrainingStartSpeed { get; set; } = 3f;
+		public float TrainingCeiling { get; set; } = 10f;
+		public float TrainingRestartMinutes { get; set; } = 10f;
+		public float PauseCap { get; set; }
+		public bool KeepSpeed { get; set; } = true;
+		public float SpeedFloor { get; set; }
+		public float RhythmGap { get; set; }
+		public float RhythmRate { get; set; } = 6f;
 		public float TrainingStep { get; set; } = 0.1f;
 		public float TrainingMinutes { get; set; } = 2f;
 		public bool TrainingClimb { get; set; }
@@ -55,6 +62,11 @@ public class MobileSettings
 		state = Load(path);
 		AudioBackend.Nonlinearity = state.Nonlinearity;
 		AudioBackend.UseNonlinear = state.UseNonlinearSpeed;
+		AudioBackend.PauseCap = state.PauseCap;
+		AudioBackend.KeepSpeed = state.KeepSpeed;
+		AudioBackend.SpeedFloor = state.SpeedFloor;
+		AudioBackend.RhythmGap = state.RhythmGap;
+		AudioBackend.RhythmRate = state.RhythmRate;
 	}
 
 	/// <summary>Speed up with speechwarp (true) or with the original even method (false).</summary>
@@ -207,10 +219,25 @@ public class MobileSettings
 		set { lock (locker) { state.Training = value; Save(); } }
 	}
 
-	public float TrainingStartBelow
+	/// <summary>Where the warm-up starts: a speed already comfortable without one. A book set at or below it has no warm-up.</summary>
+	public float TrainingStartSpeed
 	{
-		get { lock (locker) return state.TrainingStartBelow; }
-		set { lock (locker) { state.TrainingStartBelow = Math.Clamp(value, 0f, 5f); Save(); } }
+		get { lock (locker) return state.TrainingStartSpeed; }
+		set { lock (locker) { state.TrainingStartSpeed = Math.Clamp(value, 1f, 10f); Save(); } }
+	}
+
+	/// <summary>The fastest that keep climbing goes.</summary>
+	public float TrainingCeiling
+	{
+		get { lock (locker) return state.TrainingCeiling; }
+		set { lock (locker) { state.TrainingCeiling = Math.Clamp(value, 1f, 10f); Save(); } }
+	}
+
+	/// <summary>A break longer than this starts the warm-up again; a shorter one carries on where it was.</summary>
+	public float TrainingRestartMinutes
+	{
+		get { lock (locker) return state.TrainingRestartMinutes; }
+		set { lock (locker) { state.TrainingRestartMinutes = Math.Clamp(value, 1f, 240f); Save(); } }
 	}
 
 	public float TrainingStep
@@ -230,6 +257,41 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.TrainingClimb; }
 		set { lock (locker) { state.TrainingClimb = value; Save(); } }
+	}
+
+	/// <summary>See <see cref="AudioBackend.PauseCap"/>.</summary>
+	public float PauseCap
+	{
+		get { lock (locker) return state.PauseCap; }
+		set { lock (locker) { state.PauseCap = value; Save(); } AudioBackend.PauseCap = value; }
+	}
+
+	/// <summary>See <see cref="AudioBackend.KeepSpeed"/>.</summary>
+	public bool KeepSpeed
+	{
+		get { lock (locker) return state.KeepSpeed; }
+		set { lock (locker) { state.KeepSpeed = value; Save(); } AudioBackend.KeepSpeed = value; }
+	}
+
+	/// <summary>See <see cref="AudioBackend.SpeedFloor"/>.</summary>
+	public float SpeedFloor
+	{
+		get { lock (locker) return state.SpeedFloor; }
+		set { lock (locker) { state.SpeedFloor = value; Save(); } AudioBackend.SpeedFloor = value; }
+	}
+
+	/// <summary>See <see cref="AudioBackend.RhythmGap"/>.</summary>
+	public float RhythmGap
+	{
+		get { lock (locker) return state.RhythmGap; }
+		set { lock (locker) { state.RhythmGap = value; Save(); } AudioBackend.RhythmGap = value; }
+	}
+
+	/// <summary>See <see cref="AudioBackend.RhythmRate"/>.</summary>
+	public float RhythmRate
+	{
+		get { lock (locker) return state.RhythmRate; }
+		set { lock (locker) { state.RhythmRate = value; Save(); } AudioBackend.RhythmRate = value; }
 	}
 
 	/// <summary>Show syllables a second under the speed in the player.</summary>

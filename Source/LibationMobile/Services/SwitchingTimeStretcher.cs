@@ -9,7 +9,11 @@ namespace LibationMobile.Services;
 /// </summary>
 public sealed class SwitchingTimeStretcher(ITimeStretcher nonlinear, ITimeStretcher classic) : ITimeStretcher
 {
-	private ITimeStretcher current = AudioBackend.UseNonlinear ? nonlinear : classic;
+	private ITimeStretcher current = Wanted(nonlinear, classic);
+
+	/// <summary>speechwarp plays when chosen, and also for even speed-up when a pause cap or rhythm is on, which the original method lacks.</summary>
+	private static ITimeStretcher Wanted(ITimeStretcher nonlinear, ITimeStretcher classic)
+		=> AudioBackend.UseNonlinear || AudioBackend.NeedsSpeechwarp ? nonlinear : classic;
 	private float speed = 1f;
 
 	public float Speed
@@ -23,7 +27,7 @@ public sealed class SwitchingTimeStretcher(ITimeStretcher nonlinear, ITimeStretc
 	public void Write(ReadOnlySpan<float> samples)
 	{
 		// Picked up here, on the thread that uses the stretchers, because the setting is changed from the UI.
-		var wanted = AudioBackend.UseNonlinear ? nonlinear : classic;
+		var wanted = Wanted(nonlinear, classic);
 		if (wanted != current)
 		{
 			current.Clear();
