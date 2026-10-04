@@ -168,7 +168,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		listeningLog = new ListeningLog(Path.Combine(dataDirectory, "listening-log.json"));
 		Log = new ListeningLogViewModel(listeningLog);
 		var catalog = new LibraryCatalog(dataDirectory);
-		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations);
+		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog);
 		// The refresh button refreshes everything Audible holds, including the loaded book's position and bookmarks.
 		Library.SyncCommand.PropertyChanged += (_, e) =>
 		{

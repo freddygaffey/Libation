@@ -39,6 +39,8 @@ public class MobileSettings
 		public double SecondsSpentListening { get; set; }
 		public DateTimeOffset? ListeningCountedSince { get; set; }
 		public float BaselineSpeed { get; set; } = 1f;
+		/// <summary>When each downloaded book's download was asked for, so a new download sorts as just listened to.</summary>
+		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
 	}
 
 	public MobileSettings(string path)
@@ -260,6 +262,26 @@ public class MobileSettings
 	{
 		lock (locker)
 			return state.PositionTimes.TryGetValue(bookId, out var time) ? time : null;
+	}
+
+	/// <summary>When the book's download was asked for. Null if it is not downloaded, or was downloaded before this was recorded.</summary>
+	public DateTimeOffset? GetDownloadTime(string bookId)
+	{
+		lock (locker)
+			return state.DownloadTimes.TryGetValue(bookId, out var time) ? time : null;
+	}
+
+	/// <summary>Record a download asked for now, or forget it (null) when the download is removed or fails.</summary>
+	public void SetDownloadTime(string bookId, DateTimeOffset? time)
+	{
+		lock (locker)
+		{
+			if (time is { } at)
+				state.DownloadTimes[bookId] = at;
+			else if (!state.DownloadTimes.Remove(bookId))
+				return;
+			Save();
+		}
 	}
 
 	public void RemovePosition(string bookId)

@@ -82,6 +82,8 @@
 					<MenuFlyout Placement="BottomEdgeAlignedRight">
 						<MenuItem Header="{Binding AccountText}" IsEnabled="False" />
 						<MenuItem Header="Listening log" Command="{Binding ShowLogCommand}" />
+						<MenuItem Header="Copy shown books as JSON" Click="CopyJson_Click" />
+						<MenuItem Header="Save shown books as JSON…" Click="SaveJson_Click" />
 						<MenuItem Header="Sign out" Command="{Binding SignOutCommand}" />
 					</MenuFlyout>
 				</Button.Flyout>
@@ -126,9 +128,18 @@
 					<Button Classes="chip" Classes.selected="{Binding Library.IsStandaloneOnly}" Content="Standalone" Command="{Binding Library.SetSeriesFilterCommand}" CommandParameter="standalone" />
 					<Button Classes="chip" Classes.selected="{Binding Library.IsPdfOnly}" Content="Has a PDF" Command="{Binding Library.TogglePdfFilterCommand}" />
 				</WrapPanel>
-				<Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+				<Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
 					<TextBlock Classes="muted" Text="{Binding Library.ResultCountText}" FontSize="13" VerticalAlignment="Center" />
-					<Button Grid.Column="1" Classes="quiet" Content="Clear all" Padding="10,6" Command="{Binding Library.ClearFiltersCommand}" />
+					<!-- These books with their listening history, for pasting into an AI. -->
+					<Button Grid.Column="1" Classes="quiet" Content="Export JSON" Padding="10,6">
+						<Button.Flyout>
+							<MenuFlyout Placement="BottomEdgeAlignedRight">
+								<MenuItem Header="Copy to clipboard" Click="CopyJson_Click" />
+								<MenuItem Header="Save as a file…" Click="SaveJson_Click" />
+							</MenuFlyout>
+						</Button.Flyout>
+					</Button>
+					<Button Grid.Column="2" Classes="quiet" Content="Clear all" Padding="10,6" Command="{Binding Library.ClearFiltersCommand}" />
 				</Grid>
 			</StackPanel>
 		</Grid>

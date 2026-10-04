@@ -126,6 +126,7 @@ public partial class LibraryViewModel : ObservableObject
 	private readonly BookDownloader downloader;
 	private readonly MobileSettings settings;
 	private readonly AudibleAnnotations annotations;
+	private readonly ListeningLog listeningLog;
 	private List<BookItemViewModel> allBooks = [];
 	private DateTime lastPositionRefresh = DateTime.MinValue;
 
@@ -267,8 +268,9 @@ public partial class LibraryViewModel : ObservableObject
 	public bool IsLibraryEmpty => IsLoaded && !IsSyncing && allBooks.Count == 0;
 	public bool IsDownloadedEmpty => IsLoaded && ShowDownloadedOnly && !IsSearching && !HasActiveFilters && Books.Count == 0 && allBooks.Count > 0;
 
-	public LibraryViewModel(LibraryCatalog catalog, AudibleAccount account, BookDownloader downloader, MobileSettings settings, AudibleAnnotations annotations)
+	public LibraryViewModel(LibraryCatalog catalog, AudibleAccount account, BookDownloader downloader, MobileSettings settings, AudibleAnnotations annotations, ListeningLog listeningLog)
 	{
+		this.listeningLog = listeningLog;
 		this.annotations = annotations;
 		this.catalog = catalog;
 		this.account = account;
@@ -352,6 +354,13 @@ public partial class LibraryViewModel : ObservableObject
 		item.DownloadProgress = 0;
 		item.State = DownloadState.Downloading;
 		RefreshItem(item);
+		// A download resumed after a restart keeps its place in the list; a new one goes to the top.
+		if (settings.GetDownloadTime(item.Book.Asin) is null)
+		{
+			settings.SetDownloadTime(item.Book.Asin, DateTimeOffset.UtcNow);
+			if (Sort == SORT_LISTENED)
+				ApplySort();
+		}
 
 		// Progress arrives on a worker thread; throttle to whole percents to keep the UI calm.
 		var lastPercent = -1;
@@ -377,10 +386,12 @@ public partial class LibraryViewModel : ObservableObject
 		catch (OperationCanceledException)
 		{
 			item.State = DownloadState.NotDownloaded;
+			settings.SetDownloadTime(item.Book.Asin, null);
 		}
 		catch (Exception ex)
 		{
 			item.State = DownloadState.NotDownloaded;
+			settings.SetDownloadTime(item.Book.Asin, null);
 			Message = $"{item.Title} could not be downloaded: {ex.Message}";
 		}
 		finally
@@ -408,6 +419,7 @@ public partial class LibraryViewModel : ObservableObject
 	public void RemoveDownload(BookItemViewModel item)
 	{
 		catalog.DeleteDownload(item.Book.Asin);
+		settings.SetDownloadTime(item.Book.Asin, null);
 		item.State = DownloadState.NotDownloaded;
 		RefreshItem(item);
 		ApplyFilter();
@@ -438,6 +450,45 @@ public partial class LibraryViewModel : ObservableObject
 		});
 	}
 
+	#region Export
+
+	/// <summary>The books shown now, as JSON for an AI or a spreadsheet, with how much and how lately each was listened to.</summary>
+	public string ExportJson() => LibraryExport.ToJson(
+		Books.Select(b => new ExportInput(
+			b.Book,
+			b.State == DownloadState.Downloaded,
+			settings.GetPosition(b.Book.Asin),
+			settings.GetPositionTime(b.Book.Asin),
+			settings.GetBookSpeed(b.Book.Asin))),
+		listeningLog.Sessions,
+		SelectionDescription,
+		DateTimeOffset.Now);
+
+	/// <summary>A file name for the export, such as "libation-library-2026-10-04.json".</summary>
+	public static string ExportFileName => $"libation-library-{DateTime.Now:yyyy-MM-dd}.json";
+
+	/// <summary>Which books the export holds, in words: the list, filters and search that were in force.</summary>
+	private string SelectionDescription
+	{
+		get
+		{
+			var parts = new List<string> { ShowDownloadedOnly ? "downloaded books" : "whole library" };
+			if (!IsProgressAny)
+				parts.Add(progressFilter switch { "notstarted" => "not started", "started" => "in progress", _ => "finished" });
+			if (!IsLengthAny)
+				parts.Add(lengthFilter switch { "short" => "under 5 hours", "medium" => "5 to 15 hours", _ => "over 15 hours" });
+			if (!IsSeriesAny)
+				parts.Add(seriesFilter == "series" ? "in a series" : "standalone");
+			if (pdfFilter)
+				parts.Add("has a PDF");
+			if (IsSearching)
+				parts.Add($"search \"{SearchText!.Trim()}\"");
+			return string.Join(", ", parts);
+		}
+	}
+
+	#endregion
+
 	#region Sorting
 
 	public const string SORT_LISTENED = "listened";
@@ -447,7 +498,7 @@ public partial class LibraryViewModel : ObservableObject
 	public const string SORT_AUTHOR = "author";
 	public const string SORT_IN_PROGRESS = "progress";
 
-	private string Sort => settings.LibrarySort ?? SORT_RECENT;
+	private string Sort => settings.LibrarySort ?? SORT_LISTENED;
 	public bool IsSortListened => Sort == SORT_LISTENED;
 	public bool IsSortFinished => Sort == SORT_FINISHED;
 	public bool IsSortRecent => Sort == SORT_RECENT;
@@ -472,11 +523,18 @@ public partial class LibraryViewModel : ObservableObject
 	private DateTimeOffset LastListened(BookItemViewModel book)
 		=> book.HasProgress && settings.GetPositionTime(book.Book.Asin) is DateTimeOffset time ? time : DateTimeOffset.MinValue;
 
+	/// <summary>For the last-listened order: a book counts as listened to when its download was asked for, too.</summary>
+	private DateTimeOffset LastActivity(BookItemViewModel book)
+	{
+		var listened = LastListened(book);
+		return book.State != DownloadState.NotDownloaded && settings.GetDownloadTime(book.Book.Asin) is { } downloaded && downloaded > listened ? downloaded : listened;
+	}
+
 	private void ApplySort()
 	{
 		IEnumerable<BookItemViewModel> sorted = Sort switch
 		{
-			SORT_LISTENED => allBooks.OrderByDescending(LastListened).ThenByDescending(b => b.Book.Purchased),
+			SORT_LISTENED => allBooks.OrderByDescending(LastActivity).ThenByDescending(b => b.Book.Purchased),
 			// Finished books, the most recently finished first; then the rest, newest first.
 			SORT_FINISHED => allBooks.OrderByDescending(b => b.IsFinished).ThenByDescending(b => b.IsFinished ? LastListened(b) : DateTimeOffset.MinValue).ThenByDescending(b => b.Book.Purchased),
 			SORT_TITLE => allBooks.OrderBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase),
