@@ -121,7 +121,7 @@
 				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
 					<StackPanel VerticalAlignment="Center">
 						<TextBlock Text="Training mode" FontSize="15" />
-						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Each time you start listening, warm up from a speed you are already comfortable at and step up to the book's speed. Ears adapt to fast speech within minutes, and lose some of it between sessions. Changing the speed yourself ends the warm-up." />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Each time you start listening, warm up from a speed you are already comfortable at and step up to the book's speed. Ears adapt to fast speech within minutes, and lose some of it between sessions. Changing the speed yourself during the warm-up moves it: the climb carries on from there." />
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding Training}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>

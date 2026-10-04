@@ -65,7 +65,18 @@ public partial class NowPlayingViewModel
 		UpdateTrainingText();
 	}
 
-	/// <summary>The listener chose a speed, or training was turned off: leave the speed where it is.</summary>
+	/// <summary>
+	/// The listener changed the speed during a warm-up: the climb carries on from the new speed, with a full step's
+	/// time before the next rise. The book's own speed, where the climb is heading, is left as it was.
+	/// </summary>
+	private void AdjustTraining(double speed)
+	{
+		ApplySpeed(speed, save: false);
+		untilNextStep = TimeSpan.FromMinutes(settings.TrainingMinutes);
+		UpdateTrainingText();
+	}
+
+	/// <summary>Training was turned off, or the climb is over: leave the speed where it is.</summary>
 	private void StopTraining()
 	{
 		if (trainingTarget is null)
@@ -90,8 +101,14 @@ public partial class NowPlayingViewModel
 		if (untilNextStep <= TimeSpan.Zero)
 		{
 			untilNextStep = TimeSpan.FromMinutes(settings.TrainingMinutes);
-			var next = Speed + settings.TrainingStep;
 			var top = settings.TrainingClimb ? Math.Max(target, settings.TrainingCeiling) : target;
+			// Already there, or set past it by hand: the climb is done, at the listener's speed.
+			if (Speed >= top - 0.001)
+			{
+				StopTraining();
+				return;
+			}
+			var next = Speed + settings.TrainingStep;
 			if (next >= top - 0.001)
 			{
 				ApplySpeed(top, save: top > target + 0.001);

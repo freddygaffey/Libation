@@ -134,14 +134,16 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			? $"{FormatTime((chapter.EndOffset - Position) / Speed)} left in chapter"
 			: "";
 
-	/// <summary>The speed, as the listener sets it. Setting it takes over from training mode for the rest of the session.</summary>
+	/// <summary>The speed, as the listener sets it. During a training warm-up it moves the climb, which carries on from there.</summary>
 	public double Speed
 	{
 		get => player.Speed;
 		set
 		{
-			StopTraining();
-			ApplySpeed(value, save: true);
+			if (IsTraining)
+				AdjustTraining(value);
+			else
+				ApplySpeed(value, save: true);
 		}
 	}
 
