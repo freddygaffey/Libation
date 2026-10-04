@@ -249,6 +249,7 @@ public partial class NowPlayingViewModel
 	public void SettingsChanged()
 	{
 		OnPropertyChanged(nameof(SkipText));
+		OnPropertyChanged(nameof(TrainingEnabled));
 		RefreshScrubber();
 		UpdateMediaSession();
 	}

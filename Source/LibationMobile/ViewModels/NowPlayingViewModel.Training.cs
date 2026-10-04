@@ -20,6 +20,34 @@ public partial class NowPlayingViewModel
 
 	public bool IsTraining => trainingTarget is not null;
 
+	/// <summary>
+	/// The player's training switch, the same setting as in Settings. On starts a warm-up now (or at the next play);
+	/// off part-way up goes straight to the book's speed.
+	/// </summary>
+	public bool TrainingEnabled
+	{
+		get => settings.Training;
+		set
+		{
+			if (value == settings.Training)
+				return;
+			settings.Training = value;
+			OnPropertyChanged();
+			if (value)
+			{
+				lastTrainingTick = DateTime.MinValue;
+				if (sessionStarted is not null)
+					StartTraining();
+			}
+			else if (trainingTarget is double target)
+			{
+				if (Speed < target)
+					ApplySpeed(target, save: false);
+				StopTraining();
+			}
+		}
+	}
+
 	private void StartTraining()
 	{
 		// A short break carries on the same climb; a longer one starts the warm-up again.

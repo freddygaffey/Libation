@@ -178,7 +178,6 @@
 						<TextBlock Classes="muted" Text="{Binding SyllableRateText}" FontSize="12"
 							ToolTip.Tip="Estimated from the audio, within about 10%. Untrained listeners manage about 8; trained blind screen-reader users 17 to 22."
 							IsVisible="{Binding SyllableRateText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-						<TextBlock Text="{Binding TrainingText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" IsVisible="{Binding IsTraining}" />
 					</StackPanel>
 					<Button Grid.Column="1" Classes="transport" Width="48" Height="48" Command="{Binding SlowerStepCommand}">
 						<PathIcon Data="{StaticResource IconMinus}" />
@@ -192,6 +191,14 @@
 					Minimum="{x:Static vm:NowPlayingViewModel.MIN_SPEED}"
 					Maximum="{x:Static vm:NowPlayingViewModel.MAX_SPEED}"
 					Stops="{x:Static vm:NowPlayingViewModel.SpeedStops}" />
+				<!-- Training mode: warm up from a comfortable speed to this one. Set up in Settings, Speed listening. -->
+				<Grid ColumnDefinitions="*,Auto" Margin="0,-2,0,0">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Training" FontSize="14" />
+						<TextBlock Text="{Binding TrainingText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" IsVisible="{Binding IsTraining}" />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding TrainingEnabled}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
 			</StackPanel>
 		</Border>
 	</Grid>

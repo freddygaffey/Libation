@@ -84,6 +84,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 		{
 			settings.Training = value;
 			OnPropertyChanged();
+			changed();
 		}
 	}
 
@@ -246,6 +247,8 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 	/// <summary>Called when the settings page opens, to show figures from listening since it was last open.</summary>
 	public void RefreshTimeSaved()
 	{
+		// The player has its own training switch.
+		OnPropertyChanged(nameof(Training));
 		OnPropertyChanged(nameof(BaselineText));
 		OnPropertyChanged(nameof(TimeSavedText));
 		OnPropertyChanged(nameof(TimeSavedDetail));
