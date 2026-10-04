@@ -90,16 +90,16 @@
 
 		<!-- The three tabs. -->
 		<UniformGrid Grid.Row="3" Columns="3" Background="{StaticResource Ink}" IsVisible="{Binding IsTabPage}">
-			<Button Classes="tab" Classes.selected="{Binding IsLibraryPage}" Command="{Binding ShowTabCommand}" CommandParameter="library">
-				<StackPanel Spacing="2">
-					<PathIcon Data="{StaticResource IconLibrary}" Width="20" Height="20" />
-					<TextBlock Text="Library" FontSize="11" HorizontalAlignment="Center" />
-				</StackPanel>
-			</Button>
 			<Button Classes="tab" Classes.selected="{Binding IsPodcastsPage}" Command="{Binding ShowTabCommand}" CommandParameter="podcasts">
 				<StackPanel Spacing="2">
 					<PathIcon Data="{StaticResource IconPodcast}" Width="20" Height="20" />
 					<TextBlock Text="Podcasts" FontSize="11" HorizontalAlignment="Center" />
+				</StackPanel>
+			</Button>
+			<Button Classes="tab" Classes.selected="{Binding IsLibraryPage}" Command="{Binding ShowTabCommand}" CommandParameter="library">
+				<StackPanel Spacing="2">
+					<PathIcon Data="{StaticResource IconLibrary}" Width="20" Height="20" />
+					<TextBlock Text="Library" FontSize="11" HorizontalAlignment="Center" />
 				</StackPanel>
 			</Button>
 			<Button Classes="tab" Classes.selected="{Binding IsDownloadsPage}" Command="{Binding ShowTabCommand}" CommandParameter="downloads">
