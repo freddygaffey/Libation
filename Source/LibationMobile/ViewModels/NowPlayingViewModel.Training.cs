@@ -111,9 +111,11 @@ public partial class NowPlayingViewModel
 			TrainingText = "";
 			return;
 		}
-		var wait = untilNextStep.TotalMinutes >= 1 ? $"{(int)untilNextStep.TotalMinutes}:{untilNextStep.Seconds:00}" : $"{Math.Max(0, untilNextStep.Seconds)} s";
-		TrainingText = Speed < target - 0.001
-			? $"Training up to {target:0.0}×, +{settings.TrainingStep:0.##}× in {wait}"
-			: $"Training: climbing, +{settings.TrainingStep:0.##}× in {wait}";
+		// Where the climb really ends: past the book's speed to the ceiling when climbing.
+		var top = settings.TrainingClimb ? Math.Max(target, settings.TrainingCeiling) : target;
+		var wait = untilNextStep.TotalMinutes >= 1
+			? $"{(int)untilNextStep.TotalMinutes} min {untilNextStep.Seconds} s"
+			: $"{Math.Max(0, untilNextStep.Seconds)} s";
+		TrainingText = $"{Speed:0.0}× now, climbing to {top:0.0}×. Next +{settings.TrainingStep:0.0#}× in {wait}.";
 	}
 }
