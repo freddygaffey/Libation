@@ -25,6 +25,18 @@
 	<array>
 		<string>arm64</string>
 	</array>
+	<!-- The home-screen widget's play and recent-book buttons open the app with these links (HomeWidget.LINK_SCHEME). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>io.github.freddygaffey.libation.widget</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>libation-player</string>
+			</array>
+		</dict>
+	</array>
 	<!-- Keep playing with the screen locked or another app in front. -->
 	<key>UIBackgroundModes</key>
 	<array>

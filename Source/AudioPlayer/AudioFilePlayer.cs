@@ -54,7 +54,21 @@ public sealed class AudioFilePlayer : IDisposable
 		}
 	}
 
+	/// <summary>
+	/// Syllables a second in the book itself, before any speed-up, over the last minute decoded. Multiply by the speed for
+	/// the rate heard. Null until ten seconds have been decoded since the last seek.
+	/// </summary>
+	public double? SourceSyllablesPerSecond
+	{
+		get
+		{
+			lock (locker)
+				return syllables.Rate(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(10));
+		}
+	}
+
 	private readonly Lock locker = new();
+	private readonly SyllableCounter syllables;
 	private readonly IPcmSource source;
 	private readonly ITimeStretcher stretcher;
 	private volatile float volume = 1f;
@@ -76,6 +90,8 @@ public sealed class AudioFilePlayer : IDisposable
 		this.source = source;
 		stretcher = stretcherFactory?.Invoke(source.SampleRate, source.Channels) ?? new SonicTimeStretcher(source.SampleRate, source.Channels);
 		decodeBuffer = new float[DECODE_CHUNK_FRAMES * source.Channels];
+		syllables = new SyllableCounter(source.SampleRate, source.Channels);
+		syllables.Reset(0);
 		output = (outputFactory ?? ((rate, channels, render) => new SoundFlowAudioOutput(rate, channels, render)))
 			(source.SampleRate, source.Channels, FillBuffer);
 	}
@@ -101,6 +117,7 @@ public sealed class AudioFilePlayer : IDisposable
 	private void SeekInternal(TimeSpan position)
 	{
 		sourceFrame = source.Seek(position);
+		syllables.Reset(sourceFrame);
 		stretcher.Clear();
 		output.Discard();
 		sourceEnded = false;
@@ -127,6 +144,7 @@ public sealed class AudioFilePlayer : IDisposable
 					if (decoded > 0)
 					{
 						stretcher.Write(decodeBuffer.AsSpan(0, decoded));
+						syllables.Write(decodeBuffer.AsSpan(0, decoded));
 						sourceFrame += decoded / source.Channels;
 					}
 					else
