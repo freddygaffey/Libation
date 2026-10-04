@@ -83,9 +83,7 @@ struct SkipButton: View {
     }
 }
 
-/// A + or − speed button with two hidden halves: the left half steps by 0.1x, the right half jumps to the next half
-/// (2.7x to 3x), so a big change needs few taps. iOS ignores taps on a widget for a moment after each one, so tapping
-/// fast does not add up.
+/// A + or − speed button: 0.1x a press, for fine adjustment beside the sliders' big jumps.
 struct SpeedStepButton: View {
     let faster: Bool
     var width: CGFloat = 44
@@ -94,22 +92,12 @@ struct SpeedStepButton: View {
     var tinted = false
 
     var body: some View {
-        Image(systemName: faster ? "plus" : "minus")
-            .font(.system(size: height * 0.55, weight: .bold))
-            .foregroundStyle(tinted ? Color.primary : Color.paper)
-            .frame(width: width, height: height)
-            .background(Capsule().fill(tinted ? Color.primary.opacity(0.2) : Color.white.opacity(0.12)))
-            .overlay {
-                HStack(spacing: 0) {
-                    half(fine: true)
-                    half(fine: false)
-                }
-            }
-    }
-
-    private func half(fine: Bool) -> some View {
-        Button(intent: ChangeSpeedIntent(faster: faster, fine: fine)) {
-            Color.clear.contentShape(Rectangle())
+        Button(intent: ChangeSpeedIntent(faster: faster, fine: true)) {
+            Image(systemName: faster ? "plus" : "minus")
+                .font(.system(size: height * 0.55, weight: .bold))
+                .foregroundStyle(tinted ? Color.primary : Color.paper)
+                .frame(width: width, height: height)
+                .background(Capsule().fill(tinted ? Color.primary.opacity(0.2) : Color.white.opacity(0.12)))
         }
         .buttonStyle(.plain)
     }
