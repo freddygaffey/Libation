@@ -176,7 +176,9 @@
 							FontSize="52" />
 						<!-- Measured from the audio: the rate speech research uses, for comparing with others. -->
 						<TextBlock Classes="muted" Text="{Binding SyllableRateText}" FontSize="12"
-							ToolTip.Tip="Estimated from the audio, within about 10%. Untrained listeners manage about 8; trained blind screen-reader users 17 to 22." />
+							ToolTip.Tip="Estimated from the audio, within about 10%. Untrained listeners manage about 8; trained blind screen-reader users 17 to 22."
+							IsVisible="{Binding SyllableRateText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+						<TextBlock Text="{Binding TrainingText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" IsVisible="{Binding IsTraining}" />
 					</StackPanel>
 					<Button Grid.Column="1" Classes="transport" Width="48" Height="48" Command="{Binding SlowerStepCommand}">
 						<PathIcon Data="{StaticResource IconMinus}" />

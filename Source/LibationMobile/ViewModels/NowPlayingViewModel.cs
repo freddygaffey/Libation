@@ -134,17 +134,28 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			? $"{FormatTime((chapter.EndOffset - Position) / Speed)} left in chapter"
 			: "";
 
+	/// <summary>The speed, as the listener sets it. Setting it takes over from training mode for the rest of the session.</summary>
 	public double Speed
 	{
 		get => player.Speed;
 		set
 		{
+			StopTraining();
+			ApplySpeed(value, save: true);
+		}
+	}
+
+	/// <summary>Change speed. Unsaved, it lasts until the book is closed: training mode climbs without moving the book's own speed.</summary>
+	private void ApplySpeed(double value, bool save)
+	{
+		{
 			var speed = Math.Round(Math.Clamp(value, MIN_SPEED, MAX_SPEED) / SPEED_STEP) * SPEED_STEP;
 			if (Math.Abs(speed - player.Speed) < 0.001)
 				return;
 			player.Speed = (float)speed;
-			settings.SetBookSpeed(Book.Id, (float)speed);
-			OnPropertyChanged();
+			if (save)
+				settings.SetBookSpeed(Book.Id, (float)speed);
+			OnPropertyChanged(nameof(Speed));
 			OnPropertyChanged(nameof(SpeedText));
 			OnPropertyChanged(nameof(RemainingText));
 			OnPropertyChanged(nameof(ChapterRemainingText));
@@ -164,8 +175,8 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	private void UpdateSyllableRate()
 	{
-		SyllableRateText = player.SourceSyllablesPerSecond is double rate && rate > 0
-			? $"≈ {rate * Speed:0} syllables a second"
+		SyllableRateText = !settings.ShowSyllableRate ? ""
+			: player.SourceSyllablesPerSecond is double rate && rate > 0 ? $"≈ {rate * Speed:0} syllables a second"
 			: "Measuring syllables a second…";
 	}
 
@@ -354,6 +365,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		var listening = IsPlaying && ClipEditor is null;
 		if (listening && lastListeningTick is DateTime last && now - last < LongestCountedTick)
 		{
+			TrainingTick(now - last);
 			uncountedTimeSpent += now - last;
 			uncountedBookTime += (now - last) * Speed;
 			sessionSpent += now - last;
@@ -367,6 +379,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			sessionFrom = Position;
 			sessionSpent = sessionBookTime = TimeSpan.Zero;
 			StartMarks();
+			StartTraining();
 		}
 		else if (!listening && sessionStarted is not null)
 			EndSession();

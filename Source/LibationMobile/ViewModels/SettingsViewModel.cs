@@ -75,6 +75,74 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 		OnPropertyChanged(nameof(Nonlinearity));
 	}
 
+	#region Speed listening
+
+	public bool Training
+	{
+		get => settings.Training;
+		set
+		{
+			settings.Training = value;
+			OnPropertyChanged();
+		}
+	}
+
+	public bool TrainingClimb
+	{
+		get => settings.TrainingClimb;
+		set
+		{
+			settings.TrainingClimb = value;
+			OnPropertyChanged();
+		}
+	}
+
+	public bool ShowSyllableRate
+	{
+		get => settings.ShowSyllableRate;
+		set
+		{
+			settings.ShowSyllableRate = value;
+			OnPropertyChanged();
+		}
+	}
+
+	public bool IsStartBelow05 => settings.TrainingStartBelow == 0.5f;
+	public bool IsStartBelow1 => settings.TrainingStartBelow == 1f;
+	public bool IsStartBelow15 => settings.TrainingStartBelow == 1.5f;
+	public bool IsStartBelow2 => settings.TrainingStartBelow == 2f;
+	public bool IsStep005 => settings.TrainingStep == 0.05f;
+	public bool IsStep01 => settings.TrainingStep == 0.1f;
+	public bool IsStep02 => settings.TrainingStep == 0.2f;
+	public bool IsStep05 => settings.TrainingStep == 0.5f;
+	public bool IsEvery1 => settings.TrainingMinutes == 1f;
+	public bool IsEvery2 => settings.TrainingMinutes == 2f;
+	public bool IsEvery5 => settings.TrainingMinutes == 5f;
+	public bool IsEvery10 => settings.TrainingMinutes == 10f;
+
+	[RelayCommand]
+	private void SetTrainingStartBelow(string value)
+	{
+		settings.TrainingStartBelow = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+		OnPropertyChanged(string.Empty);
+	}
+
+	[RelayCommand]
+	private void SetTrainingStep(string value)
+	{
+		settings.TrainingStep = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+		OnPropertyChanged(string.Empty);
+	}
+
+	[RelayCommand]
+	private void SetTrainingMinutes(string value)
+	{
+		settings.TrainingMinutes = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+		OnPropertyChanged(string.Empty);
+	}
+
+	#endregion
+
 	#region Time saved
 
 	/// <summary>The speed to compare against, for a slider.</summary>

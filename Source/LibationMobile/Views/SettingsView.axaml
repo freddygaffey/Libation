@@ -110,6 +110,55 @@
 				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Margin="0,8,0,0" IsVisible="{Binding !NonlinearAvailable}"
 					Text="This device could not load Speedy, so the original method is used." />
 
+				<TextBlock Classes="section" Text="Speed listening" />
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Show syllables a second" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="Under the speed in the player, measured from the audio. The usual measure in speech research: untrained listeners manage about 8, trained blind screen-reader users 17 to 22." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowSyllableRate}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Training mode" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="Each time you start listening, begin below the book's speed and step up to it. Ears adapt to fast speech within minutes, and lose some of it between sessions. Changing the speed yourself ends the warm-up." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding Training}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<StackPanel IsVisible="{Binding Training}">
+					<TextBlock Classes="setting" Text="Start below the book's speed by" />
+					<StackPanel Orientation="Horizontal">
+						<Button Classes="choice" Classes.selected="{Binding IsStartBelow05}" Content="0.5×" Command="{Binding SetTrainingStartBelowCommand}" CommandParameter="0.5" />
+						<Button Classes="choice" Classes.selected="{Binding IsStartBelow1}" Content="1×" Command="{Binding SetTrainingStartBelowCommand}" CommandParameter="1" />
+						<Button Classes="choice" Classes.selected="{Binding IsStartBelow15}" Content="1.5×" Command="{Binding SetTrainingStartBelowCommand}" CommandParameter="1.5" />
+						<Button Classes="choice" Classes.selected="{Binding IsStartBelow2}" Content="2×" Command="{Binding SetTrainingStartBelowCommand}" CommandParameter="2" />
+					</StackPanel>
+					<TextBlock Classes="setting" Text="Step up by" Margin="0,20,0,8" />
+					<StackPanel Orientation="Horizontal">
+						<Button Classes="choice" Classes.selected="{Binding IsStep005}" Content="0.05×" Command="{Binding SetTrainingStepCommand}" CommandParameter="0.05" />
+						<Button Classes="choice" Classes.selected="{Binding IsStep01}" Content="0.1×" Command="{Binding SetTrainingStepCommand}" CommandParameter="0.1" />
+						<Button Classes="choice" Classes.selected="{Binding IsStep02}" Content="0.2×" Command="{Binding SetTrainingStepCommand}" CommandParameter="0.2" />
+						<Button Classes="choice" Classes.selected="{Binding IsStep05}" Content="0.5×" Command="{Binding SetTrainingStepCommand}" CommandParameter="0.5" />
+					</StackPanel>
+					<TextBlock Classes="setting" Text="Every" Margin="0,20,0,8" />
+					<StackPanel Orientation="Horizontal">
+						<Button Classes="choice" Classes.selected="{Binding IsEvery1}" Content="1 min" Command="{Binding SetTrainingMinutesCommand}" CommandParameter="1" />
+						<Button Classes="choice" Classes.selected="{Binding IsEvery2}" Content="2 min" Command="{Binding SetTrainingMinutesCommand}" CommandParameter="2" />
+						<Button Classes="choice" Classes.selected="{Binding IsEvery5}" Content="5 min" Command="{Binding SetTrainingMinutesCommand}" CommandParameter="5" />
+						<Button Classes="choice" Classes.selected="{Binding IsEvery10}" Content="10 min" Command="{Binding SetTrainingMinutesCommand}" CommandParameter="10" />
+					</StackPanel>
+					<Grid ColumnDefinitions="*,Auto" Margin="0,16,0,0">
+						<StackPanel VerticalAlignment="Center">
+							<TextBlock Text="Keep climbing" FontSize="15" />
+							<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+								Text="Carry on stepping up past the book's speed, and keep the speed reached for next time. Change the speed yourself when it gets too fast." />
+						</StackPanel>
+						<ToggleSwitch Grid.Column="1" IsChecked="{Binding TrainingClimb}" OnContent="" OffContent="" Margin="12,0,0,0" />
+					</Grid>
+				</StackPanel>
+
 				<TextBlock Classes="section" Text="Sync" />
 				<Grid ColumnDefinitions="*,Auto">
 					<StackPanel VerticalAlignment="Center">

@@ -41,6 +41,12 @@ public class MobileSettings
 		public float BaselineSpeed { get; set; } = 1f;
 		/// <summary>When each downloaded book's download was asked for, so a new download sorts as just listened to.</summary>
 		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
+		public bool Training { get; set; }
+		public float TrainingStartBelow { get; set; } = 1f;
+		public float TrainingStep { get; set; } = 0.1f;
+		public float TrainingMinutes { get; set; } = 2f;
+		public bool TrainingClimb { get; set; }
+		public bool ShowSyllableRate { get; set; } = true;
 	}
 
 	public MobileSettings(string path)
@@ -184,6 +190,53 @@ public class MobileSettings
 			state.ListeningCountedSince = null;
 			Save();
 		}
+	}
+
+	#endregion
+
+	#region Speed listening
+
+	/// <summary>
+	/// Training mode: each session starts <see cref="TrainingStartBelow"/> under the book's speed and rises by
+	/// <see cref="TrainingStep"/> every <see cref="TrainingMinutes"/> of listening until it gets there. Listeners adapt to
+	/// fast speech within minutes, and the adaptation fades between sessions; see speechwarp's docs/research-high-speed.md.
+	/// </summary>
+	public bool Training
+	{
+		get { lock (locker) return state.Training; }
+		set { lock (locker) { state.Training = value; Save(); } }
+	}
+
+	public float TrainingStartBelow
+	{
+		get { lock (locker) return state.TrainingStartBelow; }
+		set { lock (locker) { state.TrainingStartBelow = Math.Clamp(value, 0f, 5f); Save(); } }
+	}
+
+	public float TrainingStep
+	{
+		get { lock (locker) return state.TrainingStep; }
+		set { lock (locker) { state.TrainingStep = Math.Clamp(value, 0.05f, 1f); Save(); } }
+	}
+
+	public float TrainingMinutes
+	{
+		get { lock (locker) return state.TrainingMinutes; }
+		set { lock (locker) { state.TrainingMinutes = Math.Clamp(value, 0.5f, 30f); Save(); } }
+	}
+
+	/// <summary>Keep rising past the book's speed, and keep the speed reached for next time, as Rightspeed did.</summary>
+	public bool TrainingClimb
+	{
+		get { lock (locker) return state.TrainingClimb; }
+		set { lock (locker) { state.TrainingClimb = value; Save(); } }
+	}
+
+	/// <summary>Show syllables a second under the speed in the player.</summary>
+	public bool ShowSyllableRate
+	{
+		get { lock (locker) return state.ShowSyllableRate; }
+		set { lock (locker) { state.ShowSyllableRate = value; Save(); } }
 	}
 
 	#endregion
