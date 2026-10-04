@@ -83,6 +83,12 @@
 						<TextBlock Text="Saved" FontSize="10" HorizontalAlignment="Center" />
 					</StackPanel>
 				</Button>
+				<Button Classes="labelled" Command="{Binding ShowHistoryCommand}">
+					<StackPanel Spacing="2">
+						<PathIcon Data="{StaticResource IconHistory}" Width="18" Height="18" />
+						<TextBlock Text="History" FontSize="10" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
 			</StackPanel>
 		</Grid>
 
@@ -162,12 +168,16 @@
 		<Border Grid.Row="5" Background="{StaticResource Slate}" CornerRadius="6" Padding="16,12,16,10" Margin="0,8,0,0">
 			<StackPanel Spacing="10">
 				<Grid ColumnDefinitions="*,Auto,Auto">
-					<TextBlock
-						Text="{Binding SpeedText}"
-						FontFamily="{StaticResource DisplayFont}"
-						FontWeight="Light"
-						FontSize="52"
-						VerticalAlignment="Center" />
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock
+							Text="{Binding SpeedText}"
+							FontFamily="{StaticResource DisplayFont}"
+							FontWeight="Light"
+							FontSize="52" />
+						<!-- Measured from the audio: the rate speech research uses, for comparing with others. -->
+						<TextBlock Classes="muted" Text="{Binding SyllableRateText}" FontSize="12"
+							ToolTip.Tip="Estimated from the audio, within about 10%. Untrained listeners manage about 8; trained blind screen-reader users 17 to 22." />
+					</StackPanel>
 					<Button Grid.Column="1" Classes="transport" Width="48" Height="48" Command="{Binding SlowerStepCommand}">
 						<PathIcon Data="{StaticResource IconMinus}" />
 					</Button>
@@ -258,6 +268,53 @@
 				</DataTemplate>
 			</ListBox.ItemTemplate>
 		</ListBox>
+	</Grid>
+
+	<!-- This book's listening history: when and where each session went, to find the place again after dozing off. -->
+	<Grid RowDefinitions="Auto,*" Background="{StaticResource Ink}" IsVisible="{Binding IsHistoryOpen}">
+		<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
+			<Button Classes="transport" Width="48" Height="48" Command="{Binding HideHistoryCommand}" ToolTip.Tip="Close">
+				<PathIcon Data="{StaticResource IconChevronDown}" />
+			</Button>
+			<TextBlock Grid.Column="1" Classes="bookTitle" Text="Listening history" FontSize="22" VerticalAlignment="Center" Margin="4,0,0,0" />
+		</Grid>
+		<StackPanel Grid.Row="1" Margin="24,32,24,0" Spacing="10" IsVisible="{Binding !HasHistory}">
+			<TextBlock Classes="bookTitle" Text="No listening yet" FontSize="18" />
+			<TextBlock Classes="muted" TextWrapping="Wrap"
+				Text="Each time you listen, this shows when and where in the book, with your place every 5 minutes. Tap a time to go back there." />
+		</StackPanel>
+		<ScrollViewer Grid.Row="1" IsVisible="{Binding HasHistory}">
+			<ItemsControl ItemsSource="{Binding History}" Margin="24,4,24,20">
+				<ItemsControl.ItemTemplate>
+					<DataTemplate x:DataType="vm:HistorySessionViewModel">
+						<StackPanel Spacing="4" Margin="0,10,0,10">
+							<StackPanel Orientation="Horizontal" Spacing="8">
+								<TextBlock Text="{Binding Header}" FontSize="15" />
+								<TextBlock Text="Listening" FontSize="11" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" IsVisible="{Binding IsCurrent}" />
+							</StackPanel>
+							<TextBlock Classes="muted" Text="{Binding DetailText}" FontSize="12" />
+							<ItemsControl ItemsSource="{Binding Points}" Margin="0,4,0,0">
+								<ItemsControl.ItemsPanel>
+									<ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+								</ItemsControl.ItemsPanel>
+								<ItemsControl.ItemTemplate>
+									<DataTemplate x:DataType="vm:HistoryPointViewModel">
+										<Button Classes="quiet" Padding="10,6" Margin="0,0,6,6"
+											Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).JumpToHistoryCommand}" CommandParameter="{Binding}">
+											<StackPanel>
+												<TextBlock Text="{Binding TimeText}" FontSize="13" />
+												<TextBlock Classes="muted" Text="{Binding PositionText}" FontSize="11" />
+											</StackPanel>
+										</Button>
+									</DataTemplate>
+								</ItemsControl.ItemTemplate>
+							</ItemsControl>
+							<Border Height="1" Background="{StaticResource Hairline}" Margin="0,6,0,0" />
+						</StackPanel>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</ScrollViewer>
 	</Grid>
 
 	<!-- New clip: where it starts and ends, and what to call it. -->

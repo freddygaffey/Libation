@@ -1,0 +1,115 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using LibationMobile.Services;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+
+namespace LibationMobile.ViewModels;
+
+/// <summary>A place to go back to: where in the book the listener was, and when.</summary>
+public class HistoryPointViewModel(DateTimeOffset at, TimeSpan position)
+{
+	public TimeSpan Position { get; } = position;
+	public string TimeText { get; } = at.ToLocalTime().ToString("t", CultureInfo.CurrentCulture);
+	public string PositionText { get; } = NowPlayingViewModel.FormatTime(position);
+}
+
+/// <summary>One session of this book: when, how far it went, and the points along the way.</summary>
+public class HistorySessionViewModel
+{
+	public string Header { get; }
+	public string DetailText { get; }
+	public bool IsCurrent { get; }
+	public IReadOnlyList<HistoryPointViewModel> Points { get; }
+
+	public HistorySessionViewModel(ListeningSession session, bool isCurrent)
+	{
+		var day = session.Started.ToLocalTime().Date;
+		var dayText = day == DateTime.Today ? "Today" : day == DateTime.Today.AddDays(-1) ? "Yesterday" : day.ToString("ddd d MMM", CultureInfo.CurrentCulture);
+		var end = isCurrent ? "now" : session.Ended.ToLocalTime().ToString("t", CultureInfo.CurrentCulture);
+		Header = $"{dayText}, {session.Started.ToLocalTime():t} to {end}";
+		DetailText = $"{NowPlayingViewModel.FormatTime(session.From)} to {NowPlayingViewModel.FormatTime(session.To)} at {session.Speed:0.0}×";
+		IsCurrent = isCurrent;
+		// Newest first, like the sessions: the last place you remember is near the top.
+		var points = new List<HistoryPointViewModel> { new(session.Started, session.From) };
+		points.AddRange((session.Marks ?? []).Select(m => new HistoryPointViewModel(m.At, m.Position)));
+		points.Add(new(session.Ended, session.To));
+		points.Reverse();
+		Points = points;
+	}
+}
+
+/// <summary>
+/// This book's listening history, like Audible's: every session with the time and place it started and ended, and where
+/// you were every few minutes, so after dozing off you can find the last part you heard.
+/// </summary>
+public partial class NowPlayingViewModel
+{
+	/// <summary>How often a session notes where it is, and saves itself in case the app is closed before it ends.</summary>
+	private static readonly TimeSpan MarkInterval = TimeSpan.FromMinutes(5);
+	private readonly List<ListeningMark> sessionMarks = [];
+	private DateTimeOffset nextMark;
+
+	[ObservableProperty]
+	private bool isHistoryOpen;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(HasHistory))]
+	private IReadOnlyList<HistorySessionViewModel> history = [];
+
+	public bool HasHistory => History.Count > 0;
+
+	[RelayCommand]
+	private void ShowHistory()
+	{
+		RefreshHistory();
+		IsHistoryOpen = true;
+	}
+
+	[RelayCommand]
+	private void HideHistory() => IsHistoryOpen = false;
+
+	/// <summary>Go back to a point in the history. Where you are now goes into the history first, so you can come back.</summary>
+	[RelayCommand]
+	private void JumpToHistory(HistoryPointViewModel point)
+	{
+		EndSession();
+		Seek(point.Position);
+		IsHistoryOpen = false;
+	}
+
+	private void RefreshHistory()
+	{
+		var sessions = (log?.Sessions ?? []).Where(s => s.BookId == Book.Id && s.Started != sessionStarted)
+			.OrderByDescending(s => s.Started)
+			.Select(s => new HistorySessionViewModel(s, isCurrent: false));
+		History = (CurrentSession() is { } current ? sessions.Prepend(new HistorySessionViewModel(current, isCurrent: true)) : sessions).ToList();
+	}
+
+	/// <summary>The session under way, as it stands now. Null when not listening.</summary>
+	private ListeningSession? CurrentSession()
+		=> sessionStarted is DateTimeOffset started
+			? new ListeningSession(Book.Id, Title, started, DateTimeOffset.Now, sessionFrom, Position,
+				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed, sessionMarks.ToList())
+			: null;
+
+	private void StartMarks()
+	{
+		sessionMarks.Clear();
+		nextMark = DateTimeOffset.Now + MarkInterval;
+	}
+
+	/// <summary>Every few minutes of a session: note the place, and save the session so far.</summary>
+	private void MarkIfDue()
+	{
+		var now = DateTimeOffset.Now;
+		if (sessionStarted is null || now < nextMark)
+			return;
+		nextMark = now + MarkInterval;
+		sessionMarks.Add(new ListeningMark(now, Position));
+		if (CurrentSession() is { } session)
+			log?.Add(session);
+	}
+}

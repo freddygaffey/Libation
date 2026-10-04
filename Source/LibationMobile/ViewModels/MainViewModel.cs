@@ -417,6 +417,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			case Page.NowPlaying when NowPlaying is { IsClipEditorOpen: true }:
 				NowPlaying.CancelClipCommand.Execute(null);
 				return true;
+			case Page.NowPlaying when NowPlaying is { IsHistoryOpen: true }:
+				NowPlaying.IsHistoryOpen = false;
+				return true;
 			case Page.NowPlaying when NowPlaying is { IsAnnotationListOpen: true }:
 				NowPlaying.IsAnnotationListOpen = false;
 				return true;

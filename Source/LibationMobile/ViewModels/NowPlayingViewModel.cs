@@ -155,6 +155,20 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	public string SpeedText => $"{Speed:0.0}×";
 
+	/// <summary>
+	/// Syllables a second as heard: the book's own rate, measured from the audio, times the speed. The usual measure
+	/// in speech research. For scale, untrained listeners top out around 8; blind screen-reader experts reach 17 to 22.
+	/// </summary>
+	[ObservableProperty]
+	private string syllableRateText = "";
+
+	private void UpdateSyllableRate()
+	{
+		SyllableRateText = player.SourceSyllablesPerSecond is double rate && rate > 0
+			? $"≈ {rate * Speed:0} syllables a second"
+			: "Measuring syllables a second…";
+	}
+
 	/// <summary>Output gain: 0 is silent, 1 is unchanged.</summary>
 	public double Volume
 	{
@@ -301,6 +315,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			UpdateMediaSession();
 		UpdateCurrentChapter();
 		UpdateAnnotations();
+		UpdateSyllableRate();
 		CountListening();
 		if (IsPlaying && DateTime.UtcNow - lastSaved > SaveInterval)
 			SavePosition();
@@ -351,9 +366,12 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			sessionStarted = DateTimeOffset.Now;
 			sessionFrom = Position;
 			sessionSpent = sessionBookTime = TimeSpan.Zero;
+			StartMarks();
 		}
 		else if (!listening && sessionStarted is not null)
 			EndSession();
+		else
+			MarkIfDue();
 	}
 
 	#region Listening log
@@ -370,7 +388,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	{
 		if (sessionStarted is DateTimeOffset started && sessionSpent >= ShortestLoggedSession)
 			log?.Add(new ListeningSession(Book.Id, Title, started, DateTimeOffset.Now, sessionFrom, Position,
-				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed));
+				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed, sessionMarks.Count > 0 ? sessionMarks.ToList() : null));
 		sessionStarted = null;
 	}
 

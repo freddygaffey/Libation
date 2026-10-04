@@ -13,6 +13,7 @@ namespace LibationMobile.Services;
 /// <param name="To">Where in the book it stopped.</param>
 /// <param name="BookSeconds">How much of the book was heard, at normal speed.</param>
 /// <param name="SpentSeconds">How long the listening took.</param>
+/// <param name="Marks">Where in the book the listener was every few minutes, to find the place again after dozing off.</param>
 public record ListeningSession(
 	string BookId,
 	string Title,
@@ -22,7 +23,11 @@ public record ListeningSession(
 	TimeSpan To,
 	double BookSeconds,
 	double SpentSeconds,
-	float Speed);
+	float Speed,
+	IReadOnlyList<ListeningMark>? Marks = null);
+
+/// <summary>Where in the book the listener was at a moment in a session.</summary>
+public record ListeningMark(DateTimeOffset At, TimeSpan Position);
 
 /// <summary>Every listening session on this device, newest last, saved as JSON in the app's data folder.</summary>
 public class ListeningLog
@@ -42,11 +47,16 @@ public class ListeningLog
 		get { lock (locker) return sessions.ToList(); }
 	}
 
+	/// <summary>Add a session, or replace the one saved earlier for the same book and start, while it was still going.</summary>
 	public void Add(ListeningSession session)
 	{
 		lock (locker)
 		{
-			sessions.Add(session);
+			var earlier = sessions.FindLastIndex(s => s.BookId == session.BookId && s.Started == session.Started);
+			if (earlier >= 0)
+				sessions[earlier] = session;
+			else
+				sessions.Add(session);
 			var temp = path + ".tmp";
 			File.WriteAllText(temp, JsonSerializer.Serialize(sessions, ListeningLogJsonContext.Default.ListListeningSession));
 			File.Move(temp, path, overwrite: true);
