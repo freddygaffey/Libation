@@ -25,6 +25,16 @@
 	<array>
 		<string>arm64</string>
 	</array>
+	<!-- Siri also answers to "Speed": "Hey Siri, Speed play", "Speed 7.3". -->
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Speed</string>
+			<key>INAlternativeAppNamePronunciationHint</key>
+			<string>speed</string>
+		</dict>
+	</array>
 	<!-- The home-screen widget's play and recent-book buttons open the app with these links (HomeWidget.LINK_SCHEME). -->
 	<key>CFBundleURLTypes</key>
 	<array>

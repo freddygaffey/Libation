@@ -281,32 +281,14 @@ private func applySpeed(_ change: (Double) -> Double) -> String {
     return "Libation is at \(WidgetState.formatSpeed(state.speed))."
 }
 
-struct SpeedUpIntent: AppIntent {
-    static var title: LocalizedStringResource = "Speed up"
-    static var description = IntentDescription("Play the book half a speed faster.")
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: "\(applySpeed { $0 + 0.5 })")
-    }
-}
-
-struct SlowDownIntent: AppIntent {
-    static var title: LocalizedStringResource = "Slow down"
-    static var description = IntentDescription("Play the book half a speed slower.")
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: "\(applySpeed { $0 - 0.5 })")
-    }
-}
-
 struct SpeedUpByIntent: AppIntent {
     static var title: LocalizedStringResource = "Speed up by"
     static var description = IntentDescription("Play the book faster by an amount, such as 0.1x or a half.")
 
-    @Parameter(title: "Amount") var amount: SpeedChange
+    @Parameter(title: "Amount") var amount: SpeedChange?
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: "\(applySpeed { $0 + amount.value })")
+        .result(dialog: "\(applySpeed { $0 + (amount?.value ?? 0.5) })")
     }
 }
 
@@ -314,10 +296,10 @@ struct SlowDownByIntent: AppIntent {
     static var title: LocalizedStringResource = "Slow down by"
     static var description = IntentDescription("Play the book slower by an amount, such as 0.1x or a half.")
 
-    @Parameter(title: "Amount") var amount: SpeedChange
+    @Parameter(title: "Amount") var amount: SpeedChange?
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: "\(applySpeed { $0 - amount.value })")
+        .result(dialog: "\(applySpeed { $0 - (amount?.value ?? 0.5) })")
     }
 }
 
@@ -380,6 +362,139 @@ struct PlayBookIntent: AppIntent {
     }
 }
 
+/// A number from 1 to 20, for "play number 3" and "list my last 10 books".
+enum BookCount: String, AppEnum {
+    case n1
+    case n2
+    case n3
+    case n4
+    case n5
+    case n6
+    case n7
+    case n8
+    case n9
+    case n10
+    case n11
+    case n12
+    case n13
+    case n14
+    case n15
+    case n16
+    case n17
+    case n18
+    case n19
+    case n20
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Number"
+    static var caseDisplayRepresentations: [BookCount: DisplayRepresentation] = [
+        .n1: DisplayRepresentation(title: "1", synonyms: ["one", "first", "the first"]),
+        .n2: DisplayRepresentation(title: "2", synonyms: ["two", "second", "the second"]),
+        .n3: DisplayRepresentation(title: "3", synonyms: ["three", "third", "the third"]),
+        .n4: DisplayRepresentation(title: "4", synonyms: ["four", "fourth", "the fourth"]),
+        .n5: DisplayRepresentation(title: "5", synonyms: ["five", "fifth", "the fifth"]),
+        .n6: DisplayRepresentation(title: "6", synonyms: ["six", "sixth", "the sixth"]),
+        .n7: DisplayRepresentation(title: "7", synonyms: ["seven", "seventh", "the seventh"]),
+        .n8: DisplayRepresentation(title: "8", synonyms: ["eight", "eighth", "the eighth"]),
+        .n9: DisplayRepresentation(title: "9", synonyms: ["nine", "ninth", "the ninth"]),
+        .n10: DisplayRepresentation(title: "10", synonyms: ["ten", "tenth", "the tenth"]),
+        .n11: DisplayRepresentation(title: "11", synonyms: ["eleven"]),
+        .n12: DisplayRepresentation(title: "12", synonyms: ["twelve"]),
+        .n13: DisplayRepresentation(title: "13", synonyms: ["thirteen"]),
+        .n14: DisplayRepresentation(title: "14", synonyms: ["fourteen"]),
+        .n15: DisplayRepresentation(title: "15", synonyms: ["fifteen"]),
+        .n16: DisplayRepresentation(title: "16", synonyms: ["sixteen"]),
+        .n17: DisplayRepresentation(title: "17", synonyms: ["seventeen"]),
+        .n18: DisplayRepresentation(title: "18", synonyms: ["eighteen"]),
+        .n19: DisplayRepresentation(title: "19", synonyms: ["nineteen"]),
+        .n20: DisplayRepresentation(title: "20", synonyms: ["twenty"]),
+    ]
+
+    var value: Int { Int(rawValue.dropFirst())! }
+}
+
+extension ListedBook {
+    /// The books the app can play, last listened first, as the app wrote them.
+    static func load() -> [ListedBook] {
+        SharedKeychain.read("books").flatMap { try? JSONDecoder().decode([ListedBook].self, from: $0) } ?? []
+    }
+
+    var spoken: String { author.map { "\(title), by \($0)" } ?? title }
+}
+
+/// "1, Dune, by Frank Herbert. 2, ..."
+private func listBooks(_ count: Int) -> String {
+    let books = ListedBook.load().prefix(count)
+    if books.isEmpty { return "There are no downloaded books in Libation." }
+    let list = books.enumerated().map { "\($0.offset + 1), \($0.element.spoken)." }.joined(separator: " ")
+    return (books.count == 1 ? "Your last book: " : "Your last \(books.count): ") + list
+}
+
+struct ListBooksIntent: AppIntent {
+    static var title: LocalizedStringResource = "List books"
+    static var description = IntentDescription("Read out your downloaded books, last listened first, numbered for Play number.")
+
+    @Parameter(title: "How many") var count: BookCount?
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        .result(dialog: "\(listBooks(count?.value ?? 5))")
+    }
+}
+
+/// What a request to play means: a book from the list by number, by title or author, or the last book again. The app
+/// must be on screen to start playing, so the answer is a link that opens it.
+private enum PlayChoice {
+    case found(URL, String)
+    case notFound(String)
+
+    static func from(_ heard: String) -> PlayChoice {
+        let books = ListedBook.load()
+        let text = heard.lowercased().hasPrefix("play") ? heard : "play " + heard
+        switch SpokenCommand.parse(text) {
+        case .playNumber(let n):
+            guard n <= books.count else { return .notFound("There are only \(books.count) books. Which one?") }
+            return .found(WidgetLink.play(books[n - 1].id), "Playing \(books[n - 1].spoken).")
+        case .play:
+            return .found(WidgetLink.play, "Playing.")
+        default:
+            guard let found = BookMatcher.best(heard, in: books) else { return .notFound("I couldn't find \(heard). Which book?") }
+            return .found(WidgetLink.play(found.id), "Playing \(found.spoken).")
+        }
+    }
+}
+
+struct PlayNumberIntent: AppIntent {
+    static var title: LocalizedStringResource = "Play book by number"
+    static var description = IntentDescription("Play a book from the list, counting from the last listened.")
+
+    @Parameter(title: "Number") var number: BookCount
+
+    func perform() async throws -> some IntentResult & ProvidesDialog & OpensIntent {
+        let books = ListedBook.load()
+        guard number.value <= books.count else {
+            throw $number.needsValueError("There are only \(books.count) books. Which number?")
+        }
+        let book = books[number.value - 1]
+        return .result(opensIntent: OpenURLIntent(WidgetLink.play(book.id)), dialog: "Playing \(book.spoken).")
+    }
+}
+
+struct PlayNamedIntent: AppIntent {
+    static var title: LocalizedStringResource = "Play a book"
+    static var description = IntentDescription("Play a downloaded book or episode by its title or author.")
+
+    /// Anything: "Dune", "the Andy Weir one", "number 3", "the second one", "the last one".
+    @Parameter(title: "Book", requestValueDialog: "Which book? Say a title, an author or a number.") var book: String
+
+    func perform() async throws -> some IntentResult & ProvidesDialog & OpensIntent {
+        switch PlayChoice.from(book) {
+        case .found(let link, let said):
+            return .result(opensIntent: OpenURLIntent(link), dialog: "\(said)")
+        case .notFound(let said):
+            throw $book.needsValueError("\(said)")
+        }
+    }
+}
+
 /// "Hey Siri, tell Libation", then anything: "seven point three", "a bit faster", "slower by a tenth", "pause",
 /// "what's my speed". Siri only matches set phrases, so this takes whatever it heard and reads it itself
 /// (SpokenCommand.swift), asking again if it cannot.
@@ -404,17 +519,20 @@ struct SpokenCommandIntent: AppIntent {
         case .pause:
             _ = try await PauseBookIntent().perform()
             return .result(dialog: "Paused.")
-        case .play:
-            // Only reaches a running app; "Play Libation" opens it if iOS has closed it.
-            WidgetCommand.post(WidgetCommand(command: "play", bookId: WidgetState.load()?.bookId, at: Date().timeIntervalSince1970))
-            return .result(dialog: "Playing.")
+        case .play, .playNumber, .playNamed:
+            // Starting playback opens the app, which this command cannot do as well as answer.
+            return .result(dialog: "To play, say: Speed, play a book. Then the title, author or number.")
         case .skip(let forward):
             WidgetCommand.post(WidgetCommand(command: "skip", bookId: WidgetState.load()?.bookId, forward: forward, at: Date().timeIntervalSince1970))
             return .result(dialog: forward ? "Skipped forward." : "Skipped back.")
+        case .list(let count):
+            return .result(dialog: "\(listBooks(count))")
         }
     }
 }
 
+/// Phrases work with the app's name or its Siri name, "Speed" (INAlternativeAppNames): "Hey Siri, Speed play".
+/// At most 10 shortcuts are allowed.
 struct LibationShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: SpokenCommandIntent(), phrases: [
@@ -429,44 +547,68 @@ struct LibationShortcuts: AppShortcutsProvider {
             "Set \(.applicationName) speed to \(\.$speed)",
             "Play \(.applicationName) at \(\.$speed)",
             "\(.applicationName) \(\.$speed)",
+            "\(.applicationName) at \(\.$speed)",
             "Set speed in \(.applicationName)",
         ], shortTitle: "Set speed", systemImageName: "gauge.with.dots.needle.67percent")
         AppShortcut(intent: SpeedUpByIntent(), phrases: [
             "Speed up \(.applicationName) by \(\.$amount)",
             "Increase \(.applicationName) speed by \(\.$amount)",
-            "Make \(.applicationName) faster by \(\.$amount)",
-        ], shortTitle: "Speed up by", systemImageName: "hare.fill")
+            "\(.applicationName) faster by \(\.$amount)",
+            "\(.applicationName) up \(\.$amount)",
+            "Speed up \(.applicationName)",
+            "Increase \(.applicationName) speed",
+            "Make \(.applicationName) faster",
+            "\(.applicationName) faster",
+        ], shortTitle: "Speed up", systemImageName: "hare.fill")
         AppShortcut(intent: SlowDownByIntent(), phrases: [
             "Slow down \(.applicationName) by \(\.$amount)",
             "Decrease \(.applicationName) speed by \(\.$amount)",
-            "Make \(.applicationName) slower by \(\.$amount)",
-        ], shortTitle: "Slow down by", systemImageName: "tortoise.fill")
-        AppShortcut(intent: SpeedUpIntent(), phrases: [
-            "Speed up \(.applicationName)",
-            "Increase \(.applicationName) speed",
-            "Faster in \(.applicationName)",
-            "Make \(.applicationName) faster",
-        ], shortTitle: "Speed up", systemImageName: "hare")
-        AppShortcut(intent: SlowDownIntent(), phrases: [
+            "\(.applicationName) slower by \(\.$amount)",
+            "\(.applicationName) down \(\.$amount)",
             "Slow down \(.applicationName)",
             "Decrease \(.applicationName) speed",
-            "Slower in \(.applicationName)",
             "Make \(.applicationName) slower",
-        ], shortTitle: "Slow down", systemImageName: "tortoise")
+            "\(.applicationName) slower",
+        ], shortTitle: "Slow down", systemImageName: "tortoise.fill")
         AppShortcut(intent: CurrentSpeedIntent(), phrases: [
             "What speed is \(.applicationName) at",
-            "\(.applicationName) speed",
             "What's my speed in \(.applicationName)",
             "How long is left in \(.applicationName)",
+            "\(.applicationName) speed",
+            "\(.applicationName) status",
         ], shortTitle: "Current speed", systemImageName: "speaker.wave.2")
         AppShortcut(intent: PauseBookIntent(), phrases: [
             "Pause \(.applicationName)",
             "Stop \(.applicationName)",
+            "\(.applicationName) pause",
+            "\(.applicationName) stop",
         ], shortTitle: "Pause", systemImageName: "pause.fill")
         AppShortcut(intent: PlayBookIntent(), phrases: [
             "Play \(.applicationName)",
             "Resume \(.applicationName)",
-            "Start \(.applicationName)",
+            "\(.applicationName) play",
+            "\(.applicationName) resume",
         ], shortTitle: "Play", systemImageName: "play.fill")
+        AppShortcut(intent: ListBooksIntent(), phrases: [
+            "List my books in \(.applicationName)",
+            "List my last \(\.$count) books in \(.applicationName)",
+            "What books are in \(.applicationName)",
+            "\(.applicationName) list",
+            "\(.applicationName) list \(\.$count)",
+            "\(.applicationName) books",
+        ], shortTitle: "List books", systemImageName: "list.number")
+        AppShortcut(intent: PlayNumberIntent(), phrases: [
+            "Play number \(\.$number) in \(.applicationName)",
+            "Play book \(\.$number) in \(.applicationName)",
+            "\(.applicationName) play number \(\.$number)",
+            "\(.applicationName) number \(\.$number)",
+            "\(.applicationName) book \(\.$number)",
+        ], shortTitle: "Play number", systemImageName: "number")
+        AppShortcut(intent: PlayNamedIntent(), phrases: [
+            "Play a book in \(.applicationName)",
+            "Choose a book in \(.applicationName)",
+            "\(.applicationName) play a book",
+            "\(.applicationName) open a book",
+        ], shortTitle: "Play a book", systemImageName: "books.vertical")
     }
 }

@@ -10,6 +10,12 @@ enum SpokenCommand: Equatable {
     case play
     case current
     case skip(forward: Bool)
+    /// "List my last 5 books".
+    case list(Int)
+    /// "Play number 3", "play the second one": from the list, counting from 1.
+    case playNumber(Int)
+    /// "Play Dune", "play the one by Andy Weir": the words to look for.
+    case playNamed(String)
 
     /// Speed up or slow down by this much when no amount is said.
     static let defaultChange = 0.5
@@ -18,6 +24,15 @@ enum SpokenCommand: Equatable {
         let text = normalise(heard)
         let words = Set(text.split(separator: " ").map(String.init))
         func has(_ any: String...) -> Bool { any.contains { word in word.contains(" ") ? text.contains(word) : words.contains(word) } }
+
+        // The books: "list my books", "what books have I got", "my last 10 books".
+        if has("list", "books", "recent", "library") && !has("play") {
+            return .list(Int(firstNumber(in: text) ?? 5).clamped(1, 20))
+        }
+        // A book by number: "play number 3", "number 3", "play the third", "book 2".
+        if let n = bookNumber(in: text) { return .playNumber(n) }
+        // A book by name: "play Dune", "play the book by Andy Weir". Not "play at 7" or "play faster".
+        if let named = bookName(in: text) { return .playNamed(named) }
 
         // Questions first: "what speed am I at", "how fast", "how long is left".
         if has("what", "what's", "whats", "how", "current", "currently", "tell me") && !has("set", "make") {
@@ -55,6 +70,38 @@ enum SpokenCommand: Equatable {
     /// Which word, counting from 0, is the first number.
     private static func firstNumberIndex(in text: String) -> Int? {
         text.split(separator: " ").firstIndex { Double($0) != nil }
+    }
+
+    private static let ordinals = ["first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
+        "eighth": 8, "ninth": 9, "tenth": 10, "1st": 1, "2nd": 2, "3rd": 3, "4th": 4, "5th": 5, "6th": 6, "7th": 7, "8th": 8,
+        "9th": 9, "10th": 10, "last": 1, "latest": 1]
+
+    private static func bookNumber(in text: String) -> Int? {
+        if let match = text.range(of: #"\b(?:number|book|no|item|track) (\d{1,2})\b(?!\.)"#, options: .regularExpression),
+           let n = Int(text[match].split(separator: " ").last!) {
+            return n.clamped(1, 100)
+        }
+        // "play the third", "the second one", "play 3": but "play 3" only as a whole, so "play at 3" stays a speed.
+        let words = text.split(separator: " ").map(String.init)
+        if words.first == "play" || words.contains("one") || words.first == "the" {
+            for word in words { if let n = ordinals[word], !text.contains(" tenth") || word != "tenth" { return n } }
+        }
+        if words.count == 2, words[0] == "play", let n = Int(words[1]) { return n.clamped(1, 100) }
+        return nil
+    }
+
+    /// Words that ask for something other than a book after "play".
+    private static let notBookWords: Set<String> = ["at", "faster", "slower", "speed", "x", "it", "on", "again", "music", "something",
+        "resume", "please", "now", "back", "forward", "up", "down"]
+
+    private static func bookName(in text: String) -> String? {
+        guard text.hasPrefix("play ") || text.hasPrefix("listen to ") || text.hasPrefix("put on ") || text.hasPrefix("open ") else { return nil }
+        var rest = text
+        for prefix in ["play ", "listen to ", "put on ", "open "] where rest.hasPrefix(prefix) { rest = String(rest.dropFirst(prefix.count)) }
+        let words = rest.split(separator: " ").map(String.init)
+        if words.isEmpty || words.allSatisfy({ notBookWords.contains($0) || Double($0) != nil }) { return nil }
+        if words.contains(where: { $0 == "at" || $0 == "speed" }) && firstNumber(in: rest) != nil { return nil }
+        return rest
     }
 
     static func clamp(_ speed: Double) -> Double { min(10, max(0.5, (speed * 10).rounded() / 10)) }
@@ -114,5 +161,58 @@ enum SpokenCommand: Equatable {
     static func firstNumber(in text: String) -> Double? {
         guard let match = text.range(of: #"\d+(?:\.\d+)?"#, options: .regularExpression) else { return nil }
         return Double(text[match])
+    }
+}
+
+extension Int {
+    func clamped(_ low: Int, _ high: Int) -> Int { Swift.min(high, Swift.max(low, self)) }
+}
+
+/// A book Siri can play, as the app lists it in the shared keychain ("books"), last listened first.
+struct ListedBook: Codable, Equatable {
+    var id: String
+    var title: String
+    var author: String?
+}
+
+/// Finds the book meant by a few spoken words: a title, an author, or both ("Dune", "the Sanderson one",
+/// "Project Hail Mary by Andy Weir"). Words in the title count most, then the author's; a word can match the start
+/// of a longer one ("sanders" for "Sanderson"). Among equal matches, the one listened to last wins.
+enum BookMatcher {
+    private static let ignored: Set<String> = ["the", "a", "an", "of", "book", "audiobook", "audio", "one", "1", "play", "please", "my",
+        "in", "called", "named", "episode", "podcast", "novel", "series", "that", "this", "and", "to", "on", "for"]
+
+    static func words(_ text: String) -> [String] {
+        SpokenCommand.normalise(text).split(separator: " ").map(String.init).filter { !ignored.contains($0) && $0 != "by" }
+    }
+
+    static func best(_ query: String, in books: [ListedBook]) -> ListedBook? {
+        let normalised = SpokenCommand.normalise(query)
+        // "X by Y": X is the title, Y the author.
+        let parts = normalised.components(separatedBy: " by ")
+        let titleWords = words(parts[0])
+        let authorWords = parts.count > 1 ? words(parts[1...].joined(separator: " ")) : []
+        let all = titleWords + authorWords
+        guard !all.isEmpty else { return nil }
+
+        func matches(_ word: String, _ in: [String]) -> Double {
+            if `in`.contains(word) { return 1 }
+            if word.count >= 4 && `in`.contains(where: { $0.hasPrefix(word) || (word.hasPrefix($0) && $0.count >= 4) }) { return 0.7 }
+            return 0
+        }
+
+        var best: (book: ListedBook, score: Double)?
+        for book in books {
+            let title = words(book.title)
+            let author = words(book.author ?? "")
+            var score = 0.0
+            for word in titleWords { score += max(matches(word, title) * 2, matches(word, author) * 1.5) }
+            for word in authorWords { score += max(matches(word, author) * 2, matches(word, title) * 0.5) }
+            // Most of what was said must match.
+            let possible = Double(all.count) * 2
+            guard score >= possible * 0.5 else { continue }
+            if best == nil || score > best!.score { best = (book, score) }
+        }
+        return best?.book
     }
 }

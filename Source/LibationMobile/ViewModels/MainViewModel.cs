@@ -182,10 +182,14 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		Podcasts = new PodcastsViewModel(new PodcastLibrary(dataDirectory), settings);
 		Podcasts.PlayRequested += row => _ = PlayEpisodeAsync(row);
 		Podcasts.DownloadsChanged += RefreshDownloads;
+		Podcasts.DownloadsChanged += RefreshPlayableBooks;
 		Library.PropertyChanged += (_, e) =>
 		{
-			if (e.PropertyName == nameof(LibraryViewModel.Books) && IsDownloadsPage)
+			if (e.PropertyName != nameof(LibraryViewModel.Books))
+				return;
+			if (IsDownloadsPage)
 				RefreshDownloads();
+			RefreshPlayableBooks();
 		};
 		// The refresh button refreshes everything Audible holds, including the loaded book's position and bookmarks.
 		Library.SyncCommand.PropertyChanged += (_, e) =>
@@ -206,13 +210,14 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 
 		await Library.LoadAsync();
 
-		// A recent book tapped on the home-screen widget, which may be what started the app.
+		// A book asked for on the widget or by Siri, which may be what started the app.
 		if (HomeWidget.Platform is { } widget)
 		{
-			widget.OpenRequested += id => Dispatcher.UIThread.Post(() => OpenFromWidget(id));
-			if (widget.TakePendingOpen() is string pending && Library.Find(pending) is { IsDownloaded: true } tapped)
+			widget.OpenRequested += (id, play) => Dispatcher.UIThread.Post(() => OpenFromWidget(id, play));
+			RefreshPlayableBooks();
+			if (widget.TakePendingOpen() is { } pending)
 			{
-				await LoadAsync(tapped, showNowPlaying: true);
+				OpenFromWidget(pending.Id, pending.Play);
 				return;
 			}
 		}
@@ -224,15 +229,34 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			await LoadEpisodeAsync(lastEpisode, showNowPlaying: false);
 	}
 
-	/// <summary>Shows the book in the player, without playing: the widget's play button is for that.</summary>
-	private async void OpenFromWidget(string bookId)
+	/// <summary>Shows a book in the player, and plays it if asked (Siri's "play Dune"); a recent book on the widget only opens.</summary>
+	private async void OpenFromWidget(string bookId, bool play)
 	{
-		if (NowPlaying?.Book.Id == bookId)
-			CurrentPage = Page.NowPlaying;
-		else if (Library.Find(bookId) is { IsDownloaded: true } item)
-			await LoadAsync(item, showNowPlaying: true);
-		else if (Podcasts.FindDownloaded(bookId) is { } episode)
-			await LoadEpisodeAsync(episode, showNowPlaying: true);
+		var opened = NowPlaying?.Book.Id == bookId
+			|| Library.Find(bookId) is { IsDownloaded: true } item && await LoadAsync(item, showNowPlaying: true)
+			|| Podcasts.FindDownloaded(bookId) is { } episode && await LoadEpisodeAsync(episode, showNowPlaying: true);
+		if (!opened)
+			return;
+		CurrentPage = Page.NowPlaying;
+		if (play && NowPlaying is { IsPlaying: false } np)
+			np.PlayPause();
+	}
+
+	/// <summary>
+	/// Tell Siri which books can be played, last listened first: downloaded audiobooks and podcast episodes. Kept up to
+	/// date as books are downloaded, removed and played.
+	/// </summary>
+	private void RefreshPlayableBooks()
+	{
+		if (HomeWidget.Platform is not { } widget)
+			return;
+		var books = Library.AllDownloaded().Where(b => b.IsDownloaded).Select(b => (Book: new PlayableBook(b.Book.Asin, b.Title, b.Author), At: settings.GetPositionTime(b.Book.Asin)));
+		var episodes = Podcasts.DownloadedRows().Select(e => (Book: new PlayableBook(e.Episode.Id, e.Title, e.ShowTitle), At: settings.GetPositionTime(e.Episode.Id)));
+		widget.ShowBooks(books.Concat(episodes)
+			.OrderByDescending(b => b.Book.Id == settings.LastBookId)
+			.ThenByDescending(b => b.At ?? DateTimeOffset.MinValue)
+			.Select(b => b.Book)
+			.ToList());
 	}
 
 	#region Sign in
@@ -503,6 +527,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	partial void OnNowPlayingChanged(NowPlayingViewModel? oldValue, NowPlayingViewModel? newValue)
 	{
 		Library.PlayingBookId = newValue?.Book.Id;
+		// The book playing goes to the top of Siri's list.
+		RefreshPlayableBooks();
 		if (oldValue is not null)
 			oldValue.PropertyChanged -= NowPlaying_PropertyChanged;
 		if (newValue is not null)
@@ -533,7 +559,12 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	private void RefreshDownloads()
 	{
 		var rows = new List<object>();
-		var books = Library.AllDownloaded();
+		// Fresh from the store first: downloading now, then the newest downloads, then by when last listened.
+		var books = Library.AllDownloaded()
+			.OrderByDescending(b => b.IsDownloading)
+			.ThenByDescending(b => settings.GetDownloadTime(b.Book.Asin) ?? DateTimeOffset.MinValue)
+			.ThenByDescending(b => settings.GetPositionTime(b.Book.Asin) ?? DateTimeOffset.MinValue)
+			.ToList();
 		if (books.Count > 0)
 		{
 			rows.Add(new DownloadsHeading(books.Count == 1 ? "1 audiobook" : $"{books.Count} audiobooks"));

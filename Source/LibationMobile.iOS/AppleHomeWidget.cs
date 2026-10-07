@@ -43,8 +43,8 @@ public sealed class AppleHomeWidget : IHomeWidget
 	private string? coverBookId;
 
 	public event Action<string, double>? SpeedRequested;
-	public event Action<string>? OpenRequested;
-	private string? pendingOpen;
+	public event Action<string, bool>? OpenRequested;
+	private (string Id, bool Play)? pendingOpen;
 
 	public AppleHomeWidget(AppleMediaSession mediaSession)
 	{
@@ -105,7 +105,7 @@ public sealed class AppleHomeWidget : IHomeWidget
 		Write("recent", JsonSerializer.SerializeToUtf8Bytes(recent.Take(RECENT_COUNT + 1).ToList(), Json));
 	}
 
-	public string? TakePendingOpen()
+	public (string Id, bool Play)? TakePendingOpen()
 	{
 		var open = pendingOpen;
 		pendingOpen = null;
@@ -117,21 +117,40 @@ public sealed class AppleHomeWidget : IHomeWidget
 		Console.WriteLine($"Widget link: {link}");
 		switch (link.Host)
 		{
+			case "play" when Uri.UnescapeDataString(link.AbsolutePath.Trim('/')) is { Length: > 0 } playId:
+				Open(playId, play: true);
+				break;
 			case "play":
 				mediaSession.RequestPlay();
 				break;
-			case "open" when link.AbsolutePath.Trim('/') is { Length: > 0 } bookId:
-				Open(bookId);
+			case "open" when Uri.UnescapeDataString(link.AbsolutePath.Trim('/')) is { Length: > 0 } bookId:
+				Open(bookId, play: false);
 				break;
 		}
 	}
 
-	private void Open(string bookId)
+	private void Open(string bookId, bool play)
 	{
 		if (OpenRequested is null)
-			pendingOpen = bookId;
+			pendingOpen = (bookId, play);
 		else
-			OpenRequested.Invoke(bookId);
+			OpenRequested.Invoke(bookId, play);
+	}
+
+	private sealed record ListedBook(string Id, string Title, string? Author);
+
+	/// <summary>For Siri: "list my books", "play number 3", "play Dune". Read by Widget/Intents/SiriIntents.swift.</summary>
+	public void ShowBooks(IReadOnlyList<PlayableBook> books)
+	{
+		try
+		{
+			var listed = books.Take(100).Select(b => new ListedBook(b.Id, b.Title, b.Author)).ToList();
+			Write("books", JsonSerializer.SerializeToUtf8Bytes(listed, Json));
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Book list for Siri not saved: {ex.Message}");
+		}
 	}
 
 	public double? TakePendingSpeed(string bookId) => pendingSpeeds.TryRemove(bookId, out var speed) ? speed : null;
@@ -168,7 +187,7 @@ public sealed class AppleHomeWidget : IHomeWidget
 				mediaSession.RequestSkip(command.Forward == true);
 				break;
 			case "open" when !stale && command.BookId is string openId:
-				Open(openId);
+				Open(openId, play: false);
 				break;
 			case "speed" when command.BookId is string bookId && command.Speed is double speed:
 				// The widget has already drawn this speed; redrawing it again would block its buttons a second time.

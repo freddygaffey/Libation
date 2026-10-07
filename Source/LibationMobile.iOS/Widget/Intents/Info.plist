@@ -23,6 +23,15 @@
 		<key>EXExtensionPointIdentifier</key>
 		<string>com.apple.appintents-extension</string>
 	</dict>
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Speed</string>
+			<key>INAlternativeAppNamePronunciationHint</key>
+			<string>speed</string>
+		</dict>
+	</array>
 	<key>LibationKeychainGroup</key>
 	<string>$(AppIdentifierPrefix)io.github.freddygaffey.libation.shared</string>
 </dict>

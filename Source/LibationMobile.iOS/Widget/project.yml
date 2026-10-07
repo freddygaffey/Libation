@@ -57,6 +57,10 @@ targets:
         LibationKeychainGroup: $(AppIdentifierPrefix)io.github.freddygaffey.libation.shared
         EXAppExtensionAttributes:
           EXExtensionPointIdentifier: com.apple.appintents-extension
+        # As in the app's Info.plist: Siri also answers to "Speed".
+        INAlternativeAppNames:
+          - INAlternativeAppName: Speed
+            INAlternativeAppNamePronunciationHint: speed
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).intents

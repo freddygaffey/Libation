@@ -110,6 +110,11 @@ struct RecentBook: Codable, Hashable {
 /// and matches HomeWidget.LINK_SCHEME.
 enum WidgetLink {
     static let play = URL(string: "libation-player://play")!
+    /// Open a book and play it.
+    static func play(_ bookId: String) -> URL {
+        URL(string: "libation-player://play/" + (bookId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? bookId))!
+    }
+
     static func open(_ bookId: String) -> URL {
         URL(string: "libation-player://open/" + (bookId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? bookId))!
     }
