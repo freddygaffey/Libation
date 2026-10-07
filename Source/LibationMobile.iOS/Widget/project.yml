@@ -36,6 +36,30 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).widget
         PRODUCT_NAME: LibationWidgetExtension
+  # Siri and Shortcuts. An App Intents extension (ExtensionKit), which iOS 17 lets carry App Shortcuts: the .NET app
+  # cannot declare intents itself. It goes in the app's Extensions/ folder, not PlugIns/; see the csproj.
+  LibationIntentsExtension:
+    type: extensionkit-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Intents, Shared]
+    entitlements:
+      path: Intents/Intents.entitlements
+      properties:
+        keychain-access-groups: [$(AppIdentifierPrefix)io.github.freddygaffey.libation.shared]
+    info:
+      path: Intents/Info.plist
+      properties:
+        CFBundleDisplayName: Libation
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LibationKeychainGroup: $(AppIdentifierPrefix)io.github.freddygaffey.libation.shared
+        EXAppExtensionAttributes:
+          EXExtensionPointIdentifier: com.apple.appintents-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).intents
+        PRODUCT_NAME: LibationIntentsExtension
   # Lets the app ask WidgetKit to redraw, which only Swift can do.
   LibationWidgetBridge:
     type: framework

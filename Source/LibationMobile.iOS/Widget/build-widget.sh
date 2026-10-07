@@ -13,7 +13,7 @@ xcodegen generate --quiet
 # Debug, not Release: on the phone, a Release build of the widget drew its buttons but iOS never ran their
 # actions, while the same code built for Debug works (found 2026-10-04 on iOS 26.6; the binaries differ only in
 # how Swift optimised them).
-for target in LibationWidgetExtension LibationWidgetBridge; do
+for target in LibationWidgetExtension LibationIntentsExtension LibationWidgetBridge; do
 	xcodebuild -quiet -project LibationWidget.xcodeproj -scheme "$target" -configuration Debug \
 		-destination 'generic/platform=iOS' -derivedDataPath build -allowProvisioningUpdates \
 		DEVELOPMENT_TEAM="$LIBATION_TEAM" build
@@ -26,4 +26,5 @@ done
 # Xcode gave it, with the team's prefix filled in.
 products=build/Build/Products
 codesign -d --entitlements - --xml "$products/Debug-iphoneos/LibationWidgetExtension.appex" > "$products/LibationWidgetExtension.entitlements"
+codesign -d --entitlements - --xml "$products/Debug-iphoneos/LibationIntentsExtension.appex" > "$products/LibationIntentsExtension.entitlements"
 echo "Widget built: $products"

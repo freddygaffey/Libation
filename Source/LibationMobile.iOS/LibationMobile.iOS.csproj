@@ -55,6 +55,14 @@
     </NativeReference>
   </ItemGroup>
 
+  <!-- Siri and Shortcuts, also from Widget/build-widget.sh: an App Intents extension. It belongs in the app's Extensions/
+       folder, where .NET's AdditionalAppExtensions cannot put it, so it is copied in, already signed by Xcode, before
+       the app is signed. -->
+  <Target Name="_EmbedIntentsExtension" AfterTargets="_CopyAppExtensionsToBundle" BeforeTargets="_ComputeCodesignItems"
+          Condition="Exists('$(_WidgetProducts)/$(_WidgetPlatform)/LibationIntentsExtension.appex')">
+    <Exec Command="mkdir -p &quot;$(_AppBundlePath)Extensions&quot; &amp;&amp; rm -rf &quot;$(_AppBundlePath)Extensions/LibationIntentsExtension.appex&quot; &amp;&amp; ditto &quot;$(_WidgetProducts)/$(_WidgetPlatform)/LibationIntentsExtension.appex&quot; &quot;$(_AppBundlePath)Extensions/LibationIntentsExtension.appex&quot;" />
+  </Target>
+
   <ItemGroup>
     <ProjectReference Include="..\LibationMobile\LibationMobile.csproj" />
   </ItemGroup>
