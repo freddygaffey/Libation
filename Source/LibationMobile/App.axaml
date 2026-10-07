@@ -96,6 +96,10 @@
 			<Setter Property="Padding" Value="8,6" />
 		</Style>
 
+		<!-- List rows fill the width, so the whole row takes a tap and lights up when pressed, not just its text. -->
+		<Style Selector="ListBoxItem">
+			<Setter Property="HorizontalContentAlignment" Value="Stretch" />
+		</Style>
 		<Style Selector="Slider.scrubber">
 			<Setter Property="Foreground" Value="{StaticResource Lamp}" />
 		</Style>
