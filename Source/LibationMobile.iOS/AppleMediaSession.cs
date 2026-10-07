@@ -21,6 +21,7 @@ public sealed class AppleMediaSession : IMediaSession
 	public event Action? SkipForwardRequested;
 	public event Action? SkipBackRequested;
 	public event Action<TimeSpan>? SeekRequested;
+	public event Action<double>? SpeedRequested;
 
 	private MPNowPlayingInfo? nowPlaying;
 	private bool isPlaying;
@@ -55,6 +56,21 @@ public sealed class AppleMediaSession : IMediaSession
 			if (e is not MPChangePlaybackPositionCommandEvent change)
 				return MPRemoteCommandHandlerStatus.CommandFailed;
 			SeekRequested?.Invoke(TimeSpan.FromSeconds(change.PositionTime));
+			return MPRemoteCommandHandlerStatus.Success;
+		});
+
+		// Speed from Siri ("Hey Siri, speed 2", "set playback speed to 1.5"): without this iOS says the app cannot change
+		// speed. Siri picks from the rates listed, so list every tenth the player offers.
+		var rates = new NSNumber[96];
+		for (var i = 0; i < rates.Length; i++)
+			rates[i] = NSNumber.FromDouble((i + 5) / 10.0);
+		commands.ChangePlaybackRateCommand.SupportedPlaybackRates = rates;
+		commands.ChangePlaybackRateCommand.Enabled = true;
+		commands.ChangePlaybackRateCommand.AddTarget(e =>
+		{
+			if (e is not MPChangePlaybackRateCommandEvent change || change.PlaybackRate <= 0)
+				return MPRemoteCommandHandlerStatus.CommandFailed;
+			SpeedRequested?.Invoke(change.PlaybackRate);
 			return MPRemoteCommandHandlerStatus.Success;
 		});
 

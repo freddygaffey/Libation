@@ -32,6 +32,9 @@ public interface IMediaSession
 	event Action? SkipForwardRequested;
 	event Action? SkipBackRequested;
 	event Action<TimeSpan>? SeekRequested;
+
+	/// <summary>The system asked for a speed, such as Siri's "set playback speed to 2".</summary>
+	event Action<double>? SpeedRequested;
 }
 
 public static class MediaSession

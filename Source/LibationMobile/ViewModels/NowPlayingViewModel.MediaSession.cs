@@ -23,6 +23,7 @@ public partial class NowPlayingViewModel
 		mediaSession.SkipForwardRequested += OnSkipForwardRequested;
 		mediaSession.SkipBackRequested += OnSkipBackRequested;
 		mediaSession.SeekRequested += OnSeekRequested;
+		mediaSession.SpeedRequested += OnSpeedRequested;
 		ShowMediaInfo();
 		if (mediaSession.TakePendingPlay())
 			OnPlayRequested();
@@ -41,6 +42,7 @@ public partial class NowPlayingViewModel
 		mediaSession.SkipForwardRequested -= OnSkipForwardRequested;
 		mediaSession.SkipBackRequested -= OnSkipBackRequested;
 		mediaSession.SeekRequested -= OnSeekRequested;
+		mediaSession.SpeedRequested -= OnSpeedRequested;
 		mediaSession.Clear();
 		mediaSession = null;
 	}
@@ -119,5 +121,8 @@ public partial class NowPlayingViewModel
 	private void OnSkipForwardRequested() => OnUi(() => Seek(Position + SkipInterval));
 	private void OnSkipBackRequested() => OnUi(() => Seek(Position - SkipInterval));
 	// The lock screen's bar covers what was last shown: the chapter, or the book.
+	/// <summary>Siri's own speed command, sent to whichever app is playing.</summary>
+	private void OnSpeedRequested(double speed) => OnUi(() => Speed = speed);
+
 	private void OnSeekRequested(TimeSpan position) => OnUi(() => Seek((shownChapter?.StartOffset ?? TimeSpan.Zero) + position));
 }
