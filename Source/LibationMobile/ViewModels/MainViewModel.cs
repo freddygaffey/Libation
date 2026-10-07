@@ -179,9 +179,12 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		};
 		localAnnotations = new LocalAnnotations(Path.Combine(dataDirectory, "annotations.json"));
 		listeningLog = new ListeningLog(Path.Combine(dataDirectory, "listening-log.json"));
-		Log = new ListeningLogViewModel(listeningLog);
+		var catalogForLog = (LibraryViewModel?)null;
+		Log = new ListeningLogViewModel(listeningLog, new AudibleStats(account, dataDirectory),
+			asin => catalogForLog?.Find(asin) is { } book ? (book.Title, book.Author) : null);
 		var catalog = new LibraryCatalog(dataDirectory);
 		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog);
+		catalogForLog = Library;
 		Podcasts = new PodcastsViewModel(new PodcastLibrary(dataDirectory), settings);
 		Podcasts.PlayRequested += row => _ = PlayEpisodeAsync(row);
 		Podcasts.DownloadsChanged += RefreshDownloads;
@@ -736,6 +739,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				break;
 			case "openepisode" when Podcasts.DownloadedRows().FirstOrDefault() is { } downloadedEpisode:
 				await LoadEpisodeAsync(downloadedEpisode, showNowPlaying: true);
+				break;
+			case "log":
+				ShowLog();
 				break;
 			case "settings":
 				ShowSettings();
