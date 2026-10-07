@@ -95,13 +95,19 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	public double ScrubberMaximum => Math.Max(1, ScrubberLength.TotalSeconds);
 
-	/// <summary>Position along the scrubber, in seconds. Setting it seeks.</summary>
+	/// <summary>
+	/// A finger is on a seeking slider. Only then does setting its value seek: a slider also sets its value itself when
+	/// its range changes, as the scrubber's does at each chapter, and taking that as a seek jumped ahead mid-book.
+	/// </summary>
+	public bool IsScrubbing { get; set; }
+
+	/// <summary>Position along the scrubber, in seconds. Setting it while scrubbing seeks.</summary>
 	public double ScrubberSeconds
 	{
 		get => Math.Clamp((Position - ScrubberStart).TotalSeconds, 0, ScrubberMaximum);
 		set
 		{
-			if (Math.Abs(value - (Position - ScrubberStart).TotalSeconds) >= 1)
+			if (IsScrubbing && Math.Abs(value - (Position - ScrubberStart).TotalSeconds) >= 1)
 				// Stop just short of the end, so dragging to it does not tip into the next chapter.
 				Seek(ScrubberStart + TimeSpan.FromSeconds(Math.Min(value, ScrubberMaximum - 0.5)));
 		}

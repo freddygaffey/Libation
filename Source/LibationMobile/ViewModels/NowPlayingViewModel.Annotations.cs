@@ -355,7 +355,7 @@ public partial class NowPlayingViewModel
 		get => ClipEditor is { } editor ? Math.Clamp(Position.TotalSeconds, editor.StartSeconds, editor.EndSeconds) : 0;
 		set
 		{
-			if (ClipEditor is not null && Math.Abs(value - Position.TotalSeconds) >= 0.5)
+			if (IsScrubbing && ClipEditor is not null && Math.Abs(value - Position.TotalSeconds) >= 0.5)
 				Seek(TimeSpan.FromSeconds(value));
 		}
 	}

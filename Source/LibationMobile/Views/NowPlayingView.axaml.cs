@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using LibationMobile.ViewModels;
 using System.ComponentModel;
@@ -20,6 +22,20 @@ public partial class NowPlayingView : UserControl
 			if (viewModel is not null)
 				viewModel.PropertyChanged += ViewModel_PropertyChanged;
 		};
+
+		// The sliders seek only while a finger is on them; see NowPlayingViewModel.IsScrubbing.
+		foreach (var slider in new[] { scrubber, clipPlayhead })
+		{
+			slider.AddHandler(PointerPressedEvent, (_, _) => SetScrubbing(true), RoutingStrategies.Tunnel, handledEventsToo: true);
+			slider.AddHandler(PointerReleasedEvent, (_, _) => SetScrubbing(false), RoutingStrategies.Tunnel, handledEventsToo: true);
+			slider.AddHandler(PointerCaptureLostEvent, (_, _) => SetScrubbing(false), RoutingStrategies.Bubble, handledEventsToo: true);
+		}
+	}
+
+	private void SetScrubbing(bool scrubbing)
+	{
+		if (viewModel is not null)
+			viewModel.IsScrubbing = scrubbing;
 	}
 
 	/// <summary>Open the chapter list at the chapter playing now, not at the top.</summary>

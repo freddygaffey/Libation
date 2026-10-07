@@ -125,7 +125,9 @@
 		</StackPanel>
 
 		<StackPanel Grid.Row="3" Margin="0,12,0,0">
+			<!-- Seeks only while touched: see NowPlayingViewModel.IsScrubbing. -->
 			<Slider
+				Name="scrubber"
 				Classes="scrubber"
 				Minimum="0"
 				Maximum="{Binding ScrubberMaximum}"
@@ -379,7 +381,7 @@
 							<PathIcon Data="{StaticResource IconPause}" IsVisible="{Binding IsPlaying}" />
 						</Panel>
 					</Button>
-					<Slider Grid.Column="1" Classes="scrubber" VerticalAlignment="Center"
+					<Slider Name="clipPlayhead" Grid.Column="1" Classes="scrubber" VerticalAlignment="Center"
 						Minimum="{Binding ClipEditor.StartSeconds}" Maximum="{Binding ClipEditor.EndSeconds}" Value="{Binding ClipPlayheadSeconds}" />
 					<TextBlock Grid.Column="2" Classes="muted" Text="{Binding ClipPlayheadText}" FontSize="12" VerticalAlignment="Center" />
 				</Grid>
