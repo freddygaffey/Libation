@@ -36,12 +36,13 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).widget
         PRODUCT_NAME: LibationWidgetExtension
-  # Siri and Shortcuts. An App Intents extension (ExtensionKit), which iOS 17 lets carry App Shortcuts: the .NET app
+  # Siri and Shortcuts. An App Intents extension (ExtensionKit), which since iOS 17 can carry App Shortcuts (18 here, so
+  # that Play can open the app): the .NET app
   # cannot declare intents itself. It goes in the app's Extensions/ folder, not PlugIns/; see the csproj.
   LibationIntentsExtension:
     type: extensionkit-extension
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "18.0"
     sources: [Intents, Shared]
     entitlements:
       path: Intents/Intents.entitlements
