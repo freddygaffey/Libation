@@ -380,8 +380,50 @@ struct PlayBookIntent: AppIntent {
     }
 }
 
+/// "Hey Siri, tell Libation", then anything: "seven point three", "a bit faster", "slower by a tenth", "pause",
+/// "what's my speed". Siri only matches set phrases, so this takes whatever it heard and reads it itself
+/// (SpokenCommand.swift), asking again if it cannot.
+struct SpokenCommandIntent: AppIntent {
+    static var title: LocalizedStringResource = "Tell Libation"
+    static var description = IntentDescription("Change speed, pause or ask the speed, in your own words.")
+
+    @Parameter(title: "What to do", requestValueDialog: "What should Libation do?") var request: String
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let command = SpokenCommand.parse(request) else {
+            throw $request.needsValueError("Say a speed like 7.3, or faster, slower by a tenth, or pause.")
+        }
+        switch command {
+        case .setSpeed(let speed):
+            return .result(dialog: "\(applySpeed { _ in speed })")
+        case .change(let amount):
+            return .result(dialog: "\(applySpeed { $0 + amount })")
+        case .current:
+            guard let state = WidgetState.load() else { return .result(dialog: "Nothing is playing in Libation.") }
+            return .result(dialog: "\(state.title) is at \(WidgetState.formatSpeed(state.speed)), \(WidgetState.formatLeft(state.remaining(at: Date()))).")
+        case .pause:
+            _ = try await PauseBookIntent().perform()
+            return .result(dialog: "Paused.")
+        case .play:
+            // Only reaches a running app; "Play Libation" opens it if iOS has closed it.
+            WidgetCommand.post(WidgetCommand(command: "play", bookId: WidgetState.load()?.bookId, at: Date().timeIntervalSince1970))
+            return .result(dialog: "Playing.")
+        case .skip(let forward):
+            WidgetCommand.post(WidgetCommand(command: "skip", bookId: WidgetState.load()?.bookId, forward: forward, at: Date().timeIntervalSince1970))
+            return .result(dialog: forward ? "Skipped forward." : "Skipped back.")
+        }
+    }
+}
+
 struct LibationShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
+        AppShortcut(intent: SpokenCommandIntent(), phrases: [
+            "Tell \(.applicationName)",
+            "Ask \(.applicationName)",
+            "\(.applicationName) command",
+            "Change \(.applicationName)",
+            "Talk to \(.applicationName)",
+        ], shortTitle: "Tell Libation", systemImageName: "waveform")
         AppShortcut(intent: SetSpeedToIntent(), phrases: [
             "Set \(.applicationName) to \(\.$speed)",
             "Set \(.applicationName) speed to \(\.$speed)",
