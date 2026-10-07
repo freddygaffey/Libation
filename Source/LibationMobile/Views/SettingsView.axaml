@@ -88,6 +88,26 @@
 					<Button Classes="choice" Classes.selected="{Binding IsClip45}" Content="45 s" Command="{Binding SetClipCommand}" CommandParameter="45" />
 				</StackPanel>
 
+				<TextBlock Classes="section" Text="Speed profiles" />
+				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Margin="0,0,0,8"
+					Text="Switch the speed and every speed-up setting below in one go. Change the settings, then save them to the profile chosen." />
+				<ItemsControl ItemsSource="{Binding Profiles}">
+					<ItemsControl.ItemsPanel>
+						<ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+					</ItemsControl.ItemsPanel>
+					<ItemsControl.ItemTemplate>
+						<DataTemplate x:DataType="vm:ProfileChoice">
+							<Button Classes="choice" Classes.selected="{Binding IsActive}" Content="{Binding Name}" Margin="0,0,8,8"
+								Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Settings.ApplyProfileCommand}" CommandParameter="{Binding}" />
+						</DataTemplate>
+					</ItemsControl.ItemTemplate>
+				</ItemsControl>
+				<TextBlock Text="{Binding ActiveProfileText}" FontSize="13" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" Margin="0,0,0,8" />
+				<StackPanel Orientation="Horizontal" Margin="0,0,0,8" IsVisible="{Binding HasActiveProfile}">
+					<Button Classes="quiet" Content="Save current settings" Padding="12,8" Margin="0,0,8,0" Command="{Binding SaveProfileCommand}" />
+					<Button Classes="quiet" Content="Reset" Padding="12,8" Command="{Binding ResetProfileCommand}" />
+				</StackPanel>
+
 				<TextBlock Classes="section" Text="Speed" />
 				<TextBlock Classes="setting" Text="Speed-up method" Margin="0,0,0,8" />
 				<StackPanel Orientation="Horizontal">
@@ -221,6 +241,31 @@
 				</StackPanel>
 				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
 					Text="Suggested: pauses shortened to 60 ms, keep the overall speed, floor at 50%. Rhythm is left off: whether it helps above 3× is not known yet." />
+
+				<Grid ColumnDefinitions="*,Auto">
+					<TextBlock Classes="section" Text="Siri" />
+					<!-- The commands Siri understands. -->
+					<Button Grid.Column="1" Classes="transport" Width="44" Height="44" Command="{Binding ToggleSiriHelpCommand}" ToolTip.Tip="Siri commands">
+						<PathIcon Data="{StaticResource IconInfo}" Width="20" Height="20" />
+					</Button>
+				</Grid>
+				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Margin="0,0,0,8"
+					Text="Say Libation or Speed. Tap (i) for every command. After an update, open the app once so Siri learns them." />
+				<StackPanel Spacing="10" Margin="0,0,0,12" IsVisible="{Binding IsSiriHelpOpen}">
+					<StackPanel.Styles>
+						<Style Selector="TextBlock.say"><Setter Property="FontSize" Value="14" /><Setter Property="TextWrapping" Value="Wrap" /></Style>
+						<Style Selector="TextBlock.does"><Setter Property="FontSize" Value="12" /><Setter Property="TextWrapping" Value="Wrap" /><Setter Property="Foreground" Value="{StaticResource Dust}" /></Style>
+					</StackPanel.Styles>
+					<StackPanel><TextBlock Classes="say" Text="&quot;Hey Siri, Speed 7.3&quot; · &quot;set Libation to seven and a half&quot;" /><TextBlock Classes="does" Text="Any speed from 0.5× to 10×, to a tenth." /></StackPanel>
+					<StackPanel><TextBlock Classes="say" Text="&quot;Speed faster&quot; · &quot;Speed faster by 0.1&quot; · &quot;slow down Libation by a half&quot;" /><TextBlock Classes="does" Text="Up or down by 0.5×, or by an amount from 0.1 to 2: decimals or a tenth, a fifth, a half." /></StackPanel>
+					<StackPanel><TextBlock Classes="say" Text="&quot;Speed play&quot; · &quot;Speed pause&quot;" /><TextBlock Classes="does" Text="Play the last book (opens the app) or pause. Plain &quot;Hey Siri, pause&quot; and &quot;resume&quot; work too." /></StackPanel>
+					<StackPanel><TextBlock Classes="say" Text="&quot;Speed list&quot; · &quot;list my last 10 books in Libation&quot;" /><TextBlock Classes="does" Text="Reads your downloaded books and episodes, last listened first, numbered." /></StackPanel>
+					<StackPanel><TextBlock Classes="say" Text="&quot;Speed play number 3&quot;" /><TextBlock Classes="does" Text="Plays that one from the list." /></StackPanel>
+					<StackPanel><TextBlock Classes="say" Text="&quot;Speed play a book&quot;, then &quot;Dune&quot; · &quot;the Andy Weir one&quot; · &quot;number 2&quot;" /><TextBlock Classes="does" Text="Plays a book by title, author or number." /></StackPanel>
+					<StackPanel><TextBlock Classes="say" Text="&quot;Speed speed&quot; · &quot;what's my speed in Libation&quot;" /><TextBlock Classes="does" Text="The speed and the time left." /></StackPanel>
+					<StackPanel><TextBlock Classes="say" Text="&quot;Tell Libation&quot;, then anything" /><TextBlock Classes="does" Text="In your own words: &quot;a bit faster&quot;, &quot;seven point three&quot;, &quot;slower by a tenth&quot;, &quot;go back&quot;, &quot;list my books&quot;, &quot;pause&quot;." /></StackPanel>
+					<TextBlock Classes="does" Text="Every command is also an action in the Shortcuts app, with Set exact speed for any value. A shortcut you name yourself, such as &quot;faster&quot;, runs with no app name." />
+				</StackPanel>
 
 				<TextBlock Classes="section" Text="Sync" />
 				<Grid ColumnDefinitions="*,Auto">

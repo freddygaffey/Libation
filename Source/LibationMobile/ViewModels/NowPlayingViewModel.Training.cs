@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace LibationMobile.ViewModels;
 
@@ -19,6 +21,20 @@ public partial class NowPlayingViewModel
 	private string trainingText = "";
 
 	public bool IsTraining => trainingTarget is not null;
+
+	/// <summary>The profiles, for the picker in the speed box.</summary>
+	public IReadOnlyList<ProfileChoice> Profiles => settings.Profiles.Select(p => new ProfileChoice(p, p.Name == settings.ActiveProfile)).ToList();
+	public string ProfileText => settings.ActiveProfile ?? "Profile";
+
+	/// <summary>Switch profile from the player: its settings, and its speed for this book.</summary>
+	[CommunityToolkit.Mvvm.Input.RelayCommand]
+	private void ChooseProfile(ProfileChoice choice)
+	{
+		settings.ApplyProfile(choice.Profile);
+		Speed = choice.Profile.Speed;
+		OnPropertyChanged(nameof(Profiles));
+		OnPropertyChanged(nameof(ProfileText));
+	}
 
 	/// <summary>
 	/// The player's training switch, the same setting as in Settings. On starts a warm-up now (or at the next play);

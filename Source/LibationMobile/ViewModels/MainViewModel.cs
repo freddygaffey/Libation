@@ -173,7 +173,10 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		account = new AudibleAccount(Path.Combine(dataDirectory, "audible-identity.json"), settings);
 		annotations = new AudibleAnnotations(account, settings);
 		store = new AudibleSeries(account);
-		Settings = new SettingsViewModel(settings, () => NowPlaying?.SettingsChanged());
+		Settings = new SettingsViewModel(settings, () => NowPlaying?.SettingsChanged(), speed => { if (NowPlaying is { } np) np.Speed = speed; })
+		{
+			currentSpeed = () => (float)(NowPlaying?.Speed ?? settings.Speed)
+		};
 		localAnnotations = new LocalAnnotations(Path.Combine(dataDirectory, "annotations.json"));
 		listeningLog = new ListeningLog(Path.Combine(dataDirectory, "listening-log.json"));
 		Log = new ListeningLogViewModel(listeningLog);

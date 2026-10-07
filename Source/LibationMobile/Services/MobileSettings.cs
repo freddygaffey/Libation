@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -54,6 +55,8 @@ public class MobileSettings
 		public float TrainingMinutes { get; set; } = 2f;
 		public bool TrainingClimb { get; set; }
 		public bool ShowSyllableRate { get; set; } = true;
+		public Dictionary<string, SpeedProfile> Profiles { get; set; } = new();
+		public string? ActiveProfile { get; set; }
 	}
 
 	public MobileSettings(string path)
@@ -201,6 +204,66 @@ public class MobileSettings
 			state.SecondsSpentListening = 0;
 			state.ListeningCountedSince = null;
 			Save();
+		}
+	}
+
+	#endregion
+
+	#region Speed profiles
+
+	/// <summary>The profiles, in order, with any the listener has changed: Casual, School, Hard and Max.</summary>
+	public IReadOnlyList<SpeedProfile> Profiles
+	{
+		get
+		{
+			lock (locker)
+				return SpeedProfile.Defaults.Select(d => state.Profiles.TryGetValue(d.Name, out var saved) ? saved with { Name = d.Name } : d).ToList();
+		}
+	}
+
+	/// <summary>The profile chosen last. Null until one is chosen; changing a setting by hand does not clear it.</summary>
+	public string? ActiveProfile
+	{
+		get { lock (locker) return state.ActiveProfile; }
+	}
+
+	/// <summary>Use a profile: its speed-up method and options, and its speed as the speed new books start at.</summary>
+	public void ApplyProfile(SpeedProfile profile)
+	{
+		lock (locker)
+		{
+			state.ActiveProfile = profile.Name;
+			state.Speed = profile.Speed;
+			Save();
+		}
+		UseNonlinearSpeed = profile.UseNonlinear;
+		Nonlinearity = profile.Nonlinearity;
+		PauseCap = profile.PauseCap;
+		KeepSpeed = profile.KeepSpeed;
+		SpeedFloor = profile.SpeedFloor;
+		RhythmGap = profile.RhythmGap;
+		RhythmRate = profile.RhythmRate;
+	}
+
+	/// <summary>Keep the current settings, and this speed, as the named profile.</summary>
+	public void SaveProfile(string name, float speed)
+	{
+		lock (locker)
+		{
+			state.Profiles[name] = new SpeedProfile(name, speed, state.UseNonlinearSpeed, state.Nonlinearity, state.PauseCap, state.KeepSpeed,
+				state.SpeedFloor, state.RhythmGap, state.RhythmRate);
+			state.ActiveProfile = name;
+			Save();
+		}
+	}
+
+	/// <summary>Put a profile back to how it came.</summary>
+	public void ResetProfile(string name)
+	{
+		lock (locker)
+		{
+			if (state.Profiles.Remove(name))
+				Save();
 		}
 	}
 
@@ -432,6 +495,27 @@ public class MobileSettings
 }
 
 /// <summary>Source-generated serializer, so release builds can trim reflection metadata safely.</summary>
+/// <summary>
+/// A named set of speed settings to switch between, such as Casual for relaxed listening and Max for record attempts:
+/// the speed books start at, the speed-up method, and the options for very high speeds.
+/// </summary>
+public record SpeedProfile(string Name, float Speed, bool UseNonlinear, float Nonlinearity, float PauseCap, bool KeepSpeed,
+	float SpeedFloor, float RhythmGap, float RhythmRate)
+{
+	/// <summary>Starting points, each changeable with "Save current settings".</summary>
+	public static readonly IReadOnlyList<SpeedProfile> Defaults =
+	[
+		// Relaxed: Speedy as designed, nothing else.
+		new("Casual", 2f, true, 1f, 0f, true, 0f, 0f, 6f),
+		// Study and textbooks: moderate speed, every part of the speech at least 60% of the speed, so nothing is rushed.
+		new("School", 1.8f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
+		// Fast and still comfortable: pauses shortened, the hardest sounds kept at half speed or more.
+		new("Hard", 4f, true, 1f, 0.06f, true, 0.5f, 0f, 6f),
+		// Record attempts: everything the research suggests at 6x and above, rhythm gaps included.
+		new("Max", 7f, true, 1f, 0.04f, true, 0.5f, 0.04f, 6f),
+	];
+}
+
 [JsonSerializable(typeof(MobileSettings.State))]
 internal partial class MobileSettingsJsonContext : JsonSerializerContext
 {

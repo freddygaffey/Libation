@@ -2,12 +2,62 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibationMobile.Services;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace LibationMobile.ViewModels;
 
 /// <summary>The settings page. Every change is saved as it is made.</summary>
-public partial class SettingsViewModel(MobileSettings settings, Action changed) : ObservableObject
+public partial class SettingsViewModel(MobileSettings settings, Action changed, Action<float>? profileApplied = null) : ObservableObject
 {
+	#region Speed profiles
+
+	public IReadOnlyList<ProfileChoice> Profiles => settings.Profiles.Select(p => new ProfileChoice(p, p.Name == settings.ActiveProfile)).ToList();
+	public string ActiveProfileText => settings.ActiveProfile is { } name
+		? $"{name}: {ProfileChoice.Describe(settings.Profiles.First(p => p.Name == name))}"
+		: "Choose one to switch the speed and the speed-up settings below in one go.";
+	public bool HasActiveProfile => settings.ActiveProfile is not null;
+
+	[RelayCommand]
+	private void ApplyProfile(ProfileChoice choice)
+	{
+		settings.ApplyProfile(choice.Profile);
+		profileApplied?.Invoke(choice.Profile.Speed);
+		OnPropertyChanged(string.Empty);
+		changed();
+	}
+
+	/// <summary>Keep the settings below, and the speed now, as the chosen profile.</summary>
+	[RelayCommand]
+	private void SaveProfile()
+	{
+		if (settings.ActiveProfile is not { } name)
+			return;
+		settings.SaveProfile(name, currentSpeed?.Invoke() ?? settings.Speed);
+		OnPropertyChanged(string.Empty);
+	}
+
+	[RelayCommand]
+	private void ResetProfile()
+	{
+		if (settings.ActiveProfile is not { } name)
+			return;
+		settings.ResetProfile(name);
+		ApplyProfile(new ProfileChoice(settings.Profiles.First(p => p.Name == name), true));
+	}
+
+	/// <summary>The speed of the book playing, to save in a profile. Set by the main view model.</summary>
+	public Func<float>? currentSpeed { get; set; }
+
+	#endregion
+
+	/// <summary>The list of Siri commands, under the (i) button.</summary>
+	[ObservableProperty]
+	private bool isSiriHelpOpen;
+
+	[RelayCommand]
+	private void ToggleSiriHelp() => IsSiriHelpOpen = !IsSiriHelpOpen;
+
 	public int SkipSeconds => settings.SkipSeconds;
 	public int ClipSeconds => settings.ClipSeconds;
 
@@ -299,5 +349,22 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed) 
 	{
 		settings.ClipSeconds = int.Parse(seconds);
 		OnPropertyChanged(string.Empty);
+	}
+}
+
+/// <summary>A profile as a choice in the settings and the player.</summary>
+public record ProfileChoice(SpeedProfile Profile, bool IsActive)
+{
+	public string Name => Profile.Name;
+	public string Summary => Describe(Profile);
+
+	/// <summary>"4.0×, Speedy, pauses 60 ms, floor 50%".</summary>
+	public static string Describe(SpeedProfile p)
+	{
+		var parts = new List<string> { $"{p.Speed:0.0}×", p.UseNonlinear ? (p.Nonlinearity >= 1 ? "Speedy" : $"Speedy {p.Nonlinearity:P0}") : "Original" };
+		if (p.PauseCap > 0) parts.Add($"pauses {p.PauseCap * 1000:0} ms");
+		if (p.SpeedFloor > 0) parts.Add($"floor {p.SpeedFloor:P0}");
+		if (p.RhythmGap > 0) parts.Add($"rhythm {p.RhythmGap * 1000:0} ms × {p.RhythmRate:0.#}");
+		return string.Join(", ", parts);
 	}
 }

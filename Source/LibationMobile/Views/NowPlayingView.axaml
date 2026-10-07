@@ -194,12 +194,36 @@
 					Maximum="{x:Static vm:NowPlayingViewModel.MAX_SPEED}"
 					Stops="{x:Static vm:NowPlayingViewModel.SpeedStops}" />
 				<!-- Training mode: warm up from a comfortable speed to this one. Set up in Settings, Speed listening. -->
-				<Grid ColumnDefinitions="*,Auto" Margin="0,-2,0,0">
-					<StackPanel VerticalAlignment="Center">
-						<TextBlock Text="Training" FontSize="14" />
-						<TextBlock Text="{Binding TrainingText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" IsVisible="{Binding IsTraining}" />
+				<Grid ColumnDefinitions="Auto,*,Auto" Margin="0,-2,0,0">
+					<!-- Speed profile: Casual, School, Hard, Max. Set up in Settings. -->
+					<Button Classes="quiet" Padding="10,6" Margin="-10,0,8,0" VerticalAlignment="Center" ToolTip.Tip="Speed profile">
+						<StackPanel Orientation="Horizontal" Spacing="4">
+							<TextBlock Text="{Binding ProfileText}" FontSize="14" Foreground="{StaticResource Lamp}" />
+							<PathIcon Data="{StaticResource IconChevronDown}" Width="12" Height="12" Foreground="{StaticResource Lamp}" />
+						</StackPanel>
+						<Button.Flyout>
+							<Flyout Placement="TopEdgeAlignedLeft">
+								<ItemsControl ItemsSource="{Binding Profiles}" MinWidth="260">
+									<ItemsControl.ItemTemplate>
+										<DataTemplate x:DataType="vm:ProfileChoice">
+											<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,8"
+												Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).ChooseProfileCommand}" CommandParameter="{Binding}">
+												<StackPanel>
+													<TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
+													<TextBlock Classes="muted" Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap" />
+												</StackPanel>
+											</Button>
+										</DataTemplate>
+									</ItemsControl.ItemTemplate>
+								</ItemsControl>
+							</Flyout>
+						</Button.Flyout>
+					</Button>
+					<StackPanel Grid.Column="1" VerticalAlignment="Center">
+						<TextBlock Text="Training" FontSize="14" HorizontalAlignment="Right" />
+						<TextBlock Text="{Binding TrainingText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" TextAlignment="Right" IsVisible="{Binding IsTraining}" />
 					</StackPanel>
-					<ToggleSwitch Grid.Column="1" IsChecked="{Binding TrainingEnabled}" OnContent="" OffContent="" Margin="12,0,0,0" />
+					<ToggleSwitch Grid.Column="2" IsChecked="{Binding TrainingEnabled}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
 			</StackPanel>
 		</Border>
