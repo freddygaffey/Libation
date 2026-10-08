@@ -234,6 +234,8 @@
 									<MenuFlyout Placement="BottomEdgeAlignedRight">
 										<MenuItem Header="Details and series"
 											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).ShowDetailsCommand}" CommandParameter="{Binding}" />
+										<MenuItem Header="Open the PDF" IsVisible="{Binding HasPdf}"
+											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).OpenBookPdfCommand}" CommandParameter="{Binding}" />
 										<MenuItem Header="Play from the start" IsVisible="{Binding IsDownloaded}"
 											Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).PlayFromStartCommand}" CommandParameter="{Binding}" />
 										<MenuItem Header="Mark as finished" IsVisible="{Binding IsNotFinished}"

@@ -142,19 +142,51 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 
 	/// <summary>Open the PDF that comes with the book on the details page, where it can be read and saved.</summary>
 	[RelayCommand]
-	private async Task OpenPdf()
+	private Task OpenPdf() => Details is { } details ? OpenBookPdf(details.Item) : Task.CompletedTask;
+
+	/// <summary>
+	/// A book's companion PDF (maps, tables, figures), downloaded the first time and kept, shown in the app's own
+	/// viewer. Where there is no viewer, as on Android for now, Audible's link is opened instead.
+	/// </summary>
+	[RelayCommand]
+	private async Task OpenBookPdf(BookItemViewModel item)
 	{
-		if (Details is not { } details || OpenUri is null)
-			return;
+		void Say(string? text)
+		{
+			if (Details is { } details && details.Item == item)
+				details.Message = text;
+			else
+				Library.Message = text;
+		}
+		var asin = item.Book.Asin;
 		try
 		{
-			await OpenUri(await store.GetPdfLinkAsync(details.Item.Book.Asin));
+			if (DocumentViewer.Platform is not { } viewer)
+			{
+				if (OpenUri is not null)
+					await OpenUri(await store.GetPdfLinkAsync(asin));
+				return;
+			}
+			var path = Path.Combine(pdfDirectory, asin + ".pdf");
+			if (!File.Exists(path))
+			{
+				Say("Downloading the PDF…");
+				Directory.CreateDirectory(pdfDirectory);
+				var link = await store.GetPdfLinkAsync(asin);
+				var partial = path + ".partial";
+				await Task.Run(() => BookDownloader.DownloadFileAsync(link.ToString(), partial, _ => { }, default));
+				File.Move(partial, path, overwrite: true);
+			}
+			Say(null);
+			viewer.Show(path, item.Title);
 		}
 		catch (Exception ex)
 		{
-			details.Message = $"The PDF could not be opened: {ex.Message}";
+			Say($"The PDF could not be opened: {ex.Message}");
 		}
 	}
+
+	private readonly string pdfDirectory;
 
 	/// <summary>Play the book on the details page, or download it if it is not on the device.</summary>
 	[RelayCommand]
@@ -170,6 +202,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public MainViewModel(string dataDirectory)
 	{
 		settings = new MobileSettings(Path.Combine(dataDirectory, "settings.json"));
+		pdfDirectory = Path.Combine(dataDirectory, "Pdfs");
 		account = new AudibleAccount(Path.Combine(dataDirectory, "audible-identity.json"), settings);
 		annotations = new AudibleAnnotations(account, settings);
 		store = new AudibleSeries(account);
@@ -743,6 +776,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			case "clip" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } clipBook:
 				await LoadAsync(clipBook, showNowPlaying: true);
 				NowPlaying?.AddClipCommand.Execute(null);
+				break;
+			case "pdf" when parts.Length > 1 && Library.Find(parts[1]) is { } pdfBook:
+				await OpenBookPdf(pdfBook);
 				break;
 			case "log":
 				ShowLog();

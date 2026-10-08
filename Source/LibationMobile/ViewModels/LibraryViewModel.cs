@@ -85,6 +85,7 @@ public partial class BookItemViewModel : ObservableObject
 	public bool IsNotDownloaded => State == DownloadState.NotDownloaded;
 	public bool IsDownloading => State == DownloadState.Downloading;
 	public bool IsDownloaded => State == DownloadState.Downloaded;
+	public bool HasPdf => Book.HasPdf;
 	public bool HasProgress => Progress > 0;
 	public bool IsFinished => Progress >= 1;
 	public bool IsNotFinished => !IsFinished;
