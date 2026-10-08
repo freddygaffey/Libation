@@ -209,6 +209,12 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		};
 		localAnnotations = new LocalAnnotations(Path.Combine(dataDirectory, "annotations.json"));
 		listeningLog = new ListeningLog(Path.Combine(dataDirectory, "listening-log.json"));
+		// Last night's sleep, if a watch has synced it to Apple Health since: where in each book it began.
+		if (settings.UseHealthSleep && ListeningContext.Platform is { } sleepContext)
+		{
+			var logForSleep = listeningLog;
+			_ = Task.Run(() => SleepFinder.RefineAsync(logForSleep, sleepContext));
+		}
 		var catalogForLog = (LibraryViewModel?)null;
 		Log = new ListeningLogViewModel(listeningLog, new AudibleStats(account, dataDirectory),
 			asin => catalogForLog?.Find(asin) is { } book ? (book.Title, book.Author) : null);
@@ -218,6 +224,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		Log.AudibleAppSpeed = () => settings.AudibleAppSpeed;
 		Log.BookHours = asin => catalogForLog?.Find(asin) is { } found && found.Book.Length > TimeSpan.Zero ? found.Book.Length.TotalHours : null;
 		Settings.TimeBreakdown = Log.Breakdown;
+		Settings.ListeningLog = listeningLog;
 		var catalog = new LibraryCatalog(dataDirectory);
 		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog, pdfs);
 		catalogForLog = Library;

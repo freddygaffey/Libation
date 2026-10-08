@@ -28,7 +28,10 @@
 	<!-- Asked once: what you were doing while listening (walking, still, driving), from the phone's own motion record,
 	     for your listening research. -->
 	<key>NSMotionUsageDescription</key>
-	<string>Libation notes whether you were walking, still or driving while you listened, so your listening stats can show what affects how well you follow. It stays on your phone.</string>
+	<string>Libation notes whether you were walking, still or driving while you listened, and, if you turn on pausing when you fall asleep, whether your head (with AirPods) or the phone has been still. It stays on your phone.</string>
+	<!-- Asked only when "Sleep from Apple Health" is connected: sleep a watch app (Garmin Connect, Apple Watch) wrote. -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Libation reads your sleep from Apple Health to mark where in a book you fell asleep, so you can go back to it. Nothing is written to Apple Health, and nothing leaves your phone.</string>
 	<!-- Siri also answers to "Speed": "Hey Siri, Speed play", "Speed 7.3". -->
 	<key>INAlternativeAppNames</key>
 	<array>

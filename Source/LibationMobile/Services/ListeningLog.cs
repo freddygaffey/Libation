@@ -15,6 +15,9 @@ namespace LibationMobile.Services;
 /// <param name="SpentSeconds">How long the listening took.</param>
 /// <param name="Marks">Where in the book the listener was every few minutes, to find the place again after dozing off.</param>
 /// <param name="Syllables">Syllables heard, measured from the audio (AudioFilePlayer.SourceSyllablesPerSecond). Null before this was recorded.</param>
+/// <param name="AsleepAt">When the listener probably fell asleep during it; null if not thought to have.</param>
+/// <param name="AsleepPosition">Where in the book that was: the place to go back to.</param>
+/// <param name="AsleepSource">How it was found: "auto-pause" (no touch and no movement for a while), or "health" (Apple Health's sleep, as from a watch).</param>
 public record ListeningSession(
 	string BookId,
 	string Title,
@@ -26,7 +29,31 @@ public record ListeningSession(
 	double SpentSeconds,
 	float Speed,
 	IReadOnlyList<ListeningMark>? Marks = null,
-	double? Syllables = null);
+	double? Syllables = null,
+	DateTimeOffset? AsleepAt = null,
+	TimeSpan? AsleepPosition = null,
+	string? AsleepSource = null)
+{
+	/// <summary>Where in the book the listener was at a moment in the session, from the marks taken every few minutes.</summary>
+	public TimeSpan PositionAt(DateTimeOffset at)
+	{
+		var points = new List<ListeningMark> { new(Started, From) };
+		points.AddRange(Marks ?? []);
+		points.Add(new(Ended, To));
+		if (at <= Started)
+			return From;
+		for (var i = 1; i < points.Count; i++)
+		{
+			var (a, b) = (points[i - 1], points[i]);
+			if (at > b.At)
+				continue;
+			var span = (b.At - a.At).TotalSeconds;
+			var share = span > 0 ? (at - a.At).TotalSeconds / span : 0;
+			return a.Position + (b.Position - a.Position) * share;
+		}
+		return To;
+	}
+}
 
 /// <summary>Where in the book the listener was at a moment in a session.</summary>
 public record ListeningMark(DateTimeOffset At, TimeSpan Position);

@@ -353,6 +353,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		UpdateAnnotations();
 		UpdateSyllableRate();
 		CountListening();
+		SleepTick();
 		if (IsPlaying && DateTime.UtcNow - lastSaved > SaveInterval)
 			SavePosition();
 	}
@@ -434,10 +435,11 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		OfferFollowRating(sessionSpent, sessionSyllables);
 		if (sessionStarted is DateTimeOffset began && sessionSpent >= ShortestLoggedSession)
 			LogActivity(began, DateTimeOffset.Now, "session");
+		var asleep = TakeFellAsleep();
 		if (sessionStarted is DateTimeOffset started && sessionSpent >= ShortestLoggedSession)
 			log?.Add(new ListeningSession(Book.Id, Title, started, DateTimeOffset.Now, sessionFrom, Position,
 				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed, sessionMarks.Count > 0 ? sessionMarks.ToList() : null,
-				sessionSyllables > 0 ? Math.Round(sessionSyllables) : null));
+				sessionSyllables > 0 ? Math.Round(sessionSyllables) : null, asleep?.At, asleep?.Position, asleep is null ? null : "auto-pause"));
 		sessionStarted = null;
 	}
 

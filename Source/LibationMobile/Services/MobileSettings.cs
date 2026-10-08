@@ -40,6 +40,10 @@ public class MobileSettings
 		public double SecondsSpentListening { get; set; }
 		public DateTimeOffset? ListeningCountedSince { get; set; }
 		public float AudibleAppSpeed { get; set; } = 1f;
+		public bool AutoPauseAsleep { get; set; }
+		public int AutoPauseMinutes { get; set; } = 20;
+		public bool AutoPauseNightOnly { get; set; } = true;
+		public bool UseHealthSleep { get; set; }
 		/// <summary>When each downloaded book's download was asked for, so a new download sorts as just listened to.</summary>
 		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
 		public bool Training { get; set; }
@@ -224,6 +228,34 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.AudibleAppSpeed; }
 		set { lock (locker) { state.AudibleAppSpeed = Math.Clamp(value, 1f, 10f); Save(); } }
+	}
+
+	/// <summary>Pause when the listener seems to have fallen asleep: no touch, and no movement, for a while.</summary>
+	public bool AutoPauseAsleep
+	{
+		get { lock (locker) return state.AutoPauseAsleep; }
+		set { lock (locker) { state.AutoPauseAsleep = value; Save(); } }
+	}
+
+	/// <summary>How long without a touch or movement counts as asleep.</summary>
+	public int AutoPauseMinutes
+	{
+		get { lock (locker) return state.AutoPauseMinutes; }
+		set { lock (locker) { state.AutoPauseMinutes = Math.Clamp(value, 5, 90); Save(); } }
+	}
+
+	/// <summary>Watch for sleep only from 9 p.m. to 7 a.m.</summary>
+	public bool AutoPauseNightOnly
+	{
+		get { lock (locker) return state.AutoPauseNightOnly; }
+		set { lock (locker) { state.AutoPauseNightOnly = value; Save(); } }
+	}
+
+	/// <summary>Read sleep from Apple Health to find, afterwards, where in a book the listener fell asleep.</summary>
+	public bool UseHealthSleep
+	{
+		get { lock (locker) return state.UseHealthSleep; }
+		set { lock (locker) { state.UseHealthSleep = value; Save(); } }
 	}
 
 	public void AddListening(TimeSpan bookTime, TimeSpan timeSpent)

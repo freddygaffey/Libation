@@ -9,11 +9,13 @@ using System.Linq;
 namespace LibationMobile.ViewModels;
 
 /// <summary>A place to go back to: where in the book the listener was, and when.</summary>
-public class HistoryPointViewModel(DateTimeOffset at, TimeSpan position)
+/// <param name="asleep">Where the listener probably fell asleep: shown apart, as the place to go back to.</param>
+public class HistoryPointViewModel(DateTimeOffset at, TimeSpan position, bool asleep = false)
 {
 	public TimeSpan Position { get; } = position;
-	public string TimeText { get; } = at.ToLocalTime().ToString("t", CultureInfo.CurrentCulture);
+	public string TimeText { get; } = asleep ? $"Asleep {at.ToLocalTime().ToString("t", CultureInfo.CurrentCulture)}" : at.ToLocalTime().ToString("t", CultureInfo.CurrentCulture);
 	public string PositionText { get; } = NowPlayingViewModel.FormatTime(position);
+	public bool IsAsleep { get; } = asleep;
 }
 
 /// <summary>One session of this book: when, how far it went, and the points along the way.</summary>
@@ -23,6 +25,8 @@ public class HistorySessionViewModel
 	public string DetailText { get; }
 	public bool IsCurrent { get; }
 	public IReadOnlyList<HistoryPointViewModel> Points { get; }
+	public string AsleepText { get; } = "";
+	public bool HasAsleep => AsleepText.Length > 0;
 
 	public HistorySessionViewModel(ListeningSession session, bool isCurrent)
 	{
@@ -36,6 +40,14 @@ public class HistorySessionViewModel
 		var points = new List<HistoryPointViewModel> { new(session.Started, session.From) };
 		points.AddRange((session.Marks ?? []).Select(m => new HistoryPointViewModel(m.At, m.Position)));
 		points.Add(new(session.Ended, session.To));
+		if (session.AsleepAt is DateTimeOffset asleepAt && session.AsleepPosition is TimeSpan asleepPosition)
+		{
+			points.Add(new(asleepAt, asleepPosition, asleep: true));
+			points.Sort((a, b) => a.Position.CompareTo(b.Position));
+			AsleepText = session.AsleepSource == "health"
+				? $"Asleep from about {asleepAt.ToLocalTime().ToString("t", CultureInfo.CurrentCulture)}, from your watch's sleep record."
+				: $"Auto-paused as you seemed to be asleep; last touched at {asleepAt.ToLocalTime().ToString("t", CultureInfo.CurrentCulture)}.";
+		}
 		points.Reverse();
 		Points = points;
 	}
@@ -66,6 +78,13 @@ public partial class NowPlayingViewModel
 	{
 		RefreshHistory();
 		IsHistoryOpen = true;
+		// A watch's sleep reaches Apple Health after it syncs: look again, and show any place it finds.
+		if (settings.UseHealthSleep && log is { } l && ListeningContext.Platform is { } context)
+			_ = System.Threading.Tasks.Task.Run(async () =>
+			{
+				if (await SleepFinder.RefineAsync(l, context) > 0)
+					Avalonia.Threading.Dispatcher.UIThread.Post(RefreshHistory);
+			});
 	}
 
 	[RelayCommand]

@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibationMobile.Services;
 using System;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -76,7 +77,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 		? $"On · from {(settings.TrainingFromBelow ? $"{settings.TrainingStartBelow:0.0#}× below the book's speed" : $"{settings.TrainingStartSpeed:0.0}×")}, +{settings.TrainingStep:0.0#}× every {(settings.TrainingMinutes < 1 ? $"{settings.TrainingMinutes * 60:0} s" : $"{settings.TrainingMinutes:0.#} min")}"
 		: "Off";
 
-	public string PlaybackSummary => $"Skips {settings.SkipSeconds} s · clips {settings.ClipSeconds} s · bar shows the {(settings.ScrubByChapter ? "chapter" : "book")}";
+	public string PlaybackSummary => $"Skips {settings.SkipSeconds} s · clips {settings.ClipSeconds} s{(settings.AutoPauseAsleep ? " · pauses when asleep" : "")}";
 	public string SiriSummary => "\"Hey Siri, Speed 7.3\", \"Speed play a book\" and more";
 	public string TimeSavedSummary => TimeSavedText;
 	public string SyncSummary => $"{(settings.SyncPosition ? "Positions synced with Audible" : "Not syncing")} · {(settings.HighQualityDownloads ? "high quality" : "standard")} downloads";
@@ -145,6 +146,85 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 			changed();
 		}
 	}
+
+	#region Auto-pause when asleep
+
+	public bool AutoPauseAsleep
+	{
+		get => settings.AutoPauseAsleep;
+		set
+		{
+			settings.AutoPauseAsleep = value;
+			OnPropertyChanged();
+			OnPropertyChanged(nameof(PlaybackSummary));
+			// Ask for motion now, while the listener is looking, not the first night it is needed.
+			if (value && ListeningContext.Platform is { } context)
+				_ = AskMotionAsync(context);
+		}
+	}
+
+	[ObservableProperty]
+	private string motionStatus = "";
+
+	private async Task AskMotionAsync(IListeningContext context)
+	{
+		var allowed = await context.RequestMotionAsync();
+		MotionStatus = allowed ? "" : "Without Motion & Fitness, only the time since your last touch is used. Allow it in Settings › Privacy › Motion & Fitness.";
+	}
+
+	/// <summary>The log to look back over once Apple Health is connected. Set by the main view model.</summary>
+	public ListeningLog? ListeningLog { get; set; }
+
+	public bool AutoPauseNightOnly
+	{
+		get => settings.AutoPauseNightOnly;
+		set { settings.AutoPauseNightOnly = value; OnPropertyChanged(); }
+	}
+
+	public bool IsAsleep10 => settings.AutoPauseMinutes == 10;
+	public bool IsAsleep20 => settings.AutoPauseMinutes == 20;
+	public bool IsAsleep30 => settings.AutoPauseMinutes == 30;
+	public bool IsAsleep45 => settings.AutoPauseMinutes == 45;
+
+	[RelayCommand]
+	private void SetAsleepMinutes(string minutes)
+	{
+		if (int.TryParse(minutes, out var m))
+			settings.AutoPauseMinutes = m;
+		foreach (var name in new[] { nameof(IsAsleep10), nameof(IsAsleep20), nameof(IsAsleep30), nameof(IsAsleep45) })
+			OnPropertyChanged(name);
+	}
+
+	public bool UseHealthSleep => settings.UseHealthSleep;
+
+	[ObservableProperty]
+	private string healthStatus = "";
+
+	/// <summary>Ask to read sleep from Apple Health, where Garmin Connect or an Apple Watch writes it.</summary>
+	[RelayCommand]
+	private async Task ConnectHealth()
+	{
+		if (ListeningContext.Platform is not { } context)
+		{
+			HealthStatus = "Apple Health is not available here.";
+			return;
+		}
+		var ok = await context.ConnectHealthAsync();
+		settings.UseHealthSleep = ok;
+		OnPropertyChanged(nameof(UseHealthSleep));
+		HealthStatus = ok
+			? "Connected. Where you fell asleep shows in each book's history once your watch has synced."
+			: "Could not connect to Apple Health. Check Settings › Health › Data Access & Devices › Speed.";
+		// Apple Health keeps all past sleep: look over every session logged so far, once.
+		if (ok && ListeningLog is { } log)
+		{
+			var found = await Task.Run(() => SleepFinder.RefineAsync(log, context, everything: true));
+			if (found > 0)
+				HealthStatus = $"Connected. Found where you fell asleep in {found} past {(found == 1 ? "session" : "sessions")}; see each book's history.";
+		}
+	}
+
+	#endregion
 
 	public bool ScrubByChapter
 	{

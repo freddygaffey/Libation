@@ -7,6 +7,11 @@
              Background="{StaticResource Ink}">
 
 	<UserControl.Styles>
+		<!-- The place the listener probably fell asleep, in a book's history. -->
+		<Style Selector="Button.asleep /template/ ContentPresenter">
+			<Setter Property="BorderBrush" Value="{StaticResource Lamp}" />
+			<Setter Property="BorderThickness" Value="1" />
+		</Style>
 		<Style Selector="Button.row:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="Transparent" />
 		</Style>
@@ -319,6 +324,25 @@
 	</Border>
 
 	<!-- Questions for the listener's own research: after a session, and during a blind trial. -->
+	<!-- Auto-pause when asleep: the fade, then where to go back to. -->
+	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
+		BorderBrush="{StaticResource Lamp}" BorderThickness="1" IsVisible="{Binding IsFadingForSleep}">
+		<StackPanel Spacing="10">
+			<TextBlock Text="{Binding SleepFadeText}" FontSize="16" TextWrapping="Wrap" />
+			<Button Classes="quiet" Content="Keep listening" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
+				Command="{Binding KeepListeningCommand}" />
+		</StackPanel>
+	</Border>
+	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
+		BorderBrush="{StaticResource Lamp}" BorderThickness="1" IsVisible="{Binding HasAsleepPlace}">
+		<StackPanel Spacing="10">
+			<TextBlock Text="{Binding AsleepPlaceText}" FontSize="15" TextWrapping="Wrap" />
+			<StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+				<Button Classes="quiet" Content="Stay here" Padding="12,8" Command="{Binding DismissAsleepPlaceCommand}" />
+				<Button Classes="quiet" Content="Go back there" Padding="12,8" Command="{Binding GoBackToAsleepPlaceCommand}" />
+			</StackPanel>
+		</StackPanel>
+	</Border>
 	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
 		BorderBrush="{StaticResource Lamp}" BorderThickness="1"
 		IsVisible="{Binding IsAskingFollow}">
@@ -467,13 +491,14 @@
 								<TextBlock Text="Listening" FontSize="11" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" IsVisible="{Binding IsCurrent}" />
 							</StackPanel>
 							<TextBlock Classes="muted" Text="{Binding DetailText}" FontSize="12" />
+							<TextBlock Text="{Binding AsleepText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" IsVisible="{Binding HasAsleep}" />
 							<ItemsControl ItemsSource="{Binding Points}" Margin="0,4,0,0">
 								<ItemsControl.ItemsPanel>
 									<ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
 								</ItemsControl.ItemsPanel>
 								<ItemsControl.ItemTemplate>
 									<DataTemplate x:DataType="vm:HistoryPointViewModel">
-										<Button Classes="quiet" Padding="10,6" Margin="0,0,6,6"
+										<Button Classes="quiet" Padding="10,6" Margin="0,0,6,6" Classes.asleep="{Binding IsAsleep}"
 											Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).JumpToHistoryCommand}" CommandParameter="{Binding}">
 											<StackPanel>
 												<TextBlock Text="{Binding TimeText}" FontSize="13" />

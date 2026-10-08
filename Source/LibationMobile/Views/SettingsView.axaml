@@ -367,6 +367,41 @@
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding ScrubByChapter}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
+				<!-- Auto-pause when asleep -->
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Pause when you fall asleep" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="After a while with no touch, and your head (with AirPods that report it) or the phone lying still, the sound fades for 30 seconds, then pauses. Touch anything to keep listening." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPauseAsleep}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<StackPanel IsVisible="{Binding AutoPauseAsleep}" Margin="0,0,0,12">
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="12" Text="{Binding MotionStatus}" Foreground="{StaticResource Lamp}" />
+					<TextBlock Classes="setting" Text="Asleep after no touch for" />
+					<StackPanel Orientation="Horizontal">
+						<Button Classes="choice" Classes.selected="{Binding IsAsleep10}" Content="10 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="10" />
+						<Button Classes="choice" Classes.selected="{Binding IsAsleep20}" Content="20 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="20" />
+						<Button Classes="choice" Classes.selected="{Binding IsAsleep30}" Content="30 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="30" />
+						<Button Classes="choice" Classes.selected="{Binding IsAsleep45}" Content="45 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="45" />
+					</StackPanel>
+					<Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+						<TextBlock Text="Only from 9 p.m. to 7 a.m." FontSize="14" VerticalAlignment="Center" />
+						<ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPauseNightOnly}" OnContent="" OffContent="" Margin="12,0,0,0" />
+					</Grid>
+				</StackPanel>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Sleep from Apple Health" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="Your watch's sleep record (Garmin Connect or Apple Watch, through Apple Health) marks where in a book you fell asleep, in its history, once the watch syncs." />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="12" Text="{Binding HealthStatus}" Foreground="{StaticResource Lamp}" />
+					</StackPanel>
+					<Button Grid.Column="1" Classes="quiet" Content="Connect" Padding="12,8" Margin="12,0,0,0" VerticalAlignment="Center"
+						Command="{Binding ConnectHealthCommand}" IsVisible="{Binding !UseHealthSleep}" />
+					<TextBlock Grid.Column="1" Text="Connected" FontSize="13" Foreground="{StaticResource Lamp}" Margin="12,0,0,0" VerticalAlignment="Center"
+						IsVisible="{Binding UseHealthSleep}" />
+				</Grid>
 				<TextBlock Classes="setting" Text="Skip back and forward by" />
 				<StackPanel Orientation="Horizontal">
 					<Button Classes="choice" Classes.selected="{Binding IsSkip10}" Content="10 s" Command="{Binding SetSkipCommand}" CommandParameter="10" />
