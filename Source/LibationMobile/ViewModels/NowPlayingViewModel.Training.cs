@@ -25,25 +25,39 @@ public partial class NowPlayingViewModel
 	public string ProfileText => settings.ActiveProfile ?? "Custom";
 	public bool IsCustomProfile => settings.ActiveProfile is null;
 
-	/// <summary>The ramp's starting gap, adjustable from the player's mode panel.</summary>
+	/// <summary>Where the warm-up starts, as set in Settings, Training, and from the player's training sheet.</summary>
 	public string TrainingStartText => settings.TrainingFromBelow
-		? $"Start {settings.TrainingStartBelow:0.0#}× below"
-		: $"Start at {settings.TrainingStartSpeed:0.0}×";
+		? $"{settings.TrainingStartBelow:0.0#}× below the book's speed"
+		: $"At {settings.TrainingStartSpeed:0.0}×";
 
+	public bool IsStartBelow => settings.TrainingFromBelow;
+	public bool IsStartAtSpeed => !settings.TrainingFromBelow;
+
+	/// <summary>"below": a gap under the book's speed; "speed": a set speed.</summary>
 	[CommunityToolkit.Mvvm.Input.RelayCommand]
-	private void TrainingStartLower() => NudgeTrainingStart(+0.25f);
-
-	[CommunityToolkit.Mvvm.Input.RelayCommand]
-	private void TrainingStartHigher() => NudgeTrainingStart(-0.25f);
-
-	/// <summary>Further below (a gentler warm-up) or nearer the book's speed. Switches to starting below if set to a fixed speed.</summary>
-	private void NudgeTrainingStart(float further)
+	private void SetTrainingStartMode(string mode)
 	{
-		if (!settings.TrainingFromBelow)
-			settings.TrainingFromBelow = true;
+		settings.TrainingFromBelow = mode == "below";
+		OnTrainingStartChanged();
+	}
+
+	/// <summary>"+" or "-": the gap by 0.25×, or the set speed by 0.1×, whichever is in use.</summary>
+	[CommunityToolkit.Mvvm.Input.RelayCommand]
+	private void NudgeTrainingStart(string direction)
+	{
+		var up = direction == "+";
+		if (settings.TrainingFromBelow)
+			settings.TrainingStartBelow += up ? 0.25f : -0.25f;
 		else
-			settings.TrainingStartBelow += further;
+			settings.TrainingStartSpeed = (float)Math.Round(settings.TrainingStartSpeed + (up ? 0.1f : -0.1f), 1);
+		OnTrainingStartChanged();
+	}
+
+	private void OnTrainingStartChanged()
+	{
 		OnPropertyChanged(nameof(TrainingStartText));
+		OnPropertyChanged(nameof(IsStartBelow));
+		OnPropertyChanged(nameof(IsStartAtSpeed));
 	}
 
 	public bool IsSpeedy => settings.UseNonlinearSpeed && AudioBackend.NonlinearAvailable;

@@ -594,6 +594,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 					ShowSettings();
 					if (what == "sleep-settings")
 						Settings.OpenPageCommand.Execute("sleep");
+					else if (what == "training-settings")
+						Settings.OpenPageCommand.Execute("training");
 				}
 			};
 		}

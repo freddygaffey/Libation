@@ -336,13 +336,20 @@
 							<ToggleButton Content="Pyramid" IsChecked="{Binding IsPlanPyramid, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="pyramid" Padding="2,6" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
 							<ToggleButton Content="Tracking" IsChecked="{Binding IsPlanTracking, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="tracking" Padding="2,6" Margin="3,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
 						</UniformGrid>
+						<!-- Where the warm-up starts: also in Settings, Training. -->
+						<TextBlock Text="Start the warm-up" FontSize="13" Foreground="{StaticResource Dust}" />
+						<UniformGrid Columns="2">
+							<ToggleButton Content="Below the book" IsChecked="{Binding IsStartBelow, Mode=OneWay}" Command="{Binding SetTrainingStartModeCommand}" CommandParameter="below" Padding="6,8" Margin="0,0,3,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+							<ToggleButton Content="At a set speed" IsChecked="{Binding IsStartAtSpeed, Mode=OneWay}" Command="{Binding SetTrainingStartModeCommand}" CommandParameter="speed" Padding="6,8" Margin="3,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+						</UniformGrid>
 						<Grid ColumnDefinitions="*,Auto,Auto">
-							<TextBlock Text="{Binding TrainingStartText}" FontSize="13" VerticalAlignment="Center" />
-							<Button Grid.Column="1" Classes="quiet" Content="−" Padding="14,4" Command="{Binding TrainingStartHigherCommand}" ToolTip.Tip="Nearer the book's speed" />
-							<Button Grid.Column="2" Classes="quiet" Content="+" Padding="14,4" Command="{Binding TrainingStartLowerCommand}" ToolTip.Tip="Further below: a gentler warm-up" />
+							<TextBlock Text="{Binding TrainingStartText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+							<Button Grid.Column="1" Classes="quiet" Content="−" Padding="16,6" Command="{Binding NudgeTrainingStartCommand}" CommandParameter="-" />
+							<Button Grid.Column="2" Classes="quiet" Content="+" Padding="16,6" Command="{Binding NudgeTrainingStartCommand}" CommandParameter="+" />
 						</Grid>
 					</StackPanel>
 					<TextBlock Text="{Binding TrainingText}" FontSize="13" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" IsVisible="{Binding IsModeOn}" />
+					<Button Classes="quiet" HorizontalAlignment="Left" Padding="10,6" Content="All training settings" Command="{Binding MoreCommand}" CommandParameter="training-settings" />
 					<Border Height="1" Background="{StaticResource Hairline}" />
 					<Button Classes="quiet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="8,8" Command="{Binding StartTrialCommand}" IsVisible="{Binding !IsTrialRunning}">
 						<StackPanel Spacing="1">
