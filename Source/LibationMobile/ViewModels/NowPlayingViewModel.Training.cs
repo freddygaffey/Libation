@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using LibationMobile.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +25,51 @@ public partial class NowPlayingViewModel
 
 	/// <summary>The profiles, for the picker in the speed box.</summary>
 	public IReadOnlyList<ProfileChoice> Profiles => settings.Profiles.Select(p => new ProfileChoice(p, p.Name == settings.ActiveProfile)).ToList();
-	public string ProfileText => settings.ActiveProfile ?? "Profile";
+	public string ProfileText => settings.ActiveProfile ?? "Custom";
+	public bool IsCustomProfile => settings.ActiveProfile is null;
+
+	/// <summary>The ramp's starting gap, adjustable from the player's mode panel.</summary>
+	public string TrainingStartText => settings.TrainingFromBelow
+		? $"Start {settings.TrainingStartBelow:0.0#}× below"
+		: $"Start at {settings.TrainingStartSpeed:0.0}×";
+
+	[CommunityToolkit.Mvvm.Input.RelayCommand]
+	private void TrainingStartLower() => NudgeTrainingStart(+0.25f);
+
+	[CommunityToolkit.Mvvm.Input.RelayCommand]
+	private void TrainingStartHigher() => NudgeTrainingStart(-0.25f);
+
+	/// <summary>Further below (a gentler warm-up) or nearer the book's speed. Switches to starting below if set to a fixed speed.</summary>
+	private void NudgeTrainingStart(float further)
+	{
+		if (!settings.TrainingFromBelow)
+			settings.TrainingFromBelow = true;
+		else
+			settings.TrainingStartBelow += further;
+		OnPropertyChanged(nameof(TrainingStartText));
+	}
+
+	public bool IsSpeedy => settings.UseNonlinearSpeed && AudioBackend.NonlinearAvailable;
+	public bool IsOriginal => !IsSpeedy;
+
+	[CommunityToolkit.Mvvm.Input.RelayCommand]
+	private void SetMethod(string method)
+	{
+		settings.UseNonlinearSpeed = method == "speedy";
+		OnPropertyChanged(nameof(IsSpeedy));
+		OnPropertyChanged(nameof(IsOriginal));
+	}
+
+	/// <summary>Refresh the mode panel's figures, which Settings may have changed.</summary>
+	private void RefreshMode()
+	{
+		OnPropertyChanged(nameof(Profiles));
+		OnPropertyChanged(nameof(ProfileText));
+		OnPropertyChanged(nameof(IsCustomProfile));
+		OnPropertyChanged(nameof(TrainingStartText));
+		OnPropertyChanged(nameof(IsSpeedy));
+		OnPropertyChanged(nameof(IsOriginal));
+	}
 
 	/// <summary>Switch profile from the player: its settings, and its speed for this book.</summary>
 	[CommunityToolkit.Mvvm.Input.RelayCommand]
@@ -32,8 +77,7 @@ public partial class NowPlayingViewModel
 	{
 		settings.ApplyProfile(choice.Profile);
 		Speed = choice.Profile.Speed;
-		OnPropertyChanged(nameof(Profiles));
-		OnPropertyChanged(nameof(ProfileText));
+		RefreshMode();
 	}
 
 	/// <summary>
@@ -71,7 +115,9 @@ public partial class NowPlayingViewModel
 		if (!settings.Training || resuming)
 			return;
 		var target = settings.GetBookSpeed(Book.Id) ?? Speed;
-		var start = Math.Min(target, settings.TrainingStartSpeed);
+		var start = settings.TrainingFromBelow
+			? Math.Max(1, target - settings.TrainingStartBelow)
+			: Math.Min(target, settings.TrainingStartSpeed);
 		if (start >= target && (!settings.TrainingClimb || target >= settings.TrainingCeiling))
 			return;
 		trainingTarget = target;

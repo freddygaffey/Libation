@@ -57,8 +57,16 @@ public static class AudioBackend
 	/// <summary>Rhythm gaps a second.</summary>
 	public static float RhythmRate { get => rhythmRate; set => rhythmRate = Math.Clamp(value, 1f, 16f); }
 
+	private static volatile SpeedProfile? scaling;
+
+	/// <summary>
+	/// The profile in use, whose rules set the very-high-speed options for whatever speed plays, in place of the values
+	/// above. Null for custom settings.
+	/// </summary>
+	public static SpeedProfile? Scaling { get => scaling; set => scaling = value; }
+
 	/// <summary>Whether a high-speed option is on that the original method does not have, so speechwarp must play even then.</summary>
-	public static bool NeedsSpeechwarp => PauseCap > 0 || RhythmGap > 0;
+	public static bool NeedsSpeechwarp => Scaling is { } p ? p.HeardPause > 0 || p.RhythmGap > 0 : PauseCap > 0 || RhythmGap > 0;
 
 	/// <summary>False if the speechwarp library could not be loaded on this device, so speed-up is always even.</summary>
 	public static bool NonlinearAvailable { get; private set; } = true;

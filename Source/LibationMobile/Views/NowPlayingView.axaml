@@ -196,27 +196,54 @@
 				<!-- Training mode: warm up from a comfortable speed to this one. Set up in Settings, Speed listening. -->
 				<Grid ColumnDefinitions="Auto,*,Auto" Margin="0,-2,0,0">
 					<!-- Speed profile: Casual, School, Hard, Max. Set up in Settings. -->
-					<Button Classes="quiet" Padding="10,6" Margin="-10,0,8,0" VerticalAlignment="Center" ToolTip.Tip="Speed profile">
+					<Button Classes="quiet" Padding="10,6" Margin="-10,0,8,0" VerticalAlignment="Center" ToolTip.Tip="Mode: profile, training, method">
 						<StackPanel Orientation="Horizontal" Spacing="4">
 							<TextBlock Text="{Binding ProfileText}" FontSize="14" Foreground="{StaticResource Lamp}" />
 							<PathIcon Data="{StaticResource IconChevronDown}" Width="12" Height="12" Foreground="{StaticResource Lamp}" />
 						</StackPanel>
 						<Button.Flyout>
+							<!-- The mode panel: profile, training and method, without leaving the book. -->
 							<Flyout Placement="TopEdgeAlignedLeft">
-								<ItemsControl ItemsSource="{Binding Profiles}" MinWidth="260">
-									<ItemsControl.ItemTemplate>
-										<DataTemplate x:DataType="vm:ProfileChoice">
-											<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,8"
-												Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).ChooseProfileCommand}" CommandParameter="{Binding}">
-												<StackPanel>
-													<TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
-													<TextBlock Text="{Binding Purpose}" FontSize="12" TextWrapping="Wrap" />
-													<TextBlock Classes="muted" Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap" />
-												</StackPanel>
-											</Button>
-										</DataTemplate>
-									</ItemsControl.ItemTemplate>
-								</ItemsControl>
+								<StackPanel Width="300" Spacing="10" Margin="4">
+									<TextBlock Text="Profile" FontSize="13" Foreground="{StaticResource Dust}" />
+									<ItemsControl ItemsSource="{Binding Profiles}">
+										<ItemsControl.ItemTemplate>
+											<DataTemplate x:DataType="vm:ProfileChoice">
+												<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,6"
+													Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).ChooseProfileCommand}" CommandParameter="{Binding}">
+													<StackPanel Spacing="1">
+														<Grid ColumnDefinitions="*,Auto">
+															<TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
+															<TextBlock Grid.Column="1" Text="In use" FontSize="11" Foreground="{StaticResource Lamp}" IsVisible="{Binding IsActive}" VerticalAlignment="Center" />
+														</Grid>
+														<TextBlock Text="{Binding Purpose}" FontSize="12" TextWrapping="Wrap" />
+														<TextBlock Classes="muted" Text="{Binding Summary}" FontSize="11" TextWrapping="Wrap" />
+													</StackPanel>
+												</Button>
+											</DataTemplate>
+										</ItemsControl.ItemTemplate>
+									</ItemsControl>
+									<TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding IsCustomProfile}"
+										Text="Custom in use: your own settings from Settings, Speed, Advanced." />
+
+									<Border Height="1" Background="{StaticResource Hairline}" />
+									<Grid ColumnDefinitions="*,Auto">
+										<TextBlock Text="Training" FontSize="15" VerticalAlignment="Center" />
+										<ToggleSwitch Grid.Column="1" IsChecked="{Binding TrainingEnabled}" OnContent="" OffContent="" />
+									</Grid>
+									<Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding TrainingEnabled}">
+										<TextBlock Text="{Binding TrainingStartText}" FontSize="14" VerticalAlignment="Center" />
+										<Button Grid.Column="1" Classes="quiet" Content="−" Padding="14,6" Command="{Binding TrainingStartHigherCommand}" ToolTip.Tip="Nearer the book's speed" />
+										<Button Grid.Column="2" Classes="quiet" Content="+" Padding="14,6" Command="{Binding TrainingStartLowerCommand}" ToolTip.Tip="Further below: a gentler warm-up" />
+									</Grid>
+
+									<Border Height="1" Background="{StaticResource Hairline}" />
+									<Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+										<TextBlock Text="Method" FontSize="15" VerticalAlignment="Center" />
+										<ToggleButton Grid.Column="1" Content="Speedy" IsChecked="{Binding IsSpeedy, Mode=OneWay}" Command="{Binding SetMethodCommand}" CommandParameter="speedy" Padding="12,6" />
+										<ToggleButton Grid.Column="2" Content="Original" IsChecked="{Binding IsOriginal, Mode=OneWay}" Command="{Binding SetMethodCommand}" CommandParameter="original" Padding="12,6" />
+									</Grid>
+								</StackPanel>
 							</Flyout>
 						</Button.Flyout>
 					</Button>

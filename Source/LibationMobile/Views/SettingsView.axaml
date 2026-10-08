@@ -281,12 +281,25 @@
 				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
 					<StackPanel VerticalAlignment="Center">
 						<TextBlock Text="Training mode" FontSize="15" />
-						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Each time you start listening, warm up from a speed you are already comfortable at and step up to the book's speed. Ears adapt to fast speech within minutes, and lose some of it between sessions. Changing the speed yourself during the warm-up moves it: the climb carries on from there." />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Each time you start listening, warm up from a little slower and step up to the book's speed. Ears adapt to fast speech within minutes, and lose some of it between sessions. Changing the speed yourself during the warm-up moves it: the climb carries on from there." />
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding Training}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
 				<StackPanel IsVisible="{Binding Training}">
-				<StackPanel Margin="0,4,0,12">
+				<TextBlock Classes="setting" Text="Start the warm-up" />
+				<StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+					<Button Classes="choice" Classes.selected="{Binding TrainingFromBelow}" Content="Below the book's speed" Command="{Binding SetTrainingFromCommand}" CommandParameter="below" />
+					<Button Classes="choice" Classes.selected="{Binding TrainingFromSpeed}" Content="At a set speed" Command="{Binding SetTrainingFromCommand}" CommandParameter="speed" />
+				</StackPanel>
+				<StackPanel Margin="0,4,0,12" IsVisible="{Binding TrainingFromBelow}">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="Start" FontSize="15" VerticalAlignment="Center" />
+						<TextBlock Grid.Column="1" Text="{Binding TrainingStartBelowText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+					</Grid>
+					<Slider Classes="scrubber" Minimum="0.25" Maximum="5" TickFrequency="0.25" IsSnapToTickEnabled="True" Value="{Binding TrainingStartBelow}" />
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="At 6×, 1× below starts at 5× and climbs back up. Never below 1×." />
+				</StackPanel>
+				<StackPanel Margin="0,4,0,12" IsVisible="{Binding TrainingFromSpeed}">
 					<Grid ColumnDefinitions="*,Auto">
 						<TextBlock Text="Start at" FontSize="15" VerticalAlignment="Center" />
 						<TextBlock Grid.Column="1" Text="{Binding TrainingStartText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />

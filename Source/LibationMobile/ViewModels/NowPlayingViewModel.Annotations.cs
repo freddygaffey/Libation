@@ -270,8 +270,7 @@ public partial class NowPlayingViewModel
 	{
 		OnPropertyChanged(nameof(SkipText));
 		OnPropertyChanged(nameof(TrainingEnabled));
-		OnPropertyChanged(nameof(Profiles));
-		OnPropertyChanged(nameof(ProfileText));
+		RefreshMode();
 		RefreshScrubber();
 		UpdateMediaSession();
 	}

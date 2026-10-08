@@ -35,16 +35,24 @@ public sealed class SpeechwarpTimeStretcher : ITimeStretcher
 		var nonlinearity = AudioBackend.UseNonlinear ? AudioBackend.Nonlinearity : 0f;
 		if (nonlinearity != appliedNonlinearity)
 			stream.Nonlinear = appliedNonlinearity = nonlinearity;
-		if (AudioBackend.PauseCap != appliedPauseCap)
-			stream.PauseCap = appliedPauseCap = AudioBackend.PauseCap;
-		if (AudioBackend.KeepSpeed != appliedKeepSpeed)
-			stream.KeepSpeed = appliedKeepSpeed = AudioBackend.KeepSpeed;
-		if (AudioBackend.SpeedFloor != appliedFloor)
-			stream.SpeedFloor = appliedFloor = AudioBackend.SpeedFloor;
-		if (AudioBackend.RhythmGap != appliedGap)
-			stream.RhythmGap = appliedGap = AudioBackend.RhythmGap;
-		if (AudioBackend.RhythmRate != appliedRate)
-			stream.RhythmRate = appliedRate = AudioBackend.RhythmRate;
+		// A profile's rules give the options for the speed playing now, so they follow training, Siri and the buttons.
+		var profile = AudioBackend.Scaling;
+		var speed = stream.Speed;
+		var pauseCap = profile?.PauseCapAt(speed) ?? AudioBackend.PauseCap;
+		var keepSpeed = profile?.KeepSpeed ?? AudioBackend.KeepSpeed;
+		var floor = profile?.FloorAt(speed) ?? AudioBackend.SpeedFloor;
+		var gap = profile?.RhythmGap ?? AudioBackend.RhythmGap;
+		var rate = profile?.RhythmRate ?? AudioBackend.RhythmRate;
+		if (pauseCap != appliedPauseCap)
+			stream.PauseCap = appliedPauseCap = pauseCap;
+		if (keepSpeed != appliedKeepSpeed)
+			stream.KeepSpeed = appliedKeepSpeed = keepSpeed;
+		if (floor != appliedFloor)
+			stream.SpeedFloor = appliedFloor = floor;
+		if (gap != appliedGap)
+			stream.RhythmGap = appliedGap = gap;
+		if (rate != appliedRate)
+			stream.RhythmRate = appliedRate = rate;
 
 		stream.Write(samples);
 		framesWritten += samples.Length / stream.Channels;

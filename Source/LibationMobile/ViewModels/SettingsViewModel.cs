@@ -62,16 +62,18 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 		get
 		{
 			var method = settings.UseNonlinearSpeed && NonlinearAvailable ? "Speedy" : "Original";
-			var options = new List<string>();
+			if (settings.ActiveProfile is { } profile)
+				return $"{profile} · {method} · scales with speed";
+			var options = new List<string> { "Custom", method };
 			if (settings.PauseCap > 0) options.Add($"pauses {settings.PauseCap * 1000:0} ms");
 			if (settings.SpeedFloor > 0 && settings.UseNonlinearSpeed) options.Add($"floor {settings.SpeedFloor:P0}");
 			if (settings.RhythmGap > 0) options.Add("rhythm");
-			return string.Join(" · ", new[] { settings.ActiveProfile, method }.OfType<string>().Concat(options));
+			return string.Join(" · ", options);
 		}
 	}
 
 	public string TrainingSummary => settings.Training
-		? $"On · from {settings.TrainingStartSpeed:0.0}×, +{settings.TrainingStep:0.0#}× every {(settings.TrainingMinutes < 1 ? $"{settings.TrainingMinutes * 60:0} s" : $"{settings.TrainingMinutes:0.#} min")}"
+		? $"On · from {(settings.TrainingFromBelow ? $"{settings.TrainingStartBelow:0.0#}× below the book's speed" : $"{settings.TrainingStartSpeed:0.0}×")}, +{settings.TrainingStep:0.0#}× every {(settings.TrainingMinutes < 1 ? $"{settings.TrainingMinutes * 60:0} s" : $"{settings.TrainingMinutes:0.#} min")}"
 		: "Off";
 
 	public string PlaybackSummary => $"Skips {settings.SkipSeconds} s · clips {settings.ClipSeconds} s · bar shows the {(settings.ScrubByChapter ? "chapter" : "book")}";
@@ -86,8 +88,8 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 
 	public IReadOnlyList<ProfileChoice> Profiles => settings.Profiles.Select(p => new ProfileChoice(p, p.Name == settings.ActiveProfile)).ToList();
 	public string ActiveProfileText => settings.ActiveProfile is { } name
-		? $"{name}: {ProfileChoice.Describe(settings.Profiles.First(p => p.Name == name))}"
-		: "None chosen yet.";
+		? $"{name} in use. Its pause and floor rules follow the speed playing, through training and Siri too."
+		: "Custom: the Advanced settings below, as set. Tap a profile to use its rules instead.";
 	public bool HasActiveProfile => settings.ActiveProfile is not null;
 
 	[RelayCommand]
@@ -239,6 +241,24 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	}
 	public string TrainingStartText => $"{TrainingStartSpeed:0.0}×";
 
+	public bool TrainingFromBelow
+	{
+		get => settings.TrainingFromBelow;
+		set { settings.TrainingFromBelow = value; OnPropertyChanged(); OnPropertyChanged(nameof(TrainingFromSpeed)); changed(); }
+	}
+
+	public bool TrainingFromSpeed => !TrainingFromBelow;
+
+	[RelayCommand]
+	private void SetTrainingFrom(string mode) => TrainingFromBelow = mode == "below";
+
+	public double TrainingStartBelow
+	{
+		get => Math.Round(settings.TrainingStartBelow, 2);
+		set { settings.TrainingStartBelow = (float)value; OnPropertyChanged(nameof(TrainingStartBelowText)); }
+	}
+	public string TrainingStartBelowText => $"{TrainingStartBelow:0.0#}× below";
+
 	public double TrainingStep
 	{
 		get => Math.Round(settings.TrainingStep, 2);
@@ -275,21 +295,21 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	public double PauseCapMs
 	{
 		get => Math.Round(settings.PauseCap * 1000);
-		set { settings.PauseCap = (float)(value / 1000); OnPropertyChanged(nameof(PauseCapText)); OnPropertyChanged(nameof(UsesSpeedySpeedUp)); }
+		set { GoCustom(); settings.PauseCap = (float)(value / 1000); OnPropertyChanged(nameof(PauseCapText)); OnPropertyChanged(nameof(UsesSpeedySpeedUp)); }
 	}
 	public string PauseCapText => PauseCapMs <= 0 ? "Off" : $"{PauseCapMs:0} ms";
 
 	public bool KeepSpeed
 	{
 		get => settings.KeepSpeed;
-		set { settings.KeepSpeed = value; OnPropertyChanged(); }
+		set { GoCustom(); settings.KeepSpeed = value; OnPropertyChanged(); }
 	}
 
 	/// <summary>Speed floor as a percentage of the speed; 0 is off.</summary>
 	public double SpeedFloorPercent
 	{
 		get => Math.Round(settings.SpeedFloor * 100);
-		set { settings.SpeedFloor = (float)(value / 100); OnPropertyChanged(nameof(SpeedFloorText)); }
+		set { GoCustom(); settings.SpeedFloor = (float)(value / 100); OnPropertyChanged(nameof(SpeedFloorText)); }
 	}
 	public string SpeedFloorText => SpeedFloorPercent <= 0 ? "Off" : $"{SpeedFloorPercent:0}% of the speed";
 
@@ -297,7 +317,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	public double RhythmGapMs
 	{
 		get => Math.Round(settings.RhythmGap * 1000);
-		set { settings.RhythmGap = (float)(value / 1000); OnPropertyChanged(nameof(RhythmGapText)); OnPropertyChanged(nameof(RhythmOn)); }
+		set { GoCustom(); settings.RhythmGap = (float)(value / 1000); OnPropertyChanged(nameof(RhythmGapText)); OnPropertyChanged(nameof(RhythmOn)); }
 	}
 	public string RhythmGapText => RhythmGapMs <= 0 ? "Off" : $"{RhythmGapMs:0} ms";
 	public bool RhythmOn => RhythmGapMs > 0;
@@ -305,16 +325,29 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	public double RhythmRate
 	{
 		get => Math.Round(settings.RhythmRate, 1);
-		set { settings.RhythmRate = (float)value; OnPropertyChanged(nameof(RhythmRateText)); }
+		set { GoCustom(); settings.RhythmRate = (float)value; OnPropertyChanged(nameof(RhythmRateText)); }
 	}
 	public string RhythmRateText => $"{RhythmRate:0.#} a second";
 
 	/// <summary>The floor only applies to Speedy; the others work with either method.</summary>
 	public bool UsesSpeedySpeedUp => IsNonlinearMethod;
 
+	/// <summary>A hand on an Advanced setting means custom settings: the profile's rules stop applying.</summary>
+	private void GoCustom()
+	{
+		if (settings.ActiveProfile is null)
+			return;
+		settings.UseCustom();
+		OnPropertyChanged(nameof(Profiles));
+		OnPropertyChanged(nameof(ActiveProfileText));
+		OnPropertyChanged(nameof(HasActiveProfile));
+		changed();
+	}
+
 	[RelayCommand]
 	private void ResetHighSpeed()
 	{
+		GoCustom();
 		settings.PauseCap = 0;
 		settings.KeepSpeed = true;
 		settings.SpeedFloor = 0;
@@ -327,6 +360,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	[RelayCommand]
 	private void SuggestHighSpeed()
 	{
+		GoCustom();
 		settings.PauseCap = 0.06f;
 		settings.KeepSpeed = true;
 		settings.SpeedFloor = 0.5f;
@@ -431,13 +465,16 @@ public record ProfileChoice(SpeedProfile Profile, bool IsActive)
 	public string Summary => Describe(Profile);
 	public string Purpose => Profile.Purpose;
 
-	/// <summary>"4.0×, Speedy, pauses 60 ms, floor 50%".</summary>
+	/// <summary>"4.5×, Speedy · pauses you hear 25 ms from 3× · hardest sounds at least 50% of the speed, blending in from 3× to 5×".</summary>
 	public static string Describe(SpeedProfile p)
 	{
-		var parts = new List<string> { $"{p.Speed:0.0}×", p.UseNonlinear ? (p.Nonlinearity >= 1 ? "Speedy" : $"Speedy {p.Nonlinearity:P0}") : "Original" };
-		if (p.PauseCap > 0) parts.Add($"pauses {p.PauseCap * 1000:0} ms");
-		if (p.SpeedFloor > 0) parts.Add($"floor {p.SpeedFloor:P0}");
-		if (p.RhythmGap > 0) parts.Add($"rhythm {p.RhythmGap * 1000:0} ms × {p.RhythmRate:0.#}");
-		return string.Join(", ", parts);
+		var parts = new List<string> { $"{p.Speed:0.0}×, {(p.UseNonlinear ? (p.Nonlinearity >= 1 ? "Speedy" : $"Speedy {p.Nonlinearity:P0}") : "Original")}" };
+		if (p.HeardPause > 0)
+			parts.Add($"pauses you hear {p.HeardPause * 1000:0} ms{(p.PauseFrom > 1 ? $" from {p.PauseFrom:0.#}×" : "")}");
+		if (p.Floor > 0)
+			parts.Add(p.FloorFull > p.FloorFrom ? $"hardest sounds at least {p.Floor:P0} of the speed, blending in from {p.FloorFrom:0.#}× to {p.FloorFull:0.#}×" : $"hardest sounds at least {p.Floor:P0} of the speed");
+		if (p.RhythmGap > 0)
+			parts.Add($"rhythm {p.RhythmGap * 1000:0} ms × {p.RhythmRate:0.#}");
+		return string.Join(" · ", parts);
 	}
 }

@@ -44,6 +44,8 @@ public class MobileSettings
 		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
 		public bool Training { get; set; }
 		public float TrainingStartSpeed { get; set; } = 3.5f;
+		public bool TrainingFromBelow { get; set; } = true;
+		public float TrainingStartBelow { get; set; } = 1f;
 		public float TrainingCeiling { get; set; } = 10f;
 		public float TrainingRestartMinutes { get; set; } = 10f;
 		public float PauseCap { get; set; }
@@ -74,6 +76,7 @@ public class MobileSettings
 		AudioBackend.SpeedFloor = state.SpeedFloor;
 		AudioBackend.RhythmGap = state.RhythmGap;
 		AudioBackend.RhythmRate = state.RhythmRate;
+		AudioBackend.Scaling = state.ActiveProfile is { } active ? Profiles.FirstOrDefault(p => p.Name == active) : null;
 	}
 
 	/// <summary>Move settings still at an old default to the current one; anything the listener chose stays.</summary>
@@ -96,19 +99,11 @@ public class MobileSettings
 	/// </summary>
 	private void UpgradeProfiles()
 	{
-		if (state.DefaultsVersion >= 3)
+		if (state.DefaultsVersion >= 4)
 			return;
-		SpeedProfile[] earlier =
-		[
-			new("Casual", 2f, true, 1f, 0f, true, 0f, 0f, 6f), new("School", 1.8f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
-			new("Hard", 4f, true, 1f, 0.06f, true, 0.5f, 0f, 6f), new("Max", 7f, true, 1f, 0.04f, true, 0.5f, 0.04f, 6f),
-			new("Casual", 2.5f, true, 1f, 0f, true, 0f, 0f, 6f), new("School", 2.5f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
-			new("Hard", 5f, true, 1f, 0.06f, true, 0.5f, 0f, 6f), new("Max", 8f, true, 1f, 0.04f, true, 0.55f, 0.04f, 6f),
-		];
-		foreach (var old in earlier)
-			if (state.Profiles.TryGetValue(old.Name, out var saved) && saved == old)
-				state.Profiles.Remove(old.Name);
-		state.DefaultsVersion = 3;
+		// Profiles became rules that scale with speed; none had been saved yet, so start them afresh.
+		state.Profiles.Clear();
+		state.DefaultsVersion = 4;
 		Save();
 	}
 
@@ -267,7 +262,10 @@ public class MobileSettings
 		get { lock (locker) return state.ActiveProfile; }
 	}
 
-	/// <summary>Use a profile: its speed-up method and options, and its speed as the speed new books start at.</summary>
+	/// <summary>
+	/// Use a profile: its speed as the speed new books start at, its method, and its rules for the very-high-speed options,
+	/// which from now on follow whatever speed plays (<see cref="AudioBackend.Scaling"/>).
+	/// </summary>
 	public void ApplyProfile(SpeedProfile profile)
 	{
 		lock (locker)
@@ -278,22 +276,38 @@ public class MobileSettings
 		}
 		UseNonlinearSpeed = profile.UseNonlinear;
 		Nonlinearity = profile.Nonlinearity;
-		PauseCap = profile.PauseCap;
-		KeepSpeed = profile.KeepSpeed;
-		SpeedFloor = profile.SpeedFloor;
-		RhythmGap = profile.RhythmGap;
-		RhythmRate = profile.RhythmRate;
+		AudioBackend.Scaling = profile;
 	}
 
-	/// <summary>Keep the current settings, and this speed, as the named profile.</summary>
+	/// <summary>Leave the profile: the very-high-speed options are the sliders' own values again.</summary>
+	public void UseCustom()
+	{
+		lock (locker)
+		{
+			if (state.ActiveProfile is null)
+				return;
+			state.ActiveProfile = null;
+			Save();
+		}
+		AudioBackend.Scaling = null;
+	}
+
+	/// <summary>
+	/// Keep the current settings as the named profile. With a profile in use its rules are kept; with custom settings,
+	/// the pause cap is turned into the heard pause it gives at this speed.
+	/// </summary>
 	public void SaveProfile(string name, float speed)
 	{
 		lock (locker)
 		{
-			state.Profiles[name] = new SpeedProfile(name, speed, state.UseNonlinearSpeed, state.Nonlinearity, state.PauseCap, state.KeepSpeed,
-				state.SpeedFloor, state.RhythmGap, state.RhythmRate);
+			var rules = AudioBackend.Scaling;
+			state.Profiles[name] = rules is not null
+				? rules with { Name = name, Speed = speed, UseNonlinear = state.UseNonlinearSpeed, Nonlinearity = state.Nonlinearity }
+				: new SpeedProfile(name, speed, state.UseNonlinearSpeed, state.Nonlinearity, state.PauseCap / speed, 1f,
+					state.SpeedFloor, 1f, 1f, state.KeepSpeed, state.RhythmGap, state.RhythmRate);
 			state.ActiveProfile = name;
 			Save();
+			AudioBackend.Scaling = state.Profiles[name];
 		}
 	}
 
@@ -327,6 +341,20 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.TrainingStartSpeed; }
 		set { lock (locker) { state.TrainingStartSpeed = Math.Clamp(value, 1f, 10f); Save(); } }
+	}
+
+	/// <summary>Start the warm-up <see cref="TrainingStartBelow"/> under the book's speed (true), or at <see cref="TrainingStartSpeed"/>.</summary>
+	public bool TrainingFromBelow
+	{
+		get { lock (locker) return state.TrainingFromBelow; }
+		set { lock (locker) { state.TrainingFromBelow = value; Save(); } }
+	}
+
+	/// <summary>How far under the book's speed the warm-up starts.</summary>
+	public float TrainingStartBelow
+	{
+		get { lock (locker) return state.TrainingStartBelow; }
+		set { lock (locker) { state.TrainingStartBelow = Math.Clamp(value, 0.25f, 5f); Save(); } }
 	}
 
 	/// <summary>The fastest that keep climbing goes.</summary>
@@ -539,25 +567,51 @@ public class MobileSettings
 /// A named set of speed settings to switch between, such as Casual for relaxed listening and Max for record attempts:
 /// the speed books start at, the speed-up method, and the options for very high speeds.
 /// </summary>
-public record SpeedProfile(string Name, float Speed, bool UseNonlinear, float Nonlinearity, float PauseCap, bool KeepSpeed,
-	float SpeedFloor, float RhythmGap, float RhythmRate)
+/// <param name="HeardPause">The longest pause you hear, in seconds of listening: pauses in the book are cut to this times the
+/// speed, so the pause heard stays the same at any speed. Research at 3x found compressing silence harder than speech
+/// helped, and short regular gaps helped listeners keep up; nothing is known above 4x, which the app's own trials test.
+/// 0 leaves pauses alone.</param>
+/// <param name="PauseFrom">The speed from which pauses are cut.</param>
+/// <param name="Floor">The speed floor, as a fraction of the speed, at <paramref name="FloorFull"/> and above. 0 is off.</param>
+/// <param name="FloorFrom">Below this speed there is no floor; between it and <paramref name="FloorFull"/> it blends in, so a
+/// training climb never jumps.</param>
+public record SpeedProfile(string Name, float Speed, bool UseNonlinear, float Nonlinearity, float HeardPause, float PauseFrom,
+	float Floor, float FloorFrom, float FloorFull, bool KeepSpeed, float RhythmGap, float RhythmRate)
 {
-	/// <summary>Starting points, each changeable with "Save current settings".</summary>
+	/// <summary>Starting points, each changeable with "Save current settings". The options are rules, worked out for whatever speed plays.</summary>
 	public static readonly IReadOnlyList<SpeedProfile> Defaults =
 	[
-		new("Casual", 2.5f, true, 1f, 0f, true, 0f, 0f, 6f),
-		new("School", 2f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
-		new("Hard", 4.5f, true, 1f, 0.08f, true, 0.5f, 0f, 6f),
-		new("Max", 7.5f, true, 1f, 0.05f, true, 0.55f, 0f, 6f),
+		new("Casual", 2.5f, true, 1f, 0f, 0f, 0f, 0f, 0f, true, 0f, 6f),
+		new("School", 2f, true, 0.7f, 0f, 0f, 0.6f, 1f, 1f, true, 0f, 6f),
+		new("Hard", 4.5f, true, 1f, 0.025f, 3f, 0.5f, 3f, 5f, true, 0f, 6f),
+		new("Max", 7.5f, true, 1f, 0.015f, 3f, 0.55f, 3f, 6f, true, 0f, 6f),
 	];
+
+	/// <summary>Pause caps outside this, in book time, are not useful: shorter clips speech, longer is no cap.</summary>
+	private const float SHORTEST_CAP = 0.03f;
+	private const float LONGEST_CAP = 0.4f;
+
+	/// <summary>The pause cap at this speed, in seconds of the book: the heard pause times the speed. 0 for none.</summary>
+	public float PauseCapAt(double speed)
+		=> HeardPause > 0 && speed >= PauseFrom ? (float)Math.Clamp(HeardPause * speed, SHORTEST_CAP, LONGEST_CAP) : 0;
+
+	/// <summary>The speed floor at this speed, as a fraction of it, blended in between FloorFrom and FloorFull. 0 for none.</summary>
+	public float FloorAt(double speed)
+	{
+		if (Floor <= 0 || speed < FloorFrom)
+			return 0;
+		if (speed >= FloorFull || FloorFull <= FloorFrom)
+			return Floor;
+		return (float)(Floor * (speed - FloorFrom) / (FloorFull - FloorFrom));
+	}
 
 	/// <summary>What each profile is for, in a sentence, for the settings and the player's picker.</summary>
 	public string Purpose => Name switch
 	{
 		"Casual" => "Novels and relaxed listening. Speedy as designed, nothing else.",
 		"School" => "Learning and remembering. Slower, gentler, every sound kept clear, pauses left for thinking.",
-		"Hard" => "A step past comfortable. Pauses trimmed and the hardest sounds kept clear, so the speed goes to the words.",
-		"Max" => "Record attempts. Everything that helps at 7x and above, short of the experimental rhythm gaps.",
+		"Hard" => "A step past comfortable. Pauses trimmed to a short beat you can still hear, and the hardest sounds kept clear.",
+		"Max" => "Record attempts. Shortest audible pauses, hardest sounds kept clear. No rhythm gaps: they felt like too much.",
 		_ => "",
 	};
 }
