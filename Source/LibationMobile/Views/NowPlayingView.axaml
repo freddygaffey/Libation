@@ -210,6 +210,7 @@
 												Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).ChooseProfileCommand}" CommandParameter="{Binding}">
 												<StackPanel>
 													<TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
+													<TextBlock Text="{Binding Purpose}" FontSize="12" TextWrapping="Wrap" />
 													<TextBlock Classes="muted" Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap" />
 												</StackPanel>
 											</Button>

@@ -32,6 +32,22 @@
 			<Setter Property="FontSize" Value="15" />
 			<Setter Property="Margin" Value="0,8,0,8" />
 		</Style>
+		<Style Selector="Button.profile">
+			<Setter Property="Background" Value="{StaticResource Slate}" />
+			<Setter Property="HorizontalAlignment" Value="Stretch" />
+			<Setter Property="HorizontalContentAlignment" Value="Stretch" />
+			<Setter Property="Padding" Value="14,12" />
+			<Setter Property="CornerRadius" Value="10" />
+			<Setter Property="BorderThickness" Value="2" />
+			<Setter Property="BorderBrush" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.profile.active">
+			<Setter Property="BorderBrush" Value="{StaticResource Lamp}" />
+		</Style>
+		<Style Selector="Button.profile:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Slate}" />
+			<Setter Property="BorderBrush" Value="{Binding $parent[Button].BorderBrush}" />
+		</Style>
 		<Style Selector="Button.settingsRow">
 			<Setter Property="Background" Value="Transparent" />
 			<Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -166,15 +182,22 @@
 				<StackPanel IsVisible="{Binding IsSpeedPage}">
 				<TextBlock Classes="section" Text="Profiles" Margin="0,8,0,10" />
 				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Margin="0,0,0,8"
-					Text="Switch the speed and every speed-up setting below in one go. Change the settings, then save them to the profile chosen." />
+					Text="Tap one to switch the speed and every speed-up setting below at once. To make one your own, change the settings, then Save current settings." />
+				<!-- Each profile as a card: what it is for, and exactly what it sets. -->
 				<ItemsControl ItemsSource="{Binding Profiles}">
-					<ItemsControl.ItemsPanel>
-						<ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
-					</ItemsControl.ItemsPanel>
 					<ItemsControl.ItemTemplate>
 						<DataTemplate x:DataType="vm:ProfileChoice">
-							<Button Classes="choice" Classes.selected="{Binding IsActive}" Content="{Binding Name}" Margin="0,0,8,8"
-								Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Settings.ApplyProfileCommand}" CommandParameter="{Binding}" />
+							<Button Classes="profile" Classes.active="{Binding IsActive}" Margin="0,0,0,8"
+								Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).Settings.ApplyProfileCommand}" CommandParameter="{Binding}">
+								<StackPanel Spacing="3">
+									<Grid ColumnDefinitions="*,Auto">
+										<TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
+										<TextBlock Grid.Column="1" Text="In use" FontSize="12" Foreground="{StaticResource Lamp}" IsVisible="{Binding IsActive}" VerticalAlignment="Center" />
+									</Grid>
+									<TextBlock Text="{Binding Purpose}" FontSize="13" TextWrapping="Wrap" />
+									<TextBlock Classes="muted" Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap" />
+								</StackPanel>
+							</Button>
 						</DataTemplate>
 					</ItemsControl.ItemTemplate>
 				</ItemsControl>

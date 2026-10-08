@@ -66,6 +66,7 @@ public class MobileSettings
 		this.path = path;
 		state = Load(path);
 		UpgradeDefaults();
+		UpgradeProfiles();
 		AudioBackend.Nonlinearity = state.Nonlinearity;
 		AudioBackend.UseNonlinear = state.UseNonlinearSpeed;
 		AudioBackend.PauseCap = state.PauseCap;
@@ -86,6 +87,28 @@ public class MobileSettings
 		if (state.TrainingMinutes == 2f)
 			state.TrainingMinutes = 1.5f;
 		state.DefaultsVersion = 2;
+		Save();
+	}
+
+	/// <summary>
+	/// 2026-10-08, later: profiles retuned. A saved profile still exactly as an earlier default came goes back to the new
+	/// one; one the listener changed and saved stays.
+	/// </summary>
+	private void UpgradeProfiles()
+	{
+		if (state.DefaultsVersion >= 3)
+			return;
+		SpeedProfile[] earlier =
+		[
+			new("Casual", 2f, true, 1f, 0f, true, 0f, 0f, 6f), new("School", 1.8f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
+			new("Hard", 4f, true, 1f, 0.06f, true, 0.5f, 0f, 6f), new("Max", 7f, true, 1f, 0.04f, true, 0.5f, 0.04f, 6f),
+			new("Casual", 2.5f, true, 1f, 0f, true, 0f, 0f, 6f), new("School", 2.5f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
+			new("Hard", 5f, true, 1f, 0.06f, true, 0.5f, 0f, 6f), new("Max", 8f, true, 1f, 0.04f, true, 0.55f, 0.04f, 6f),
+		];
+		foreach (var old in earlier)
+			if (state.Profiles.TryGetValue(old.Name, out var saved) && saved == old)
+				state.Profiles.Remove(old.Name);
+		state.DefaultsVersion = 3;
 		Save();
 	}
 
@@ -522,15 +545,21 @@ public record SpeedProfile(string Name, float Speed, bool UseNonlinear, float No
 	/// <summary>Starting points, each changeable with "Save current settings".</summary>
 	public static readonly IReadOnlyList<SpeedProfile> Defaults =
 	[
-		// Relaxed: Speedy as designed, nothing else.
 		new("Casual", 2.5f, true, 1f, 0f, true, 0f, 0f, 6f),
-		// Study and textbooks: every part of the speech at least 60% of the speed, so nothing is rushed.
-		new("School", 2.5f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
-		// Fast and still comfortable: pauses shortened, the hardest sounds kept at half speed or more.
-		new("Hard", 5f, true, 1f, 0.06f, true, 0.5f, 0f, 6f),
-		// Record attempts: everything the research suggests at 6x and above, rhythm gaps included.
-		new("Max", 8f, true, 1f, 0.04f, true, 0.55f, 0.04f, 6f),
+		new("School", 2f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
+		new("Hard", 4.5f, true, 1f, 0.08f, true, 0.5f, 0f, 6f),
+		new("Max", 7.5f, true, 1f, 0.05f, true, 0.55f, 0f, 6f),
 	];
+
+	/// <summary>What each profile is for, in a sentence, for the settings and the player's picker.</summary>
+	public string Purpose => Name switch
+	{
+		"Casual" => "Novels and relaxed listening. Speedy as designed, nothing else.",
+		"School" => "Learning and remembering. Slower, gentler, every sound kept clear, pauses left for thinking.",
+		"Hard" => "A step past comfortable. Pauses trimmed and the hardest sounds kept clear, so the speed goes to the words.",
+		"Max" => "Record attempts. Everything that helps at 7x and above, short of the experimental rhythm gaps.",
+		_ => "",
+	};
 }
 
 [JsonSerializable(typeof(MobileSettings.State))]

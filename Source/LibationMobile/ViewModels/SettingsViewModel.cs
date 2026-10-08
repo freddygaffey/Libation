@@ -429,6 +429,7 @@ public record ProfileChoice(SpeedProfile Profile, bool IsActive)
 {
 	public string Name => Profile.Name;
 	public string Summary => Describe(Profile);
+	public string Purpose => Profile.Purpose;
 
 	/// <summary>"4.0×, Speedy, pauses 60 ms, floor 50%".</summary>
 	public static string Describe(SpeedProfile p)
