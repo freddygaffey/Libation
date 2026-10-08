@@ -57,35 +57,47 @@ public partial class ClipEditorViewModel : ObservableObject
 	private readonly TimeSpan bookDuration;
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(RangeText), nameof(StartText), nameof(StartSeconds))]
+	[NotifyPropertyChangedFor(nameof(RangeText), nameof(StartText), nameof(StartSeconds), nameof(FromToText))]
 	private TimeSpan start;
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(RangeText), nameof(EndText), nameof(EndSeconds))]
+	[NotifyPropertyChangedFor(nameof(RangeText), nameof(EndText), nameof(EndSeconds), nameof(FromToText))]
 	private TimeSpan end;
 
 	/// <summary>The stretch of the book the sliders cover: mostly what was just heard, and a little of what follows.</summary>
 	public double WindowStartSeconds { get; }
 	public double WindowEndSeconds { get; }
 
-	/// <summary>The start, for a slider. Kept at least the shortest clip before the end and no more than the longest.</summary>
+	/// <summary>
+	/// The start, for the waveform. Only kept within the book here: the waveform keeps the clip between its shortest and
+	/// longest as it is dragged, and moving the whole clip sets one end a moment before the other.
+	/// </summary>
 	public double StartSeconds
 	{
 		get => Start.TotalSeconds;
-		set
-		{
-			Start = Clamp(TimeSpan.FromSeconds(value), Max(TimeSpan.Zero, End - MaximumLength), End - MinimumLength);
-			OnPropertyChanged();
-		}
+		set => Start = Clamp(TimeSpan.FromSeconds(value), TimeSpan.Zero, bookDuration);
 	}
 
 	public double EndSeconds
 	{
 		get => End.TotalSeconds;
-		set
+		set => End = Clamp(TimeSpan.FromSeconds(value), TimeSpan.Zero, bookDuration);
+	}
+
+	public double MinimumSeconds => MinimumLength.TotalSeconds;
+	public double MaximumSeconds => MaximumLength.TotalSeconds;
+
+	/// <summary>Loudness across the window, for the waveform. Null until read from the audio.</summary>
+	[ObservableProperty]
+	private IReadOnlyList<float>? peaks;
+
+	/// <summary>The clip as saved: kept between the shortest and longest allowed.</summary>
+	public (TimeSpan Start, TimeSpan End) Range
+	{
+		get
 		{
-			End = Clamp(TimeSpan.FromSeconds(value), Start + MinimumLength, Min(bookDuration, Start + MaximumLength));
-			OnPropertyChanged();
+			var end = Clamp(End, Start + MinimumLength, Min(bookDuration, Start + MaximumLength));
+			return (Start, end);
 		}
 	}
 
@@ -95,9 +107,17 @@ public partial class ClipEditorViewModel : ObservableObject
 	[ObservableProperty]
 	private string? note;
 
-	public string StartText => NowPlayingViewModel.FormatTime(Start);
-	public string EndText => NowPlayingViewModel.FormatTime(End);
-	public string RangeText => $"{(End - Start).TotalSeconds:0} seconds";
+	public string StartText => FormatTenths(Start);
+	public string EndText => FormatTenths(End);
+	public string RangeText => $"{(End - Start).TotalSeconds:0.0} s";
+	public string FromToText => $"{FormatTenths(Start)} – {FormatTenths(End)}";
+
+	/// <summary>"1:02:15.3": clips are set to a tenth of a second.</summary>
+	private static string FormatTenths(TimeSpan time)
+		=> NowPlayingViewModel.FormatTime(TimeSpan.FromSeconds(Math.Floor(time.TotalSeconds))) + $".{(int)(time.TotalSeconds * 10 % 10)}";
+
+	/// <summary>The book and chapter, above the waveform.</summary>
+	public string ContextText { get; init; } = "";
 
 	/// <param name="heardUpTo">Where playback was: the clip starts out as the 30 seconds before it.</param>
 	public ClipEditorViewModel(TimeSpan heardUpTo, TimeSpan bookDuration, TimeSpan initialLength)
@@ -111,7 +131,7 @@ public partial class ClipEditorViewModel : ObservableObject
 		WindowEndSeconds = Min(bookDuration, heardUpTo + TimeSpan.FromSeconds(30)).TotalSeconds;
 	}
 
-	/// <summary>Move the start by a number of seconds, keeping the clip between its shortest and longest.</summary>
+	/// <summary>Move the start by a number of seconds (a tenth or more), keeping the clip between its shortest and longest.</summary>
 	[RelayCommand]
 	private void NudgeStart(string seconds)
 		=> Start = Clamp(Start + TimeSpan.FromSeconds(double.Parse(seconds, System.Globalization.CultureInfo.InvariantCulture)), Max(TimeSpan.Zero, End - MaximumLength), End - MinimumLength);
@@ -335,8 +355,55 @@ public partial class NowPlayingViewModel
 		if (wasPlayingBeforeClip)
 			PlayPause();
 		positionBeforeClip = Position;
-		ClipEditor = new ClipEditorViewModel(Position, Duration, TimeSpan.FromSeconds(settings.ClipSeconds));
+		var editor = new ClipEditorViewModel(Position, Duration, TimeSpan.FromSeconds(settings.ClipSeconds))
+		{
+			ContextText = CurrentChapterRow is { } chapter ? $"{Title} · {chapter.Title}" : Title
+		};
+		ClipEditor = editor;
+		_ = LoadPeaksAsync(editor);
 	}
+
+	/// <summary>Read the audio under the editor's window, off the UI thread, for its waveform.</summary>
+	private async Task LoadPeaksAsync(ClipEditorViewModel editor)
+	{
+		const int BARS = 160;
+		try
+		{
+			var peaks = await Task.Run(() =>
+			{
+				using var source = AudioBackend.OpenSource(Book.Path);
+				source.Seek(TimeSpan.FromSeconds(editor.WindowStartSeconds));
+				var frames = (long)((editor.WindowEndSeconds - editor.WindowStartSeconds) * source.SampleRate);
+				var perBar = Math.Max(1, frames / BARS);
+				var bars = new float[BARS];
+				var buffer = new float[4096 * source.Channels];
+				long frame = 0;
+				int read;
+				while (frame < frames && (read = source.Read(buffer)) > 0)
+				{
+					for (var i = 0; i + source.Channels <= read && frame < frames; i += source.Channels, frame++)
+					{
+						var bar = (int)Math.Min(BARS - 1, frame / perBar);
+						var level = Math.Abs(buffer[i]);
+						if (level > bars[bar])
+							bars[bar] = level;
+					}
+				}
+				// Square root, as loudness is heard: quiet speech still shows.
+				var loudest = Math.Max(1e-4f, bars.Max());
+				return bars.Select(b => (float)Math.Sqrt(b / loudest)).ToArray();
+			});
+			if (ClipEditor == editor)
+				editor.Peaks = peaks;
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Clip waveform not drawn: {ex.Message}");
+		}
+	}
+
+	/// <summary>Where preview playback is, for the waveform's line: NaN when not previewing.</summary>
+	public double ClipPreviewSeconds => ClipEditor is not null && IsPlaying ? Position.TotalSeconds : double.NaN;
 
 	private static readonly TimeSpan ClipEndTolerance = TimeSpan.FromSeconds(0.3);
 
@@ -371,9 +438,10 @@ public partial class NowPlayingViewModel
 	{
 		if (ClipEditor is not { } editor)
 			return;
-		SaveAnnotation(editor.Start, editor.End, Clean(editor.Title), Clean(editor.Note));
+		var (start, end) = editor.Range;
+		SaveAnnotation(start, end, Clean(editor.Title), Clean(editor.Note));
 		CloseClipEditor();
-		ShowStatus($"Clip saved, {(editor.End - editor.Start).TotalSeconds:0} seconds.");
+		ShowStatus($"Clip saved, {(end - start).TotalSeconds:0.0} seconds.");
 	}
 
 	[RelayCommand]
@@ -514,6 +582,7 @@ public partial class NowPlayingViewModel
 				Seek(editor.Start);
 			OnPropertyChanged(nameof(ClipPlayheadSeconds));
 			OnPropertyChanged(nameof(ClipPlayheadText));
+			OnPropertyChanged(nameof(ClipPreviewSeconds));
 		}
 		else if (clipEnd is TimeSpan end && Position >= end)
 		{

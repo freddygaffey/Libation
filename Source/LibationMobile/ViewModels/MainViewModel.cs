@@ -740,6 +740,10 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			case "openepisode" when Podcasts.DownloadedRows().FirstOrDefault() is { } downloadedEpisode:
 				await LoadEpisodeAsync(downloadedEpisode, showNowPlaying: true);
 				break;
+			case "clip" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } clipBook:
+				await LoadAsync(clipBook, showNowPlaying: true);
+				NowPlaying?.AddClipCommand.Execute(null);
+				break;
 			case "log":
 				ShowLog();
 				break;

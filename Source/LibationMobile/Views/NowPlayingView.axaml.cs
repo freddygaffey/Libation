@@ -23,8 +23,8 @@ public partial class NowPlayingView : UserControl
 				viewModel.PropertyChanged += ViewModel_PropertyChanged;
 		};
 
-		// The sliders seek only while a finger is on them; see NowPlayingViewModel.IsScrubbing.
-		foreach (var slider in new[] { scrubber, clipPlayhead })
+		// The scrubber seeks only while a finger is on it; see NowPlayingViewModel.IsScrubbing.
+		foreach (var slider in new[] { scrubber })
 		{
 			slider.AddHandler(PointerPressedEvent, (_, _) => SetScrubbing(true), RoutingStrategies.Tunnel, handledEventsToo: true);
 			slider.AddHandler(PointerReleasedEvent, (_, _) => SetScrubbing(false), RoutingStrategies.Tunnel, handledEventsToo: true);

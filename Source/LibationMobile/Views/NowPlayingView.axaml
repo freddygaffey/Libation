@@ -352,67 +352,81 @@
 		</ScrollViewer>
 	</Grid>
 
-	<!-- New clip: where it starts and ends, and what to call it. -->
-	<Grid RowDefinitions="Auto,*,Auto" Background="{StaticResource Ink}" IsVisible="{Binding IsClipEditorOpen}">
-		<Grid ColumnDefinitions="Auto,*" Margin="12,4,24,4">
-			<Button Classes="transport" Width="48" Height="48" Command="{Binding CancelClipCommand}" ToolTip.Tip="Discard clip">
-				<PathIcon Data="{StaticResource IconChevronDown}" />
-			</Button>
-			<TextBlock Grid.Column="1" Classes="bookTitle" Text="New clip" FontSize="22" VerticalAlignment="Center" Margin="4,0,0,0" />
+	<!-- New clip, after Audible's: the clip over a waveform of what was just heard, dragged into place and previewed. -->
+	<Grid RowDefinitions="Auto,*" Background="{StaticResource Ink}" IsVisible="{Binding IsClipEditorOpen}">
+		<Grid ColumnDefinitions="Auto,*,Auto" Margin="8,4,16,4">
+			<Button Classes="quiet" Content="Cancel" Padding="10,8" Command="{Binding CancelClipCommand}" />
+			<TextBlock Grid.Column="1" Classes="bookTitle" Text="New clip" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+			<Button Grid.Column="2" Content="Save" Padding="18,8" CornerRadius="16" Command="{Binding SaveClipCommand}"
+				Background="{StaticResource Lamp}" Foreground="{StaticResource Ink}" FontWeight="SemiBold" />
 		</Grid>
 		<ScrollViewer Grid.Row="1">
-			<StackPanel Margin="24,8,24,16" Spacing="6" DataContext="{Binding ClipEditor}" x:DataType="vm:ClipEditorViewModel">
-				<TextBlock Text="{Binding RangeText}" FontFamily="{StaticResource DisplayFont}" FontWeight="Light" FontSize="40" />
-				<StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-					<Button Classes="quiet" Content="15 s" Padding="12,8" Margin="0,0,8,0" Command="{Binding SetLengthCommand}" CommandParameter="15" />
-					<Button Classes="quiet" Content="30 s" Padding="12,8" Margin="0,0,8,0" Command="{Binding SetLengthCommand}" CommandParameter="30" />
-					<Button Classes="quiet" Content="45 s" Padding="12,8" Command="{Binding SetLengthCommand}" CommandParameter="45" />
+			<StackPanel Margin="20,4,20,24" Spacing="14" DataContext="{Binding ClipEditor}" x:DataType="vm:ClipEditorViewModel">
+				<TextBlock Classes="muted" Text="{Binding ContextText}" FontSize="13" TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
+				<StackPanel HorizontalAlignment="Center" Spacing="2">
+					<TextBlock Text="{Binding RangeText}" FontFamily="{StaticResource DisplayFont}" FontWeight="Light" FontSize="44" HorizontalAlignment="Center" />
+					<TextBlock Classes="muted" Text="{Binding FromToText}" FontSize="13" HorizontalAlignment="Center" />
 				</StackPanel>
 
-				<Grid ColumnDefinitions="*,Auto,Auto">
-					<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-						<TextBlock Classes="muted" Text="Starts at" FontSize="13" VerticalAlignment="Center" />
-						<TextBlock Text="{Binding StartText}" FontSize="17" VerticalAlignment="Center" />
-					</StackPanel>
-					<Button Grid.Column="1" Classes="quiet" Content="−1" MinWidth="44" Padding="8,8" HorizontalContentAlignment="Center" Command="{Binding NudgeStartCommand}" CommandParameter="-1" />
-					<Button Grid.Column="2" Classes="quiet" Content="+1" MinWidth="44" Padding="8,8" HorizontalContentAlignment="Center" Command="{Binding NudgeStartCommand}" CommandParameter="1" />
-				</Grid>
-				<Slider Classes="scrubber" Minimum="{Binding WindowStartSeconds}" Maximum="{Binding WindowEndSeconds}" Value="{Binding StartSeconds}" Margin="0,-8,0,0" />
-				<Grid ColumnDefinitions="*,Auto,Auto">
-					<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-						<TextBlock Classes="muted" Text="Ends at" FontSize="13" VerticalAlignment="Center" />
-						<TextBlock Text="{Binding EndText}" FontSize="17" VerticalAlignment="Center" />
-					</StackPanel>
-					<Button Grid.Column="1" Classes="quiet" Content="−1" MinWidth="44" Padding="8,8" HorizontalContentAlignment="Center" Command="{Binding NudgeEndCommand}" CommandParameter="-1" />
-					<Button Grid.Column="2" Classes="quiet" Content="+1" MinWidth="44" Padding="8,8" HorizontalContentAlignment="Center" Command="{Binding NudgeEndCommand}" CommandParameter="1" />
-				</Grid>
-				<Slider Classes="scrubber" Minimum="{Binding WindowStartSeconds}" Maximum="{Binding WindowEndSeconds}" Value="{Binding EndSeconds}" Margin="0,-8,0,0" />
-				<TextBlock Classes="muted" Text="A clip can be up to 45 seconds." FontSize="12" Margin="0,4,0,12" />
+				<!-- The waveform, with preview: play from the clip's start, the line follows. -->
+				<Border Background="{StaticResource Slate}" CornerRadius="8" Padding="10,12">
+					<Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+						<Button Classes="transport play" Width="52" Height="52" VerticalAlignment="Center"
+							Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).PreviewClipCommand}" ToolTip.Tip="Play clip">
+							<Panel>
+								<PathIcon Data="{StaticResource IconPlay}" Margin="4,0,0,0"
+									IsVisible="{Binding !$parent[UserControl].((vm:NowPlayingViewModel)DataContext).IsPlaying}" />
+								<PathIcon Data="{StaticResource IconPause}"
+									IsVisible="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).IsPlaying}" />
+							</Panel>
+						</Button>
+						<controls:ClipRange Grid.Column="1" Height="96"
+							WindowStart="{Binding WindowStartSeconds}" WindowEnd="{Binding WindowEndSeconds}"
+							Start="{Binding StartSeconds}" End="{Binding EndSeconds}"
+							MinimumLength="{Binding MinimumSeconds}" MaximumLength="{Binding MaximumSeconds}"
+							Peaks="{Binding Peaks}"
+							Playhead="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).ClipPreviewSeconds}" />
+					</Grid>
+				</Border>
+				<TextBlock Classes="muted" Text="Drag the ends to trim, or the middle to move the clip. Up to 45 seconds." FontSize="12" TextWrapping="Wrap" TextAlignment="Center" />
 
-				<TextBlock Classes="muted" Text="Title" FontSize="12" />
-				<TextBox Text="{Binding Title}" PlaceholderText="Optional" MaxLength="100" />
-				<TextBlock Classes="muted" Text="Note" FontSize="12" Margin="0,10,0,0" />
-				<TextBox Text="{Binding Note}" PlaceholderText="Optional" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="88" MaxLength="1000" />
+				<!-- Fine adjustment, a tenth or half a second at a time. -->
+				<Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+					<Border Background="{StaticResource Slate}" CornerRadius="8" Padding="12,10">
+						<StackPanel Spacing="6">
+							<TextBlock Classes="muted" Text="Start" FontSize="12" />
+							<TextBlock Text="{Binding StartText}" FontSize="17" />
+							<UniformGrid Columns="2">
+								<Button Classes="quiet" Content="−0.5 s" Padding="6,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding NudgeStartCommand}" CommandParameter="-0.5" />
+								<Button Classes="quiet" Content="+0.5 s" Padding="6,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding NudgeStartCommand}" CommandParameter="0.5" />
+							</UniformGrid>
+						</StackPanel>
+					</Border>
+					<Border Grid.Column="1" Background="{StaticResource Slate}" CornerRadius="8" Padding="12,10">
+						<StackPanel Spacing="6">
+							<TextBlock Classes="muted" Text="End" FontSize="12" />
+							<TextBlock Text="{Binding EndText}" FontSize="17" />
+							<UniformGrid Columns="2">
+								<Button Classes="quiet" Content="−0.5 s" Padding="6,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding NudgeEndCommand}" CommandParameter="-0.5" />
+								<Button Classes="quiet" Content="+0.5 s" Padding="6,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding NudgeEndCommand}" CommandParameter="0.5" />
+							</UniformGrid>
+						</StackPanel>
+					</Border>
+				</Grid>
+
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+					<TextBlock Classes="muted" Text="Last" FontSize="13" VerticalAlignment="Center" />
+					<Button Classes="quiet" Content="15 s" Padding="12,6" Command="{Binding SetLengthCommand}" CommandParameter="15" />
+					<Button Classes="quiet" Content="30 s" Padding="12,6" Command="{Binding SetLengthCommand}" CommandParameter="30" />
+					<Button Classes="quiet" Content="45 s" Padding="12,6" Command="{Binding SetLengthCommand}" CommandParameter="45" />
+				</StackPanel>
+
+				<StackPanel Spacing="6">
+					<TextBox Text="{Binding Title}" PlaceholderText="Title (optional)" MaxLength="100" />
+					<TextBox Text="{Binding Note}" PlaceholderText="Note (optional)" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="88" MaxLength="1000" />
+				</StackPanel>
 			</StackPanel>
 		</ScrollViewer>
-		<StackPanel Grid.Row="2" Margin="24,8,24,20" Spacing="10">
-			<!-- Listen inside the clip: play, pause and drag within what would be saved. -->
-			<Border Background="{StaticResource Slate}" CornerRadius="6" Padding="6,4,14,4">
-				<Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-					<Button Classes="transport" Width="48" Height="48" Command="{Binding PreviewClipCommand}" ToolTip.Tip="Play clip">
-						<Panel>
-							<PathIcon Data="{StaticResource IconPlay}" Margin="5,0,0,0" IsVisible="{Binding !IsPlaying}" />
-							<PathIcon Data="{StaticResource IconPause}" IsVisible="{Binding IsPlaying}" />
-						</Panel>
-					</Button>
-					<Slider Name="clipPlayhead" Grid.Column="1" Classes="scrubber" VerticalAlignment="Center"
-						Minimum="{Binding ClipEditor.StartSeconds}" Maximum="{Binding ClipEditor.EndSeconds}" Value="{Binding ClipPlayheadSeconds}" />
-					<TextBlock Grid.Column="2" Classes="muted" Text="{Binding ClipPlayheadText}" FontSize="12" VerticalAlignment="Center" />
-				</Grid>
-			</Border>
-			<Button Content="Save clip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,14"
-				Background="{StaticResource Lamp}" Foreground="{StaticResource Ink}" FontWeight="SemiBold" Command="{Binding SaveClipCommand}" />
-		</StackPanel>
 	</Grid>
 	</Panel>
 </UserControl>
