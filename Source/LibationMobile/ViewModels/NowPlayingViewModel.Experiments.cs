@@ -105,6 +105,7 @@ public partial class NowPlayingViewModel
 		trialSyllables = 0;
 		trialSpent = TimeSpan.Zero;
 		beforeTrial = (AudioBackend.Scaling, AudioBackend.UseNonlinear, AudioBackend.Nonlinearity);
+		LogEvent("trial", detail: $"{parameter.Key}: {first} then {second}");
 		ApplyTrialValue(first);
 		BeginTrialPart(1);
 		if (!player.IsPlaying)

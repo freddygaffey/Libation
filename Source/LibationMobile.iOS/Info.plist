@@ -25,6 +25,10 @@
 	<array>
 		<string>arm64</string>
 	</array>
+	<!-- Asked once: what you were doing while listening (walking, still, driving), from the phone's own motion record,
+	     for your listening research. -->
+	<key>NSMotionUsageDescription</key>
+	<string>Libation notes whether you were walking, still or driving while you listened, so your listening stats can show what affects how well you follow. It stays on your phone.</string>
 	<!-- Siri also answers to "Speed": "Hey Siri, Speed play", "Speed 7.3". -->
 	<key>INAlternativeAppNames</key>
 	<array>

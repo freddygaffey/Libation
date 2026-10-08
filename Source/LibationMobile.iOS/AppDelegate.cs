@@ -21,6 +21,8 @@ public partial class AppDelegate : AvaloniaAppDelegate<App>
 		MediaSession.Platform = mediaSession;
 		HomeWidget.Platform = new AppleHomeWidget(mediaSession);
 		DocumentViewer.Platform = new AppleDocumentViewer();
+		ListeningContext.Platform = new AppleListeningContext();
+		AudioBackend.Route = AppleAudioRoute.Describe;
 		// Created at launch, so a download that finished while the app was closed is delivered.
 		FileTransfer.Platform = new AppleFileTransfer();
 		FileTransfer.BackgroundWork = new AppleBackgroundWork();

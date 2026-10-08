@@ -256,6 +256,7 @@ public partial class NowPlayingViewModel
 			return;
 
 		positionBeforeSync = Position;
+		seekSource = "sync";
 		Seek(remote.Position);
 		SavePosition();
 		ShowStatus($"Moved to {FormatTime(remote.Position)}, where you left off on another device.", canUndoSync: true);
@@ -509,6 +510,7 @@ public partial class NowPlayingViewModel
 	[RelayCommand]
 	private void OpenAnnotation(AnnotationRowViewModel row)
 	{
+		seekSource = "bookmark";
 		Seek(row.Start);
 		clipEnd = row.End;
 		IsAnnotationListOpen = false;

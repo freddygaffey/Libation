@@ -166,6 +166,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			player.Speed = (float)speed;
 			if (save)
 				settings.SetBookSpeed(Book.Id, (float)speed);
+			LogSpeedChange();
 			OnPropertyChanged(nameof(Speed));
 			OnPropertyChanged(nameof(SpeedText));
 			OnPropertyChanged(nameof(RemainingText));
@@ -272,14 +273,23 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	}
 
 	[RelayCommand]
-	private void SkipBack() => Seek(Position - SkipInterval);
+	private void SkipBack()
+	{
+		seekSource = "skip";
+		Seek(Position - SkipInterval);
+	}
 
 	[RelayCommand]
-	private void SkipForward() => Seek(Position + SkipInterval);
+	private void SkipForward()
+	{
+		seekSource = "skip";
+		Seek(Position + SkipInterval);
+	}
 
 	[RelayCommand]
 	private void PreviousChapter()
 	{
+		seekSource = "chapter";
 		if (CurrentChapter is not Chapter current)
 			return;
 		var previous = Chapters.LastOrDefault(c => c.StartOffset < current.StartOffset);
@@ -289,6 +299,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	[RelayCommand]
 	private void NextChapter()
 	{
+		seekSource = "chapter";
 		if (Chapters.FirstOrDefault(c => c.StartOffset > Position) is Chapter next)
 			Seek(next.StartOffset);
 	}
@@ -306,6 +317,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	[RelayCommand]
 	private void JumpToChapter(ChapterRowViewModel row)
 	{
+		seekSource = "chapter";
 		Seek(row.Chapter.StartOffset);
 		IsChapterListOpen = false;
 	}
@@ -319,6 +331,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public void Seek(TimeSpan target)
 	{
 		target = target < TimeSpan.Zero ? TimeSpan.Zero : target > Duration ? Duration : target;
+		LogSeek(Position, target);
 		clipEnd = null;
 		lastLocalActivity = DateTimeOffset.UtcNow;
 		player.Seek(target);
@@ -332,6 +345,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			return;
 		var wasPlaying = IsPlaying;
 		IsPlaying = player.IsPlaying;
+		LogPlayback(wasPlaying);
 		Position = player.Position;
 		if (IsPlaying != wasPlaying)
 			UpdateMediaSession();
@@ -354,6 +368,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			return;
 
 		CurrentChapterRow = current;
+		LogEvent("chapter", detail: current?.Title);
 		for (var i = 0; i < ChapterRows.Count; i++)
 		{
 			ChapterRows[i].IsCurrent = ChapterRows[i] == current;
@@ -417,6 +432,8 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	private void EndSession()
 	{
 		OfferFollowRating(sessionSpent, sessionSyllables);
+		if (sessionStarted is DateTimeOffset began && sessionSpent >= ShortestLoggedSession)
+			LogActivity(began, DateTimeOffset.Now, "session");
 		if (sessionStarted is DateTimeOffset started && sessionSpent >= ShortestLoggedSession)
 			log?.Add(new ListeningSession(Book.Id, Title, started, DateTimeOffset.Now, sessionFrom, Position,
 				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed, sessionMarks.Count > 0 ? sessionMarks.ToList() : null,

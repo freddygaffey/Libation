@@ -57,6 +57,9 @@ public static class AudioBackend
 	/// <summary>Rhythm gaps a second.</summary>
 	public static float RhythmRate { get => rhythmRate; set => rhythmRate = Math.Clamp(value, 1f, 16f); }
 
+	/// <summary>Where the sound is going now, for the research log: "headphones", "bluetooth", "speaker", "car". Set by the platform.</summary>
+	public static Func<string?>? Route { get; set; }
+
 	private static volatile SpeedProfile? scaling;
 
 	/// <summary>

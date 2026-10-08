@@ -76,6 +76,7 @@ public partial class NowPlayingViewModel
 	private void JumpToHistory(HistoryPointViewModel point)
 	{
 		EndSession();
+		seekSource = "history";
 		Seek(point.Position);
 		IsHistoryOpen = false;
 	}

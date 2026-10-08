@@ -181,6 +181,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 
 	private readonly BookPdfs pdfs;
 	public Experiments Experiments { get; }
+	public ListeningEvents Events { get; }
 
 	/// <summary>Play the book on the details page, or download it if it is not on the device.</summary>
 	[RelayCommand]
@@ -201,6 +202,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		store = new AudibleSeries(account);
 		pdfs = new BookPdfs(dataDirectory, store);
 		Experiments = new Experiments(dataDirectory);
+		Events = new ListeningEvents(dataDirectory);
 		Settings = new SettingsViewModel(settings, () => NowPlaying?.SettingsChanged(), speed => { if (NowPlaying is { } np) np.Speed = speed; })
 		{
 			currentSpeed = () => (float)(NowPlaying?.Speed ?? settings.Speed)
@@ -211,6 +213,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		Log = new ListeningLogViewModel(listeningLog, new AudibleStats(account, dataDirectory),
 			asin => catalogForLog?.Find(asin) is { } book ? (book.Title, book.Author) : null);
 		Log.Experiments = Experiments;
+		Log.Events = Events;
+		Log.Profiles = () => settings.Profiles;
 		var catalog = new LibraryCatalog(dataDirectory);
 		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog, pdfs);
 		catalogForLog = Library;
@@ -565,7 +569,10 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	partial void OnNowPlayingChanged(NowPlayingViewModel? oldValue, NowPlayingViewModel? newValue)
 	{
 		if (newValue is not null)
+		{
 			newValue.Experiments = Experiments;
+			newValue.Events = Events;
+		}
 		Library.PlayingBookId = newValue?.Book.Id;
 		// The book playing goes to the top of Siri's list.
 		RefreshPlayableBooks();

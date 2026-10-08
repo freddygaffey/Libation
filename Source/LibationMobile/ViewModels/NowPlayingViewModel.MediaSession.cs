@@ -102,6 +102,7 @@ public partial class NowPlayingViewModel
 
 	private void OnWidgetSpeedRequested(string bookId, double speed) => OnUi(() =>
 	{
+		speedSource = "widget or siri";
 		if (bookId == Book.Id)
 			Speed = speed;
 		else
@@ -122,7 +123,11 @@ public partial class NowPlayingViewModel
 	private void OnSkipBackRequested() => OnUi(() => Seek(Position - SkipInterval));
 	// The lock screen's bar covers what was last shown: the chapter, or the book.
 	/// <summary>Siri's own speed command, sent to whichever app is playing.</summary>
-	private void OnSpeedRequested(double speed) => OnUi(() => Speed = speed);
+	private void OnSpeedRequested(double speed) => OnUi(() =>
+	{
+		speedSource = "siri";
+		Speed = speed;
+	});
 
 	private void OnSeekRequested(TimeSpan position) => OnUi(() => Seek((shownChapter?.StartOffset ?? TimeSpan.Zero) + position));
 }

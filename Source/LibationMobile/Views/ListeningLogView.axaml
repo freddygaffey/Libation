@@ -132,6 +132,10 @@
 						<TextBlock Classes="muted" Text="Bar height: average rating out of 5. Label: syllables a second, from." FontSize="11" />
 					</StackPanel>
 				</Border>
+				<StackPanel Orientation="Horizontal" Spacing="8" Margin="24,0,24,8">
+					<Button Classes="quiet" Content="Copy research data" Padding="12,8" Click="CopyResearch_Click" />
+					<Button Classes="quiet" Content="Save as a file…" Padding="12,8" Click="SaveResearch_Click" />
+				</StackPanel>
 				<ItemsControl ItemsSource="{Binding Log.Research}" Margin="24,0,24,0">
 					<ItemsControl.ItemTemplate>
 						<DataTemplate x:DataType="vm:ResearchRow">

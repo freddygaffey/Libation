@@ -73,6 +73,8 @@ public partial class NowPlayingViewModel
 	private void ChooseProfile(ProfileChoice choice)
 	{
 		settings.ApplyProfile(choice.Profile);
+		LogEvent("profile", detail: choice.Profile.Name);
+		speedSource = "profile";
 		Speed = choice.Profile.Speed;
 		RefreshMode();
 	}
@@ -90,6 +92,7 @@ public partial class NowPlayingViewModel
 	private void SetListeningMode(string mode)
 	{
 		var wasTraining = IsTraining;
+		LogEvent("mode", detail: mode);
 		settings.Training = mode != "normal";
 		settings.BlindTraining = mode == "blind";
 		if (mode == "normal")
@@ -129,6 +132,7 @@ public partial class NowPlayingViewModel
 	private void SetPlan(string plan)
 	{
 		settings.TrainingPlan = plan;
+		LogEvent("plan", detail: plan);
 		if (IsTraining)
 		{
 			StopTraining();
@@ -200,6 +204,7 @@ public partial class NowPlayingViewModel
 		blockLeft = block.Length;
 		blockSpent = TimeSpan.Zero;
 		blockSyllables = 0;
+		speedSource = $"plan: {block.Kind}";
 		ApplySpeed(block.Speed, save: false);
 		UpdateTrainingText();
 	}
@@ -241,6 +246,7 @@ public partial class NowPlayingViewModel
 		if (blockLeft <= TimeSpan.Zero)
 		{
 			var syllables = blockSpent > TimeSpan.Zero && blockSyllables > 0 ? blockSyllables / blockSpent.TotalSeconds : (double?)null;
+			LogActivity(DateTimeOffset.Now - blockSpent, DateTimeOffset.Now, $"block {blockNumber}");
 			FlushBlockLog();
 			blockToLog = (block, syllables);
 			if (block.AskAfter)

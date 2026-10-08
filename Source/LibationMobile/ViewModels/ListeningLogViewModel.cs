@@ -107,6 +107,18 @@ public partial class ListeningLogViewModel : ObservableObject
 	/// <summary>The listener's own research, from ratings and blind trials. Set by the main view model.</summary>
 	public Experiments? Experiments { get; set; }
 
+	/// <summary>The event log, for the research export. Set by the main view model.</summary>
+	public ListeningEvents? Events { get; set; }
+
+	/// <summary>The profiles in use, for the research export. Set by the main view model.</summary>
+	public Func<IReadOnlyList<SpeedProfile>>? Profiles { get; set; }
+
+	/// <summary>Everything collected, as JSON: for analysis, or to paste into an AI.</summary>
+	public string ResearchJson() => ResearchExport.ToJson(log, Experiments ?? new Experiments(System.IO.Path.GetTempPath()),
+		Events ?? new ListeningEvents(System.IO.Path.GetTempPath()), audible?.Cached, Profiles?.Invoke() ?? []);
+
+	public static string ResearchFileName => $"libation-research-{DateTime.Now:yyyy-MM-dd}.json";
+
 	[ObservableProperty]
 	[NotifyPropertyChangedFor(nameof(HasResearch))]
 	private IReadOnlyList<FollowBar> followBars = [];
