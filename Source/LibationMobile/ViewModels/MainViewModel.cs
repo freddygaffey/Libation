@@ -213,7 +213,16 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		if (settings.UseHealthSleep && ListeningContext.Platform is { } sleepContext)
 		{
 			var logForSleep = listeningLog;
-			_ = Task.Run(() => SleepFinder.RefineAsync(logForSleep, sleepContext));
+			_ = Task.Run(async () =>
+			{
+				await SleepFinder.RefineAsync(logForSleep, sleepContext);
+				// Auto-pause's hours follow the listener's usual sleep until they set their own.
+				if (!settings.AutoPauseHoursChosen && await SleepFinder.UsualSleepAsync(sleepContext) is { } usual)
+				{
+					settings.AutoPauseFromMinute = usual.From;
+					settings.AutoPauseUntilMinute = usual.Until;
+				}
+			});
 		}
 		var catalogForLog = (LibraryViewModel?)null;
 		Log = new ListeningLogViewModel(listeningLog, new AudibleStats(account, dataDirectory),

@@ -551,9 +551,25 @@
 						<Button Classes="choice" Classes.selected="{Binding IsAsleep45}" Content="45 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="45" />
 					</StackPanel>
 					<Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
-						<TextBlock Text="Only from 9 p.m. to 7 a.m." FontSize="14" VerticalAlignment="Center" />
+						<TextBlock Text="Only at these hours" FontSize="14" VerticalAlignment="Center" />
 						<ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPauseNightOnly}" OnContent="" OffContent="" Margin="12,0,0,0" />
 					</Grid>
+					<!-- The hours, by half an hour: may run past midnight. -->
+					<StackPanel IsVisible="{Binding AutoPauseNightOnly}" Spacing="4">
+						<TextBlock Classes="muted" Text="{Binding AutoPauseHoursSource}" FontSize="12" TextWrapping="Wrap" />
+						<Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+							<TextBlock Text="From" FontSize="14" VerticalAlignment="Center" />
+							<Button Grid.Column="1" Classes="quiet" Content="−" Padding="14,6" Command="{Binding NudgeAutoPauseHoursCommand}" CommandParameter="from-" />
+							<TextBlock Grid.Column="2" Text="{Binding AutoPauseFromText}" FontSize="14" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" MinWidth="80" TextAlignment="Center" />
+							<Button Grid.Column="3" Classes="quiet" Content="+" Padding="14,6" Command="{Binding NudgeAutoPauseHoursCommand}" CommandParameter="from+" />
+						</Grid>
+						<Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+							<TextBlock Text="Until" FontSize="14" VerticalAlignment="Center" />
+							<Button Grid.Column="1" Classes="quiet" Content="−" Padding="14,6" Command="{Binding NudgeAutoPauseHoursCommand}" CommandParameter="until-" />
+							<TextBlock Grid.Column="2" Text="{Binding AutoPauseUntilText}" FontSize="14" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" MinWidth="80" TextAlignment="Center" />
+							<Button Grid.Column="3" Classes="quiet" Content="+" Padding="14,6" Command="{Binding NudgeAutoPauseHoursCommand}" CommandParameter="until+" />
+						</Grid>
+					</StackPanel>
 				</StackPanel>
 				<!-- Hidden until the app ID carries the HealthKit capability; without it iOS will not ask. -->
 				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16" IsVisible="False">

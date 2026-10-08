@@ -76,7 +76,7 @@ public partial class NowPlayingViewModel
 	/// <summary>From Update, four times a second.</summary>
 	private void SleepTick()
 	{
-		var watch = IsPlaying && settings.AutoPauseAsleep && (!settings.AutoPauseNightOnly || SleepFinder.IsNight(DateTime.Now));
+		var watch = IsPlaying && settings.AutoPauseAsleep && settings.AutoPauseWatchesAt(DateTime.Now);
 		// The head is followed for auto-pause, and while a sleep timer runs, for a nod to keep it going.
 		var followHead = watch || IsPlaying && IsSleepTimerOn;
 		if (followHead != watchingHead)

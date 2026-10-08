@@ -100,8 +100,7 @@ public partial class NowPlayingViewModel
 			parts.Add("Blind training");
 		if (settings.AutoPauseAsleep)
 		{
-			var night = settings.AutoPauseNightOnly && !SleepFinder.IsNight(DateTime.Now);
-			parts.Add(night ? "Auto-pause from 9 p.m." : "Auto-pause on");
+			parts.Add(settings.AutoPauseWatchesAt(DateTime.Now) ? "Auto-pause on" : $"Auto-pause from {SleepFinder.TimeOfDay(settings.AutoPauseFromMinute)}");
 			var context = ListeningContext.Platform;
 			if (context?.HeadLastMoved is not null)
 				parts.Add("AirPods head movement");

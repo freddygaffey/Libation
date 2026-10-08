@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -48,6 +49,34 @@ public static class SleepFinder
 		return phoneStillShare is not double still || still >= 0.9;
 	}
 
-	/// <summary>From 9 p.m. to 7 a.m.</summary>
-	public static bool IsNight(DateTime local) => local.Hour >= 21 || local.Hour < 7;
+	/// <summary>
+	/// When the listener usually falls asleep and wakes, in minutes after midnight, from the last 30 days of sleep in
+	/// Apple Health: the middle of each, with half an hour's margin either side. Null with fewer than five nights.
+	/// iOS does not let apps read the Sleep schedule set in the Health app, so this is the nearest thing to it.
+	/// </summary>
+	public static async Task<(int From, int Until)?> UsualSleepAsync(IListeningContext context)
+	{
+		var spans = (await context.SleepAsync(DateTimeOffset.Now.AddDays(-30), DateTimeOffset.Now))
+			.Where(s => s.To - s.From >= TimeSpan.FromHours(3)).ToList();
+		if (spans.Count < 5)
+			return null;
+		// Times before noon count as after midnight, so 23:30 and 00:30 average to midnight, not to noon.
+		static int Minute(DateTimeOffset t) { var l = t.ToLocalTime(); var m = l.Hour * 60 + l.Minute; return m < 720 ? m + 1440 : m; }
+		static int Middle(List<int> values) { values.Sort(); return values[values.Count / 2]; }
+		var asleep = Middle(spans.Select(s => Minute(s.From)).ToList()) - 30;
+		var awake = Middle(spans.Select(s => Minute(s.To)).ToList()) + 30;
+		static int Round(int m) => ((int)Math.Round(m / 30.0) * 30 % 1440 + 1440) % 1440;
+		return (Round(asleep), Round(awake));
+	}
+
+	/// <summary>Whether a time of day falls between two others, in minutes after midnight; the span may cross midnight.</summary>
+	public static bool IsWithin(DateTime local, int fromMinute, int untilMinute)
+	{
+		var now = local.Hour * 60 + local.Minute;
+		return fromMinute <= untilMinute ? now >= fromMinute && now < untilMinute : now >= fromMinute || now < untilMinute;
+	}
+
+	/// <summary>A time of day in minutes after midnight, as "9 p.m." or "6:30 a.m." in the listener's own format.</summary>
+	public static string TimeOfDay(int minute)
+		=> DateTime.Today.AddMinutes(minute).ToString(minute % 60 == 0 ? "h tt" : "h:mm tt", System.Globalization.CultureInfo.CurrentCulture).ToLowerInvariant();
 }

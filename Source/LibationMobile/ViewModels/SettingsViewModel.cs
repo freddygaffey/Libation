@@ -81,7 +81,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 
 	public string PlaybackSummary => $"Skips {settings.SkipSeconds} s · clips {settings.ClipSeconds} s · bar shows the {(settings.ScrubByChapter ? "chapter" : "book")}";
 	public string SleepSummary => settings.AutoPauseAsleep
-		? $"Pauses when you fall asleep, after {settings.AutoPauseMinutes} min{(settings.AutoPauseNightOnly ? ", at night" : "")}"
+		? $"Pauses when you fall asleep, after {settings.AutoPauseMinutes} min{(settings.AutoPauseNightOnly ? $", {SleepFinder.TimeOfDay(settings.AutoPauseFromMinute)} to {SleepFinder.TimeOfDay(settings.AutoPauseUntilMinute)}" : "")}"
 		: "Sleep timer in the player · auto-pause off";
 	public string SiriSummary => "\"Hey Siri, Speed 7.3\", \"Speed play a book\" and more";
 	public string TimeSavedSummary => TimeSavedText;
@@ -236,6 +236,29 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	{
 		get => settings.AutoPauseNightOnly;
 		set { settings.AutoPauseNightOnly = value; OnPropertyChanged(); OnPropertyChanged(nameof(SleepSummary)); }
+	}
+
+	public string AutoPauseHoursSource => settings.AutoPauseHoursChosen ? "Set by you."
+		: settings.UseHealthSleep ? "From your usual sleep in Apple Health; change them to set your own."
+		: "Starting hours. With Apple Health connected, they follow your usual sleep.";
+
+	public string AutoPauseFromText => SleepFinder.TimeOfDay(settings.AutoPauseFromMinute);
+	public string AutoPauseUntilText => SleepFinder.TimeOfDay(settings.AutoPauseUntilMinute);
+
+	/// <summary>"from+", "from-", "until+" or "until-": by half an hour.</summary>
+	[RelayCommand]
+	private void NudgeAutoPauseHours(string which)
+	{
+		var by = which.EndsWith('+') ? 30 : -30;
+		settings.AutoPauseHoursChosen = true;
+		if (which.StartsWith("from"))
+			settings.AutoPauseFromMinute += by;
+		else
+			settings.AutoPauseUntilMinute += by;
+		OnPropertyChanged(nameof(AutoPauseFromText));
+		OnPropertyChanged(nameof(AutoPauseUntilText));
+		OnPropertyChanged(nameof(AutoPauseHoursSource));
+		OnPropertyChanged(nameof(SleepSummary));
 	}
 
 	public bool IsAsleep10 => settings.AutoPauseMinutes == 10;

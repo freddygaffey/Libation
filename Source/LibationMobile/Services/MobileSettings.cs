@@ -43,6 +43,9 @@ public class MobileSettings
 		public bool AutoPauseAsleep { get; set; }
 		public int AutoPauseMinutes { get; set; } = 20;
 		public bool AutoPauseNightOnly { get; set; } = true;
+		public int AutoPauseFromMinute { get; set; } = 21 * 60;
+		public int AutoPauseUntilMinute { get; set; } = 7 * 60;
+		public bool AutoPauseHoursChosen { get; set; }
 		public bool UseHealthSleep { get; set; }
 		public int SleepTimerCustomMinutes { get; set; } = 20;
 		public bool UseHeadMovement { get; set; } = true;
@@ -246,12 +249,37 @@ public class MobileSettings
 		set { lock (locker) { state.AutoPauseMinutes = Math.Clamp(value, 5, 90); Save(); } }
 	}
 
-	/// <summary>Watch for sleep only from 9 p.m. to 7 a.m.</summary>
+	/// <summary>Watch for sleep only between <see cref="AutoPauseFromMinute"/> and <see cref="AutoPauseUntilMinute"/>.</summary>
 	public bool AutoPauseNightOnly
 	{
 		get { lock (locker) return state.AutoPauseNightOnly; }
 		set { lock (locker) { state.AutoPauseNightOnly = value; Save(); } }
 	}
+
+	/// <summary>When auto-pause starts watching, in minutes after midnight. 9 p.m. unless changed.</summary>
+	public int AutoPauseFromMinute
+	{
+		get { lock (locker) return state.AutoPauseFromMinute; }
+		set { lock (locker) { state.AutoPauseFromMinute = ((value % 1440) + 1440) % 1440; Save(); } }
+	}
+
+	/// <summary>When auto-pause stops watching, in minutes after midnight. 7 a.m. unless changed.</summary>
+	public int AutoPauseUntilMinute
+	{
+		get { lock (locker) return state.AutoPauseUntilMinute; }
+		set { lock (locker) { state.AutoPauseUntilMinute = ((value % 1440) + 1440) % 1440; Save(); } }
+	}
+
+	/// <summary>The listener has set the hours: no longer taken from their sleep in Apple Health.</summary>
+	public bool AutoPauseHoursChosen
+	{
+		get { lock (locker) return state.AutoPauseHoursChosen; }
+		set { lock (locker) { state.AutoPauseHoursChosen = value; Save(); } }
+	}
+
+	/// <summary>Whether auto-pause watches now: always, or within its hours.</summary>
+	public bool AutoPauseWatchesAt(DateTime local)
+		=> !AutoPauseNightOnly || SleepFinder.IsWithin(local, AutoPauseFromMinute, AutoPauseUntilMinute);
 
 	/// <summary>Read sleep from Apple Health to find, afterwards, where in a book the listener fell asleep.</summary>
 	public bool UseHealthSleep
