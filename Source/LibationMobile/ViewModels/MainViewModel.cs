@@ -393,6 +393,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	[RelayCommand]
 	private void ShowSettings()
 	{
+		Settings.OpenPageCommand.Execute("");
 		Settings.RefreshTimeSaved();
 		CurrentPage = Page.Settings;
 	}
@@ -531,6 +532,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				CurrentPage = lastTab;
 				Library.RefreshProgress();
 				Podcasts.RefreshProgress();
+				return true;
+			case Page.Settings when Settings.Back():
 				return true;
 			case Page.Settings:
 				CurrentPage = lastTab;
@@ -785,6 +788,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				break;
 			case "settings":
 				ShowSettings();
+				if (parts.Length > 1)
+					Settings.OpenPageCommand.Execute(parts[1]);
 				break;
 			case "details" when parts.Length > 1 && Library.Find(parts[1]) is { } detailsBook:
 				ShowDetails(detailsBook);

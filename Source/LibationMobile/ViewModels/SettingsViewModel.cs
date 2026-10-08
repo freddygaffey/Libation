@@ -10,12 +10,84 @@ namespace LibationMobile.ViewModels;
 /// <summary>The settings page. Every change is saved as it is made.</summary>
 public partial class SettingsViewModel(MobileSettings settings, Action changed, Action<float>? profileApplied = null) : ObservableObject
 {
+	#region Pages
+
+	/// <summary>Which group is open: "" for the front page, else "speed", "training", "playback", "siri", "timesaved", "sync" or "account".</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsRootPage), nameof(IsSpeedPage), nameof(IsTrainingPage), nameof(IsPlaybackPage), nameof(IsSiriPage),
+		nameof(IsTimeSavedPage), nameof(IsSyncPage), nameof(IsAccountPage), nameof(PageTitle))]
+	private string page = "";
+
+	public bool IsRootPage => Page == "";
+	public bool IsSpeedPage => Page == "speed";
+	public bool IsTrainingPage => Page == "training";
+	public bool IsPlaybackPage => Page == "playback";
+	public bool IsSiriPage => Page == "siri";
+	public bool IsTimeSavedPage => Page == "timesaved";
+	public bool IsSyncPage => Page == "sync";
+	public bool IsAccountPage => Page == "account";
+
+	public string PageTitle => Page switch
+	{
+		"speed" => "Speed",
+		"training" => "Training",
+		"playback" => "Playback",
+		"siri" => "Siri and voice",
+		"timesaved" => "Time saved",
+		"sync" => "Sync and downloads",
+		"account" => "Account",
+		_ => "Settings",
+	};
+
+	[RelayCommand]
+	private void OpenPage(string name)
+	{
+		Page = name ?? "";
+		// The front page's summaries may have changed in the group just closed.
+		OnPropertyChanged(string.Empty);
+	}
+
+	/// <summary>Back from a group to the front page. False on the front page, so Back leaves settings.</summary>
+	public bool Back()
+	{
+		if (IsRootPage)
+			return false;
+		OpenPage("");
+		return true;
+	}
+
+	// One line under each group on the front page: what it is set to now.
+	public string SpeedSummary
+	{
+		get
+		{
+			var method = settings.UseNonlinearSpeed && NonlinearAvailable ? "Speedy" : "Original";
+			var options = new List<string>();
+			if (settings.PauseCap > 0) options.Add($"pauses {settings.PauseCap * 1000:0} ms");
+			if (settings.SpeedFloor > 0 && settings.UseNonlinearSpeed) options.Add($"floor {settings.SpeedFloor:P0}");
+			if (settings.RhythmGap > 0) options.Add("rhythm");
+			return string.Join(" · ", new[] { settings.ActiveProfile, method }.OfType<string>().Concat(options));
+		}
+	}
+
+	public string TrainingSummary => settings.Training
+		? $"On · from {settings.TrainingStartSpeed:0.0}×, +{settings.TrainingStep:0.0#}× every {(settings.TrainingMinutes < 1 ? $"{settings.TrainingMinutes * 60:0} s" : $"{settings.TrainingMinutes:0.#} min")}"
+		: "Off";
+
+	public string PlaybackSummary => $"Skips {settings.SkipSeconds} s · clips {settings.ClipSeconds} s · bar shows the {(settings.ScrubByChapter ? "chapter" : "book")}";
+	public string SiriSummary => "\"Hey Siri, Speed 7.3\", \"Speed play a book\" and more";
+	public string TimeSavedSummary => TimeSavedText;
+	public string SyncSummary => $"{(settings.SyncPosition ? "Positions synced with Audible" : "Not syncing")} · {(settings.HighQualityDownloads ? "high quality" : "standard")} downloads";
+	public string AccountSummary => $"Audible {AudibleAccount.DisplayNameOf(settings.RegionName)}";
+
+	#endregion
+
 	#region Speed profiles
 
 	public IReadOnlyList<ProfileChoice> Profiles => settings.Profiles.Select(p => new ProfileChoice(p, p.Name == settings.ActiveProfile)).ToList();
 	public string ActiveProfileText => settings.ActiveProfile is { } name
 		? $"{name}: {ProfileChoice.Describe(settings.Profiles.First(p => p.Name == name))}"
-		: "Choose one to switch the speed and the speed-up settings below in one go.";
+		: "None chosen yet.";
 	public bool HasActiveProfile => settings.ActiveProfile is not null;
 
 	[RelayCommand]
