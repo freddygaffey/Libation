@@ -44,4 +44,11 @@ public partial class NowPlayingView : UserControl
 		if (e.PropertyName == nameof(NowPlayingViewModel.IsChapterListOpen) && viewModel is { IsChapterListOpen: true, CurrentChapterRow: { } current })
 			Dispatcher.UIThread.Post(() => chapterList.ScrollIntoView(current), DispatcherPriority.Loaded);
 	}
+
+	/// <summary>A tap outside a sheet closes it.</summary>
+	private void SheetBackdrop_PointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+	{
+		viewModel?.CloseSheetCommand.Execute(null);
+		e.Handled = true;
+	}
 }

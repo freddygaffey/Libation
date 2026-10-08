@@ -169,6 +169,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			LogSpeedChange();
 			OnPropertyChanged(nameof(Speed));
 			OnPropertyChanged(nameof(SpeedText));
+			OnPropertyChanged(nameof(SpeedChipText));
 			OnPropertyChanged(nameof(RemainingText));
 			OnPropertyChanged(nameof(ChapterRemainingText));
 			RefreshScrubber();
@@ -355,6 +356,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		CountListening();
 		SleepTick();
 		SleepTimerTick();
+		StatusTick();
 		if (IsPlaying && DateTime.UtcNow - lastSaved > SaveInterval)
 			SavePosition();
 	}

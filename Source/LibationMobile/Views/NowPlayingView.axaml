@@ -7,6 +7,42 @@
              Background="{StaticResource Ink}">
 
 	<UserControl.Styles>
+		<!-- Chips under the transport: a feature's state; lit when it is on. -->
+		<Style Selector="Button.chip">
+			<Setter Property="Background" Value="{StaticResource Slate}" />
+			<Setter Property="Foreground" Value="{StaticResource Paper}" />
+			<Setter Property="CornerRadius" Value="18" />
+			<Setter Property="Padding" Value="14,8" />
+			<Setter Property="Margin" Value="4" />
+			<Setter Property="MinHeight" Value="38" />
+		</Style>
+		<Style Selector="Button.chip.lead, Button.chip.on">
+			<Setter Property="Foreground" Value="{StaticResource Lamp}" />
+		</Style>
+		<Style Selector="Button.chip.on /template/ ContentPresenter, Button.chip.lead /template/ ContentPresenter">
+			<Setter Property="BorderBrush" Value="{StaticResource Lamp}" />
+			<Setter Property="BorderThickness" Value="1" />
+		</Style>
+		<Style Selector="Button.chip:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Slate}" />
+			<Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}" />
+		</Style>
+		<!-- In a sheet, chips sit darker than the sheet, and tighter. -->
+		<Style Selector="Border.sheet Button.chip">
+			<Setter Property="Background" Value="{StaticResource Ink}" />
+			<Setter Property="Padding" Value="4,10" />
+		</Style>
+		<Style Selector="Border.sheet Button.chip:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="{StaticResource Ink}" />
+		</Style>
+		<!-- Down past the player's own bottom margin to the screen's edge. -->
+		<Style Selector="Border.sheet">
+			<Setter Property="Background" Value="{StaticResource Slate}" />
+			<Setter Property="CornerRadius" Value="18,18,0,0" />
+			<Setter Property="VerticalAlignment" Value="Bottom" />
+			<Setter Property="Margin" Value="0,0,0,-60" />
+			<Setter Property="Padding" Value="0,0,0,60" />
+		</Style>
 		<!-- The place the listener probably fell asleep, in a book's history. -->
 		<Style Selector="Button.asleep /template/ ContentPresenter">
 			<Setter Property="BorderBrush" Value="{StaticResource Lamp}" />
@@ -71,39 +107,10 @@
 				Command="{Binding $parent[UserControl;1].((vm:MainViewModel)DataContext).GoToLibraryCommand}">
 				<PathIcon Data="{StaticResource IconChevronDown}" />
 			</Button>
-			<!-- Saved on the device; see AudibleAnnotations for why not in the Audible account. -->
-			<StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,-8,0">
-				<Button Classes="labelled" Command="{Binding AddBookmarkCommand}">
-					<StackPanel Spacing="2">
-						<PathIcon Data="{StaticResource IconBookmark}" Width="18" Height="18" />
-						<TextBlock Text="Bookmark" FontSize="10" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
-				<Button Classes="labelled" Command="{Binding AddClipCommand}">
-					<StackPanel Spacing="2">
-						<PathIcon Data="{StaticResource IconClip}" Width="18" Height="18" />
-						<TextBlock Text="Clip" FontSize="10" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
-				<Button Classes="labelled" Command="{Binding $parent[UserControl;1].((vm:MainViewModel)DataContext).ShowPlayingDetailsCommand}">
-					<StackPanel Spacing="2">
-						<PathIcon Data="{StaticResource IconInfo}" Width="18" Height="18" />
-						<TextBlock Text="Details" FontSize="10" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
-				<Button Classes="labelled" Command="{Binding ShowAnnotationsCommand}">
-					<StackPanel Spacing="2">
-						<PathIcon Data="{StaticResource IconBookmarks}" Width="18" Height="18" />
-						<TextBlock Text="Saved" FontSize="10" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
-				<Button Classes="labelled" Command="{Binding ShowHistoryCommand}">
-					<StackPanel Spacing="2">
-						<PathIcon Data="{StaticResource IconHistory}" Width="18" Height="18" />
-						<TextBlock Text="History" FontSize="10" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
-			</StackPanel>
+			<!-- Everything else for the book: details, saved bookmarks and clips, history, settings. -->
+			<Button Grid.Column="2" Classes="transport" Width="48" Height="48" Margin="0,0,-12,0" Command="{Binding OpenSheetCommand}" CommandParameter="more" ToolTip.Tip="More">
+				<PathIcon Data="{StaticResource IconMore}" Width="22" Height="22" />
+			</Button>
 		</Grid>
 
 		<Border
@@ -180,163 +187,245 @@
 			</Button>
 		</UniformGrid>
 
-		<!-- Speed: the one bold element on the screen. -->
-		<Border Grid.Row="5" Background="{StaticResource Slate}" CornerRadius="6" Padding="16,12,16,10" Margin="0,8,0,0">
-			<StackPanel Spacing="10">
-				<!-- Blind training: no speed shown, only that a block is playing. -->
-				<StackPanel IsVisible="{Binding IsBlindMode}" Spacing="2" Margin="0,4,0,0">
-					<TextBlock Text="Blind training" FontFamily="{StaticResource DisplayFont}" FontWeight="Light" FontSize="32" />
-					<TextBlock Classes="muted" Text="{Binding TrainingText}" FontSize="13" />
-					<TextBlock Classes="muted" Text="The speed is hidden so the trainer can try speeds you would not pick. Switch modes below to see it." FontSize="11" TextWrapping="Wrap" />
+		<!-- Chips: each feature's state at a glance, and its controls a tap away in a sheet. -->
+		<StackPanel Grid.Row="5" Spacing="8" Margin="0,10,0,0">
+			<Border Background="{StaticResource Lamp}" CornerRadius="6" Padding="10,6" IsVisible="{Binding IsTrialPlaying}">
+				<Grid ColumnDefinitions="*,Auto">
+					<TextBlock Text="{Binding TrialStatus}" Foreground="{StaticResource Ink}" FontSize="13" VerticalAlignment="Center" />
+					<Button Grid.Column="1" Content="Stop" Padding="10,4" Background="Transparent" Foreground="{StaticResource Ink}" Command="{Binding CancelTrialCommand}" />
+				</Grid>
+			</Border>
+			<WrapPanel HorizontalAlignment="Center">
+				<Button Classes="chip lead" Command="{Binding OpenSheetCommand}" CommandParameter="speed">
+					<StackPanel Orientation="Horizontal" Spacing="6">
+						<PathIcon Data="{StaticResource IconSpeed}" Width="16" Height="16" />
+						<TextBlock Text="{Binding SpeedChipText}" FontSize="16" FontWeight="SemiBold" />
+					</StackPanel>
+				</Button>
+				<Button Classes="chip" Command="{Binding OpenSheetCommand}" CommandParameter="profile">
+					<StackPanel Orientation="Horizontal" Spacing="5">
+						<TextBlock Text="{Binding ProfileText}" FontSize="14" />
+						<PathIcon Data="{StaticResource IconChevronDown}" Width="11" Height="11" />
+					</StackPanel>
+				</Button>
+				<Button Classes="chip" Classes.on="{Binding IsSleepTimerOn}" Command="{Binding OpenSheetCommand}" CommandParameter="sleep">
+					<StackPanel Orientation="Horizontal" Spacing="5">
+						<PathIcon Data="{StaticResource IconMoon}" Width="14" Height="14" />
+						<TextBlock Text="{Binding SleepTimerText}" FontSize="14" />
+					</StackPanel>
+				</Button>
+				<Button Classes="chip" Classes.on="{Binding IsModeOn}" Command="{Binding OpenSheetCommand}" CommandParameter="mode">
+					<StackPanel Orientation="Horizontal" Spacing="5">
+						<PathIcon Data="{StaticResource IconTraining}" Width="14" Height="14" />
+						<TextBlock Text="{Binding ModeChipText}" FontSize="14" />
+					</StackPanel>
+				</Button>
+				<Button Classes="chip" Command="{Binding AddBookmarkCommand}" ToolTip.Tip="Bookmark">
+					<PathIcon Data="{StaticResource IconBookmark}" Width="15" Height="15" />
+				</Button>
+				<Button Classes="chip" Command="{Binding AddClipCommand}" ToolTip.Tip="Clip">
+					<PathIcon Data="{StaticResource IconClip}" Width="15" Height="15" />
+				</Button>
+			</WrapPanel>
+			<!-- What is running, and which of the phone's data is in use. Tap for the Sleep settings and permissions. -->
+			<Button Background="Transparent" Padding="4,2" HorizontalAlignment="Center" IsVisible="{Binding HasStatusLine}"
+				Command="{Binding MoreCommand}" CommandParameter="sleep-settings">
+				<StackPanel Orientation="Horizontal" Spacing="6">
+					<Ellipse Width="6" Height="6" Fill="{StaticResource Lamp}" VerticalAlignment="Center" />
+					<TextBlock Classes="muted" Text="{Binding StatusLine}" FontSize="12" TextTrimming="CharacterEllipsis" />
 				</StackPanel>
-				<Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding ShowsSpeed}">
-					<StackPanel VerticalAlignment="Center">
-						<TextBlock
-							Text="{Binding SpeedText}"
-							FontFamily="{StaticResource DisplayFont}"
-							FontWeight="Light"
-							FontSize="52" />
-						<!-- Measured from the audio: the rate speech research uses, for comparing with others. -->
-						<TextBlock Classes="muted" Text="{Binding SyllableRateText}" FontSize="12"
-							ToolTip.Tip="Estimated from the audio, within about 10%. Untrained listeners manage about 8; trained blind screen-reader users 17 to 22."
-							IsVisible="{Binding SyllableRateText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-					</StackPanel>
-					<Button Grid.Column="1" Classes="transport" Width="48" Height="48" Command="{Binding SlowerStepCommand}">
-						<PathIcon Data="{StaticResource IconMinus}" />
-					</Button>
-					<Button Grid.Column="2" Classes="transport" Width="48" Height="48" Command="{Binding FasterStepCommand}">
-						<PathIcon Data="{StaticResource IconPlus}" />
-					</Button>
-				</Grid>
-				<Border Background="{StaticResource Lamp}" CornerRadius="6" Padding="10,6" IsVisible="{Binding IsTrialPlaying}">
-					<Grid ColumnDefinitions="*,Auto">
-						<TextBlock Text="{Binding TrialStatus}" Foreground="{StaticResource Ink}" FontSize="13" VerticalAlignment="Center" />
-						<Button Grid.Column="1" Content="Stop" Padding="10,4" Background="Transparent" Foreground="{StaticResource Ink}" Command="{Binding CancelTrialCommand}" />
-					</Grid>
-				</Border>
-				<controls:SpeedRail IsVisible="{Binding ShowsSpeed}"
-					Speed="{Binding Speed}"
-					Minimum="{x:Static vm:NowPlayingViewModel.MIN_SPEED}"
-					Maximum="{x:Static vm:NowPlayingViewModel.MAX_SPEED}"
-					Stops="{x:Static vm:NowPlayingViewModel.SpeedStops}" />
-				<!-- Training mode: warm up from a comfortable speed to this one. Set up in Settings, Speed listening. -->
-				<Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,-2,0,0">
-					<!-- Speed profile: Casual, School, Hard, Max. Set up in Settings. -->
-					<Button Classes="quiet" Padding="10,6" Margin="-10,0,8,0" VerticalAlignment="Center" ToolTip.Tip="Mode: profile, training, method">
-						<StackPanel Orientation="Horizontal" Spacing="4">
-							<TextBlock Text="{Binding ProfileText}" FontSize="14" Foreground="{StaticResource Lamp}" />
-							<PathIcon Data="{StaticResource IconChevronDown}" Width="12" Height="12" Foreground="{StaticResource Lamp}" />
-						</StackPanel>
-						<Button.Flyout>
-							<!-- The mode panel: profile, training and method, without leaving the book. -->
-							<Flyout Placement="TopEdgeAlignedLeft">
-								<StackPanel Width="300" Spacing="10" Margin="4">
-									<TextBlock Text="Profile" FontSize="13" Foreground="{StaticResource Dust}" />
-									<ItemsControl ItemsSource="{Binding Profiles}">
-										<ItemsControl.ItemTemplate>
-											<DataTemplate x:DataType="vm:ProfileChoice">
-												<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,6"
-													Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).ChooseProfileCommand}" CommandParameter="{Binding}">
-													<StackPanel Spacing="1">
-														<Grid ColumnDefinitions="*,Auto">
-															<TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
-															<TextBlock Grid.Column="1" Text="In use" FontSize="11" Foreground="{StaticResource Lamp}" IsVisible="{Binding IsActive}" VerticalAlignment="Center" />
-														</Grid>
-														<TextBlock Text="{Binding Purpose}" FontSize="12" TextWrapping="Wrap" />
-														<TextBlock Classes="muted" Text="{Binding Summary}" FontSize="11" TextWrapping="Wrap" />
-													</StackPanel>
-												</Button>
-											</DataTemplate>
-										</ItemsControl.ItemTemplate>
-									</ItemsControl>
-									<TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding IsCustomProfile}"
-										Text="Custom in use: your own settings from Settings, Speed, Advanced." />
-
-									<Border Height="1" Background="{StaticResource Hairline}" />
-									<TextBlock Text="Mode" FontSize="13" Foreground="{StaticResource Dust}" />
-									<UniformGrid Columns="3">
-										<ToggleButton Content="You choose" IsChecked="{Binding IsNormalMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="normal" Padding="6,8" Margin="0,0,4,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-										<ToggleButton Content="Training" IsChecked="{Binding IsTrainingMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="training" Padding="6,8" Margin="2,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-										<ToggleButton Content="Blind" IsChecked="{Binding IsBlindMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="blind" Padding="6,8" Margin="4,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-									</UniformGrid>
-									<StackPanel Spacing="6" IsVisible="{Binding !IsNormalMode}">
-										<TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-											Text="Training: the plan sets the speed, shown. Blind: the speed is hidden everywhere, and some blocks try untested speeds or repeat the last one, to learn where your edge is." />
-										<TextBlock Text="Plan" FontSize="13" Foreground="{StaticResource Dust}" />
-										<UniformGrid Columns="4">
-											<ToggleButton Content="Ramp" IsChecked="{Binding IsPlanRamp, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="ramp" Padding="2,6" Margin="0,0,3,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
-											<ToggleButton Content="Intervals" IsChecked="{Binding IsPlanIntervals, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="intervals" Padding="2,6" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
-											<ToggleButton Content="Pyramid" IsChecked="{Binding IsPlanPyramid, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="pyramid" Padding="2,6" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
-											<ToggleButton Content="Tracking" IsChecked="{Binding IsPlanTracking, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="tracking" Padding="2,6" Margin="3,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
-										</UniformGrid>
-										<Grid ColumnDefinitions="*,Auto,Auto">
-											<TextBlock Text="{Binding TrainingStartText}" FontSize="13" VerticalAlignment="Center" />
-											<Button Grid.Column="1" Classes="quiet" Content="−" Padding="14,4" Command="{Binding TrainingStartHigherCommand}" ToolTip.Tip="Nearer the book's speed" />
-											<Button Grid.Column="2" Classes="quiet" Content="+" Padding="14,4" Command="{Binding TrainingStartLowerCommand}" ToolTip.Tip="Further below: a gentler warm-up" />
-										</Grid>
-									</StackPanel>
-
-									<Border Height="1" Background="{StaticResource Hairline}" />
-									<Button Classes="quiet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="8,8" Command="{Binding StartTrialCommand}" IsVisible="{Binding !IsTrialRunning}">
-										<StackPanel Spacing="1">
-											<TextBlock Text="Run a blind trial" FontSize="15" />
-											<TextBlock Classes="muted" Text="Two 2-minute parts with one setting changed, not shown. Rate each, then see which it was." FontSize="11" TextWrapping="Wrap" />
-										</StackPanel>
-									</Button>
-
-									<Border Height="1" Background="{StaticResource Hairline}" />
-									<Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-										<TextBlock Text="Method" FontSize="15" VerticalAlignment="Center" />
-										<ToggleButton Grid.Column="1" Content="Speedy" IsChecked="{Binding IsSpeedy, Mode=OneWay}" Command="{Binding SetMethodCommand}" CommandParameter="speedy" Padding="12,6" />
-										<ToggleButton Grid.Column="2" Content="Original" IsChecked="{Binding IsOriginal, Mode=OneWay}" Command="{Binding SetMethodCommand}" CommandParameter="original" Padding="12,6" />
-									</Grid>
-								</StackPanel>
-							</Flyout>
-						</Button.Flyout>
-					</Button>
-					<!-- Sleep timer: a set time of listening, or the end of the chapter. -->
-					<Button Grid.Column="1" Classes="quiet" Padding="10,6" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip.Tip="Sleep timer">
-						<StackPanel Orientation="Horizontal" Spacing="5">
-							<PathIcon Data="{StaticResource IconMoon}" Width="14" Height="14" Foreground="{StaticResource Lamp}" />
-							<TextBlock Text="{Binding SleepTimerText}" FontSize="14" Foreground="{StaticResource Lamp}" />
-						</StackPanel>
-						<Button.Flyout>
-							<Flyout Placement="TopEdgeAlignedLeft">
-								<StackPanel Width="260" Spacing="2" Margin="4">
-									<TextBlock Text="Sleep timer" FontSize="13" Foreground="{StaticResource Dust}" Margin="8,0,0,6" />
-									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="5 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="5" />
-									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="10 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="10" />
-									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="15 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="15" />
-									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="30 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="30" />
-									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="45 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="45" />
-									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="1 hour" Command="{Binding SetSleepTimerCommand}" CommandParameter="60" />
-									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="1½ hours" Command="{Binding SetSleepTimerCommand}" CommandParameter="90" />
-									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="End of chapter" Command="{Binding SetSleepTimerCommand}" CommandParameter="0" />
-									<!-- A length of your own: set it with − and +, then start. -->
-									<Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,4,0,0">
-										<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Command="{Binding StartCustomTimerCommand}">
-											<TextBlock>
-												<Run Text="Custom: " /><Run Text="{Binding CustomTimerText}" Foreground="{StaticResource Lamp}" />
-											</TextBlock>
-										</Button>
-										<Button Grid.Column="1" Classes="quiet" Content="−" Padding="12,6" Command="{Binding ChangeCustomTimerCommand}" CommandParameter="-" />
-										<Button Grid.Column="2" Classes="quiet" Content="+" Padding="12,6" Command="{Binding ChangeCustomTimerCommand}" CommandParameter="+" />
-									</Grid>
-									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="Off" Command="{Binding SetSleepTimerCommand}" CommandParameter="off"
-										IsVisible="{Binding IsSleepTimerOn}" />
-								</StackPanel>
-							</Flyout>
-						</Button.Flyout>
-					</Button>
-					<StackPanel Grid.Column="2" VerticalAlignment="Center">
-						<TextBlock Text="Training" FontSize="14" HorizontalAlignment="Right" />
-						<TextBlock Text="{Binding TrainingText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" TextAlignment="Right" IsVisible="{Binding IsTrainingMode}" />
-					</StackPanel>
-					<ToggleSwitch Grid.Column="3" IsChecked="{Binding TrainingEnabled}" OnContent="" OffContent="" Margin="12,0,0,0" />
-				</Grid>
-			</StackPanel>
-		</Border>
+			</Button>
+		</StackPanel>
 	</Grid>
+
+	<!-- Sheets: a feature's full controls, up from the bottom over a dimmed player. Tap outside to close. -->
+	<Panel IsVisible="{Binding IsSheetOpen}">
+		<Border Background="#99000000" Margin="0,-80,0,-80" PointerPressed="SheetBackdrop_PointerPressed" />
+		<Border Classes="sheet" IsVisible="{Binding IsSpeedSheet}">
+			<ScrollViewer MaxHeight="620">
+				<StackPanel Spacing="12" Margin="20,10,20,24">
+					<Border Width="40" Height="4" CornerRadius="2" Background="{StaticResource Hairline}" HorizontalAlignment="Center" />
+					<TextBlock Text="Speed" FontFamily="{StaticResource DisplayFont}" FontSize="22" />
+					<StackPanel IsVisible="{Binding IsBlindMode}" Spacing="2" Margin="0,4,0,0">
+						<TextBlock Text="Blind training" FontFamily="{StaticResource DisplayFont}" FontWeight="Light" FontSize="32" />
+						<TextBlock Classes="muted" Text="{Binding TrainingText}" FontSize="13" />
+						<TextBlock Classes="muted" Text="The speed is hidden so the trainer can try speeds you would not pick. Switch modes below to see it." FontSize="11" TextWrapping="Wrap" />
+					</StackPanel>
+					<Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding ShowsSpeed}">
+						<StackPanel VerticalAlignment="Center">
+							<TextBlock
+								Text="{Binding SpeedText}"
+								FontFamily="{StaticResource DisplayFont}"
+								FontWeight="Light"
+								FontSize="52" />
+							<!-- Measured from the audio: the rate speech research uses, for comparing with others. -->
+							<TextBlock Classes="muted" Text="{Binding SyllableRateText}" FontSize="12"
+								ToolTip.Tip="Estimated from the audio, within about 10%. Untrained listeners manage about 8; trained blind screen-reader users 17 to 22."
+								IsVisible="{Binding SyllableRateText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+						</StackPanel>
+						<Button Grid.Column="1" Classes="transport" Width="48" Height="48" Command="{Binding SlowerStepCommand}">
+							<PathIcon Data="{StaticResource IconMinus}" />
+						</Button>
+						<Button Grid.Column="2" Classes="transport" Width="48" Height="48" Command="{Binding FasterStepCommand}">
+							<PathIcon Data="{StaticResource IconPlus}" />
+						</Button>
+					</Grid>
+					<controls:SpeedRail IsVisible="{Binding ShowsSpeed}"
+						Speed="{Binding Speed}"
+						Minimum="{x:Static vm:NowPlayingViewModel.MIN_SPEED}"
+						Maximum="{x:Static vm:NowPlayingViewModel.MAX_SPEED}"
+						Stops="{x:Static vm:NowPlayingViewModel.SpeedStops}" />
+					<Border Height="1" Background="{StaticResource Hairline}" />
+					<Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+						<TextBlock Text="Method" FontSize="15" VerticalAlignment="Center" />
+						<ToggleButton Grid.Column="1" Content="Speedy" IsChecked="{Binding IsSpeedy, Mode=OneWay}" Command="{Binding SetMethodCommand}" CommandParameter="speedy" Padding="12,6" />
+						<ToggleButton Grid.Column="2" Content="Original" IsChecked="{Binding IsOriginal, Mode=OneWay}" Command="{Binding SetMethodCommand}" CommandParameter="original" Padding="12,6" />
+					</Grid>
+					<Button Classes="quiet" HorizontalAlignment="Left" Padding="10,6" Command="{Binding OpenSheetCommand}" CommandParameter="profile">
+						<TextBlock><Run Text="Profile: " /><Run Text="{Binding ProfileText}" Foreground="{StaticResource Lamp}" /></TextBlock>
+					</Button>
+				</StackPanel>
+			</ScrollViewer>
+		</Border>
+		<Border Classes="sheet" IsVisible="{Binding IsProfileSheet}">
+			<ScrollViewer MaxHeight="620">
+				<StackPanel Spacing="12" Margin="20,10,20,24">
+					<Border Width="40" Height="4" CornerRadius="2" Background="{StaticResource Hairline}" HorizontalAlignment="Center" />
+					<TextBlock Text="Profile" FontFamily="{StaticResource DisplayFont}" FontSize="22" />
+					<TextBlock Classes="muted" Text="Each profile sets how speech is sped up, scaled to the speed you choose." FontSize="12" TextWrapping="Wrap" />
+					<ItemsControl ItemsSource="{Binding Profiles}">
+						<ItemsControl.ItemTemplate>
+							<DataTemplate x:DataType="vm:ProfileChoice">
+								<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,6"
+									Command="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).ChooseProfileCommand}" CommandParameter="{Binding}">
+									<StackPanel Spacing="1">
+										<Grid ColumnDefinitions="*,Auto">
+											<TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
+											<TextBlock Grid.Column="1" Text="In use" FontSize="11" Foreground="{StaticResource Lamp}" IsVisible="{Binding IsActive}" VerticalAlignment="Center" />
+										</Grid>
+										<TextBlock Text="{Binding Purpose}" FontSize="12" TextWrapping="Wrap" />
+										<TextBlock Classes="muted" Text="{Binding Summary}" FontSize="11" TextWrapping="Wrap" />
+									</StackPanel>
+								</Button>
+							</DataTemplate>
+						</ItemsControl.ItemTemplate>
+					</ItemsControl>
+					<TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding IsCustomProfile}"
+						Text="Custom in use: your own settings from Settings, Speed, Advanced." />
+				</StackPanel>
+			</ScrollViewer>
+		</Border>
+		<Border Classes="sheet" IsVisible="{Binding IsModeSheet}">
+			<ScrollViewer MaxHeight="620">
+				<StackPanel Spacing="12" Margin="20,10,20,24">
+					<Border Width="40" Height="4" CornerRadius="2" Background="{StaticResource Hairline}" HorizontalAlignment="Center" />
+					<TextBlock Text="Training" FontFamily="{StaticResource DisplayFont}" FontSize="22" />
+					<TextBlock Text="Mode" FontSize="13" Foreground="{StaticResource Dust}" />
+					<UniformGrid Columns="3">
+						<ToggleButton Content="You choose" IsChecked="{Binding IsNormalMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="normal" Padding="6,8" Margin="0,0,4,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+						<ToggleButton Content="Training" IsChecked="{Binding IsTrainingMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="training" Padding="6,8" Margin="2,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+						<ToggleButton Content="Blind" IsChecked="{Binding IsBlindMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="blind" Padding="6,8" Margin="4,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+					</UniformGrid>
+					<StackPanel Spacing="6" IsVisible="{Binding !IsNormalMode}">
+						<TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+							Text="Training: the plan sets the speed, shown. Blind: the speed is hidden everywhere, and some blocks try untested speeds or repeat the last one, to learn where your edge is." />
+						<TextBlock Text="Plan" FontSize="13" Foreground="{StaticResource Dust}" />
+						<UniformGrid Columns="4">
+							<ToggleButton Content="Ramp" IsChecked="{Binding IsPlanRamp, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="ramp" Padding="2,6" Margin="0,0,3,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
+							<ToggleButton Content="Intervals" IsChecked="{Binding IsPlanIntervals, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="intervals" Padding="2,6" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
+							<ToggleButton Content="Pyramid" IsChecked="{Binding IsPlanPyramid, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="pyramid" Padding="2,6" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
+							<ToggleButton Content="Tracking" IsChecked="{Binding IsPlanTracking, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="tracking" Padding="2,6" Margin="3,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
+						</UniformGrid>
+						<Grid ColumnDefinitions="*,Auto,Auto">
+							<TextBlock Text="{Binding TrainingStartText}" FontSize="13" VerticalAlignment="Center" />
+							<Button Grid.Column="1" Classes="quiet" Content="−" Padding="14,4" Command="{Binding TrainingStartHigherCommand}" ToolTip.Tip="Nearer the book's speed" />
+							<Button Grid.Column="2" Classes="quiet" Content="+" Padding="14,4" Command="{Binding TrainingStartLowerCommand}" ToolTip.Tip="Further below: a gentler warm-up" />
+						</Grid>
+					</StackPanel>
+					<TextBlock Text="{Binding TrainingText}" FontSize="13" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" IsVisible="{Binding IsModeOn}" />
+					<Border Height="1" Background="{StaticResource Hairline}" />
+					<Button Classes="quiet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="8,8" Command="{Binding StartTrialCommand}" IsVisible="{Binding !IsTrialRunning}">
+						<StackPanel Spacing="1">
+							<TextBlock Text="Run a blind trial" FontSize="15" />
+							<TextBlock Classes="muted" Text="Two 2-minute parts with one setting changed, not shown. Rate each, then see which it was." FontSize="11" TextWrapping="Wrap" />
+						</StackPanel>
+					</Button>
+				</StackPanel>
+			</ScrollViewer>
+		</Border>
+		<Border Classes="sheet" IsVisible="{Binding IsSleepSheet}">
+			<ScrollViewer MaxHeight="620">
+				<StackPanel Spacing="12" Margin="20,10,20,24">
+					<Border Width="40" Height="4" CornerRadius="2" Background="{StaticResource Hairline}" HorizontalAlignment="Center" />
+					<TextBlock Text="Sleep" FontFamily="{StaticResource DisplayFont}" FontSize="22" />
+					<TextBlock Classes="muted" Text="Pauses after this much listening. It fades over the last 10 seconds; a tap, a nod or a shake starts it again." FontSize="12" TextWrapping="Wrap" />
+					<UniformGrid Columns="4">
+						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="5 min" Command="{Binding SetSleepTimerCommand}" CommandParameter="5" />
+						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="10 min" Command="{Binding SetSleepTimerCommand}" CommandParameter="10" />
+						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="15 min" Command="{Binding SetSleepTimerCommand}" CommandParameter="15" />
+						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="30 min" Command="{Binding SetSleepTimerCommand}" CommandParameter="30" />
+						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="45 min" Command="{Binding SetSleepTimerCommand}" CommandParameter="45" />
+						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="1 hour" Command="{Binding SetSleepTimerCommand}" CommandParameter="60" />
+						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="1½ hours" Command="{Binding SetSleepTimerCommand}" CommandParameter="90" />
+						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Chapter" Command="{Binding SetSleepTimerCommand}" CommandParameter="0" />
+					</UniformGrid>
+					<!-- A length of your own: set it with − and +, then start. -->
+					<Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,4,0,0">
+						<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Command="{Binding StartCustomTimerCommand}">
+							<TextBlock>
+								<Run Text="Custom: " /><Run Text="{Binding CustomTimerText}" Foreground="{StaticResource Lamp}" />
+							</TextBlock>
+						</Button>
+						<Button Grid.Column="1" Classes="quiet" Content="−" Padding="12,6" Command="{Binding ChangeCustomTimerCommand}" CommandParameter="-" />
+						<Button Grid.Column="2" Classes="quiet" Content="+" Padding="12,6" Command="{Binding ChangeCustomTimerCommand}" CommandParameter="+" />
+					</Grid>
+					<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="Turn the sleep timer off" Foreground="{StaticResource Lamp}" Command="{Binding SetSleepTimerCommand}" CommandParameter="off"
+						IsVisible="{Binding IsSleepTimerOn}" />
+					<Border Height="1" Background="{StaticResource Hairline}" />
+					<Grid ColumnDefinitions="*,Auto">
+						<StackPanel VerticalAlignment="Center">
+							<TextBlock Text="Pause when you fall asleep" FontSize="15" />
+							<TextBlock Classes="muted" Text="No touch for a while and you or the phone lying still: it fades, then pauses." FontSize="12" TextWrapping="Wrap" />
+						</StackPanel>
+						<ToggleSwitch Grid.Column="1" IsChecked="{Binding IsAutoPauseOn, Mode=OneWay}" Command="{Binding ToggleAutoPauseCommand}" OnContent="" OffContent="" Margin="12,0,0,0" />
+					</Grid>
+					<Button Classes="quiet" HorizontalAlignment="Left" Padding="10,6" Content="Sleep settings and permissions" Command="{Binding MoreCommand}" CommandParameter="sleep-settings" />
+				</StackPanel>
+			</ScrollViewer>
+		</Border>
+		<Border Classes="sheet" IsVisible="{Binding IsMoreSheet}">
+			<ScrollViewer MaxHeight="620">
+				<StackPanel Spacing="12" Margin="20,10,20,24">
+					<Border Width="40" Height="4" CornerRadius="2" Background="{StaticResource Hairline}" HorizontalAlignment="Center" />
+					<TextBlock Text="More" FontFamily="{StaticResource DisplayFont}" FontSize="22" />
+					<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="6,12" Command="{Binding MoreCommand}" CommandParameter="details">
+						<StackPanel Orientation="Horizontal" Spacing="14">
+							<PathIcon Data="{StaticResource IconInfo}" Width="20" Height="20" Foreground="{StaticResource Lamp}" />
+							<TextBlock Text="Book details" FontSize="16" VerticalAlignment="Center" />
+						</StackPanel>
+					</Button>
+					<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="6,12" Command="{Binding MoreSavedCommand}">
+						<StackPanel Orientation="Horizontal" Spacing="14">
+							<PathIcon Data="{StaticResource IconBookmarks}" Width="20" Height="20" Foreground="{StaticResource Lamp}" />
+							<TextBlock Text="Bookmarks and clips" FontSize="16" VerticalAlignment="Center" />
+						</StackPanel>
+					</Button>
+					<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="6,12" Command="{Binding MoreHistoryCommand}">
+						<StackPanel Orientation="Horizontal" Spacing="14">
+							<PathIcon Data="{StaticResource IconHistory}" Width="20" Height="20" Foreground="{StaticResource Lamp}" />
+							<TextBlock Text="Listening history" FontSize="16" VerticalAlignment="Center" />
+						</StackPanel>
+					</Button>
+					<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="6,12" Command="{Binding MoreCommand}" CommandParameter="settings">
+						<StackPanel Orientation="Horizontal" Spacing="14">
+							<PathIcon Data="{StaticResource IconSettings}" Width="20" Height="20" Foreground="{StaticResource Lamp}" />
+							<TextBlock Text="Settings" FontSize="16" VerticalAlignment="Center" />
+						</StackPanel>
+					</Button>
+				</StackPanel>
+			</ScrollViewer>
+		</Border>
+	</Panel>
 
 
 	<!-- Training: how well the block just played was followed. Playback carries on; the card goes in 20 seconds. -->

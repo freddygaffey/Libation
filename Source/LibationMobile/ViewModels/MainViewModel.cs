@@ -585,6 +585,17 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		{
 			newValue.Experiments = Experiments;
 			newValue.Events = Events;
+			newValue.MoreRequested += what =>
+			{
+				if (what == "details")
+					ShowPlayingDetails();
+				else
+				{
+					ShowSettings();
+					if (what == "sleep-settings")
+						Settings.OpenPageCommand.Execute("sleep");
+				}
+			};
 		}
 		Library.PlayingBookId = newValue?.Book.Id;
 		// The book playing goes to the top of Siri's list.
@@ -762,6 +773,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			case "open" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } openBook:
 				// Shows the player without playing: playback reports a position to Audible, which a look at the screen must not.
 				await LoadAsync(openBook, showNowPlaying: true);
+				// "open:ID:speed" also opens a sheet: speed, profile, mode, sleep or more.
+				if (parts.Length > 2 && NowPlaying is { } openPlayer)
+					openPlayer.OpenSheetCommand.Execute(parts[2]);
 				break;
 			case "download" when parts.Length > 1 && Library.Find(parts[1]) is { IsNotDownloaded: true } downloadBook:
 				// Starts a download and logs its progress, to check it carries on with the app in the background.
