@@ -301,7 +301,7 @@ public class MobileSettings
 	public double TargetSyllableRate
 	{
 		get { lock (locker) return state.TargetSyllableRate; }
-		set { lock (locker) { state.TargetSyllableRate = Math.Round(Math.Clamp(value, 3, 40) * 2) / 2; Save(); } }
+		set { lock (locker) { state.TargetSyllableRate = Math.Round(Math.Clamp(value, 3, 40), 1); Save(); } }
 	}
 
 	/// <summary>Set the speed from the narrator's measured syllable rate, so every book is heard at the same rate.</summary>

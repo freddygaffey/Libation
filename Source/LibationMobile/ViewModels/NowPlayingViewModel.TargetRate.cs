@@ -18,7 +18,7 @@ public partial class NowPlayingViewModel
 	private DateTime nextTargetCheck;
 
 	public bool IsTargetRateOn => settings.UseTargetSyllableRate;
-	public string TargetRateText => $"{settings.TargetSyllableRate:0.#} syllables a second";
+	public string TargetRateText => $"{settings.TargetSyllableRate:0.0} syllables a second";
 
 	[RelayCommand]
 	private void ToggleTargetRate()
@@ -28,15 +28,15 @@ public partial class NowPlayingViewModel
 		if (settings.UseTargetSyllableRate && HeardRate() is double heard)
 			settings.TargetSyllableRate = heard;
 		nextTargetCheck = DateTime.MinValue;
-		LogEvent("mode", detail: settings.UseTargetSyllableRate ? $"target rate {settings.TargetSyllableRate:0.#}" : "target rate off");
+		LogEvent("mode", detail: settings.UseTargetSyllableRate ? $"target rate {settings.TargetSyllableRate:0.0}" : "target rate off");
 		OnTargetRateChanged();
 	}
 
-	/// <summary>"+" or "-": half a syllable a second.</summary>
+	/// <summary>"+" or "-": a tenth of a syllable a second.</summary>
 	[RelayCommand]
 	private void NudgeTargetRate(string direction)
 	{
-		settings.TargetSyllableRate += direction == "-" ? -0.5 : 0.5;
+		settings.TargetSyllableRate += direction == "-" ? -0.1 : 0.1;
 		nextTargetCheck = DateTime.MinValue;
 		OnTargetRateChanged();
 	}
