@@ -83,6 +83,9 @@ public class SpeedRail : Control
 
 	public override void Render(DrawingContext context)
 	{
+		// Hidden or not laid out yet (blind training hides it): nothing to draw, and the label sums below go negative.
+		if (Bounds.Width < 40)
+			return;
 		var baseline = MAJOR_HEIGHT;
 		var stops = Stops.ToHashSet();
 		var unlit = new SolidColorBrush(Dust, 0.35);

@@ -132,11 +132,14 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	public double Progress => Duration > TimeSpan.Zero ? Position / Duration : 0;
 	public string ElapsedText => FormatTime(Position);
-	public string RemainingText => $"{FormatTime((Duration - Position) / Speed)} left at {SpeedText}";
+	public string RemainingText => IsBlindMode
+		? $"{Progress:P0} through"
+		: $"{FormatTime((Duration - Position) / Speed)} left at {SpeedText}";
 
 	/// <summary>Time to the end of this chapter at the current speed: how long until the next natural stopping point.</summary>
 	public string ChapterRemainingText
-		=> CurrentChapterRow?.Chapter is Chapter chapter
+		=> IsBlindMode ? ""
+		: CurrentChapterRow?.Chapter is Chapter chapter
 			? $"{FormatTime((chapter.EndOffset - Position) / Speed)} left in chapter"
 			: "";
 
@@ -183,7 +186,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	private void UpdateSyllableRate()
 	{
-		SyllableRateText = !settings.ShowSyllableRate ? ""
+		SyllableRateText = !settings.ShowSyllableRate || IsBlindMode ? ""
 			: player.SourceSyllablesPerSecond is double rate && rate > 0 ? $"≈ {rate * Speed:0} syllables a second"
 			: "Measuring syllables a second…";
 	}

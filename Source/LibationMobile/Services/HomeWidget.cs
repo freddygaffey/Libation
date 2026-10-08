@@ -7,7 +7,8 @@ namespace LibationMobile.Services;
 /// <param name="Remaining">Book time left, at 1x; likewise the other times.</param>
 /// <param name="SkipSeconds">The skip buttons' length, for their labels.</param>
 public record WidgetInfo(string BookId, string Title, string? Author, byte[]? Cover, TimeSpan Remaining, double Speed, bool IsPlaying,
-	TimeSpan Duration, string? ChapterTitle = null, TimeSpan? ChapterRemaining = null, TimeSpan? ChapterDuration = null, double SkipSeconds = 30);
+	TimeSpan Duration, string? ChapterTitle = null, TimeSpan? ChapterRemaining = null, TimeSpan? ChapterDuration = null, double SkipSeconds = 30,
+	bool SpeedHidden = false);
 
 /// <summary>A downloaded book or podcast episode, as Siri lists it.</summary>
 public record PlayableBook(string Id, string Title, string? Author);

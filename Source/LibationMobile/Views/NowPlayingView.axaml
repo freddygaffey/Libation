@@ -178,7 +178,13 @@
 		<!-- Speed: the one bold element on the screen. -->
 		<Border Grid.Row="5" Background="{StaticResource Slate}" CornerRadius="6" Padding="16,12,16,10" Margin="0,8,0,0">
 			<StackPanel Spacing="10">
-				<Grid ColumnDefinitions="*,Auto,Auto">
+				<!-- Blind training: no speed shown, only that a block is playing. -->
+				<StackPanel IsVisible="{Binding IsBlindMode}" Spacing="2" Margin="0,4,0,0">
+					<TextBlock Text="Blind training" FontFamily="{StaticResource DisplayFont}" FontWeight="Light" FontSize="32" />
+					<TextBlock Classes="muted" Text="{Binding TrainingText}" FontSize="13" />
+					<TextBlock Classes="muted" Text="The speed is hidden so the trainer can try speeds you would not pick. Switch modes below to see it." FontSize="11" TextWrapping="Wrap" />
+				</StackPanel>
+				<Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding ShowsSpeed}">
 					<StackPanel VerticalAlignment="Center">
 						<TextBlock
 							Text="{Binding SpeedText}"
@@ -203,7 +209,7 @@
 						<Button Grid.Column="1" Content="Stop" Padding="10,4" Background="Transparent" Foreground="{StaticResource Ink}" Command="{Binding CancelTrialCommand}" />
 					</Grid>
 				</Border>
-				<controls:SpeedRail
+				<controls:SpeedRail IsVisible="{Binding ShowsSpeed}"
 					Speed="{Binding Speed}"
 					Minimum="{x:Static vm:NowPlayingViewModel.MIN_SPEED}"
 					Maximum="{x:Static vm:NowPlayingViewModel.MAX_SPEED}"
@@ -242,15 +248,28 @@
 										Text="Custom in use: your own settings from Settings, Speed, Advanced." />
 
 									<Border Height="1" Background="{StaticResource Hairline}" />
-									<Grid ColumnDefinitions="*,Auto">
-										<TextBlock Text="Training" FontSize="15" VerticalAlignment="Center" />
-										<ToggleSwitch Grid.Column="1" IsChecked="{Binding TrainingEnabled}" OnContent="" OffContent="" />
-									</Grid>
-									<Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding TrainingEnabled}">
-										<TextBlock Text="{Binding TrainingStartText}" FontSize="14" VerticalAlignment="Center" />
-										<Button Grid.Column="1" Classes="quiet" Content="−" Padding="14,6" Command="{Binding TrainingStartHigherCommand}" ToolTip.Tip="Nearer the book's speed" />
-										<Button Grid.Column="2" Classes="quiet" Content="+" Padding="14,6" Command="{Binding TrainingStartLowerCommand}" ToolTip.Tip="Further below: a gentler warm-up" />
-									</Grid>
+									<TextBlock Text="Mode" FontSize="13" Foreground="{StaticResource Dust}" />
+									<UniformGrid Columns="3">
+										<ToggleButton Content="You choose" IsChecked="{Binding IsNormalMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="normal" Padding="6,8" Margin="0,0,4,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+										<ToggleButton Content="Training" IsChecked="{Binding IsTrainingMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="training" Padding="6,8" Margin="2,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+										<ToggleButton Content="Blind" IsChecked="{Binding IsBlindMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="blind" Padding="6,8" Margin="4,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+									</UniformGrid>
+									<StackPanel Spacing="6" IsVisible="{Binding !IsNormalMode}">
+										<TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+											Text="Training: the plan sets the speed, shown. Blind: the speed is hidden everywhere, and some blocks try untested speeds or repeat the last one, to learn where your edge is." />
+										<TextBlock Text="Plan" FontSize="13" Foreground="{StaticResource Dust}" />
+										<UniformGrid Columns="4">
+											<ToggleButton Content="Ramp" IsChecked="{Binding IsPlanRamp, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="ramp" Padding="2,6" Margin="0,0,3,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
+											<ToggleButton Content="Intervals" IsChecked="{Binding IsPlanIntervals, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="intervals" Padding="2,6" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
+											<ToggleButton Content="Pyramid" IsChecked="{Binding IsPlanPyramid, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="pyramid" Padding="2,6" Margin="1,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
+											<ToggleButton Content="Tracking" IsChecked="{Binding IsPlanTracking, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="tracking" Padding="2,6" Margin="3,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
+										</UniformGrid>
+										<Grid ColumnDefinitions="*,Auto,Auto">
+											<TextBlock Text="{Binding TrainingStartText}" FontSize="13" VerticalAlignment="Center" />
+											<Button Grid.Column="1" Classes="quiet" Content="−" Padding="14,4" Command="{Binding TrainingStartHigherCommand}" ToolTip.Tip="Nearer the book's speed" />
+											<Button Grid.Column="2" Classes="quiet" Content="+" Padding="14,4" Command="{Binding TrainingStartLowerCommand}" ToolTip.Tip="Further below: a gentler warm-up" />
+										</Grid>
+									</StackPanel>
 
 									<Border Height="1" Background="{StaticResource Hairline}" />
 									<Button Classes="quiet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="8,8" Command="{Binding StartTrialCommand}" IsVisible="{Binding !IsTrialRunning}">
@@ -272,7 +291,7 @@
 					</Button>
 					<StackPanel Grid.Column="1" VerticalAlignment="Center">
 						<TextBlock Text="Training" FontSize="14" HorizontalAlignment="Right" />
-						<TextBlock Text="{Binding TrainingText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" TextAlignment="Right" IsVisible="{Binding IsTraining}" />
+						<TextBlock Text="{Binding TrainingText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" TextAlignment="Right" IsVisible="{Binding IsTrainingMode}" />
 					</StackPanel>
 					<ToggleSwitch Grid.Column="2" IsChecked="{Binding TrainingEnabled}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
@@ -280,6 +299,24 @@
 		</Border>
 	</Grid>
 
+
+	<!-- Training: how well the block just played was followed. Playback carries on; the card goes in 20 seconds. -->
+	<Border VerticalAlignment="Top" Margin="16,60,16,0" Padding="12,10" CornerRadius="12" Background="{StaticResource Slate}"
+		BorderBrush="{StaticResource Lamp}" BorderThickness="1" IsVisible="{Binding IsAskingBlock}">
+		<StackPanel Spacing="8">
+			<Grid ColumnDefinitions="*,Auto">
+				<TextBlock Text="How well are you following?" FontSize="15" VerticalAlignment="Center" />
+				<Button Grid.Column="1" Classes="quiet" Content="Skip" Padding="8,2" Command="{Binding SkipBlockCommand}" />
+			</Grid>
+			<UniformGrid Columns="5">
+				<Button Classes="choice" Content="1" Command="{Binding RateBlockCommand}" CommandParameter="1" />
+				<Button Classes="choice" Content="2" Command="{Binding RateBlockCommand}" CommandParameter="2" />
+				<Button Classes="choice" Content="3" Command="{Binding RateBlockCommand}" CommandParameter="3" />
+				<Button Classes="choice" Content="4" Command="{Binding RateBlockCommand}" CommandParameter="4" />
+				<Button Classes="choice" Content="5" Command="{Binding RateBlockCommand}" CommandParameter="5" />
+			</UniformGrid>
+		</StackPanel>
+	</Border>
 
 	<!-- Questions for the listener's own research: after a session, and during a blind trial. -->
 	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"

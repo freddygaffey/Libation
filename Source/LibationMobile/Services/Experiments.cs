@@ -25,6 +25,11 @@ public record FollowRating(DateTimeOffset At, string BookId, string Title, int F
 public record ExperimentTrial(DateTimeOffset At, string BookId, string Title, double Speed, string Parameter,
 	double FirstValue, double SecondValue, int FirstFollow, int SecondFollow, int Preferred, double? SyllablesPerSecond);
 
+/// <summary>One block of a training session: what plan and kind, the speed, syllables a second, and the rating if asked.</summary>
+/// <param name="Blind">Played in blind training, with the speed hidden.</param>
+public record TrainingBlockLog(DateTimeOffset At, string BookId, string Title, string Plan, string Kind, double Speed,
+	double? SyllablesPerSecond, int? Rating, bool Blind, string? Profile);
+
 /// <summary>A setting a trial can vary, and the values worth comparing.</summary>
 public record ExperimentParameter(string Key, string Name, double[] Values, Func<double, string> Describe);
 
@@ -54,6 +59,7 @@ public class Experiments
 	{
 		public List<FollowRating> Ratings { get; set; } = [];
 		public List<ExperimentTrial> Trials { get; set; } = [];
+		public List<TrainingBlockLog> Blocks { get; set; } = [];
 	}
 
 	public Experiments(string dataDirectory)
@@ -70,6 +76,17 @@ public class Experiments
 		lock (locker)
 		{
 			store.Ratings.Add(rating);
+			Save();
+		}
+	}
+
+	public IReadOnlyList<TrainingBlockLog> Blocks { get { lock (locker) return store.Blocks.ToList(); } }
+
+	public void Add(TrainingBlockLog block)
+	{
+		lock (locker)
+		{
+			store.Blocks.Add(block);
 			Save();
 		}
 	}
@@ -156,6 +173,8 @@ public class Experiments
 			.Concat(Trials.Where(t => t.SyllablesPerSecond is > 0).SelectMany(t => new[] {
 				(Band: (int)(t.SyllablesPerSecond!.Value / 2) * 2, Follow: t.FirstFollow),
 				(Band: (int)(t.SyllablesPerSecond!.Value / 2) * 2, Follow: t.SecondFollow) }))
+			.Concat(Blocks.Where(b => b.Rating is int && b.SyllablesPerSecond is > 0)
+				.Select(b => (Band: (int)(b.SyllablesPerSecond!.Value / 2) * 2, Follow: b.Rating!.Value)))
 			.GroupBy(x => x.Band)
 			.OrderBy(g => g.Key)
 			.Select(g => (g.Key, g.Average(x => (double)x.Follow), g.Count()))

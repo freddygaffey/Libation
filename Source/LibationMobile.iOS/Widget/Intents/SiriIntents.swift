@@ -278,7 +278,7 @@ private func applySpeed(_ change: (Double) -> Double) -> String {
     state.save()
     WidgetCommand.post(WidgetCommand(command: "speed", bookId: state.bookId, speed: state.speed, at: now.timeIntervalSince1970))
     WidgetCenter.shared.reloadAllTimelines()
-    return "Libation is at \(WidgetState.formatSpeed(state.speed))."
+    return WidgetState.hiding ? "Done. The speed is hidden during blind training." : "Libation is at \(WidgetState.formatSpeed(state.speed))."
 }
 
 struct SpeedUpByIntent: AppIntent {
@@ -332,6 +332,7 @@ struct CurrentSpeedIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let state = WidgetState.load() else { return .result(dialog: "Nothing is playing in Libation.") }
+        if WidgetState.hiding { return .result(dialog: "\(state.title) is playing. The speed is hidden during blind training.") }
         return .result(dialog: "\(state.title) is at \(WidgetState.formatSpeed(state.speed)), \(WidgetState.formatLeft(state.remaining(at: Date()))).")
     }
 }
@@ -515,6 +516,7 @@ struct SpokenCommandIntent: AppIntent {
             return .result(dialog: "\(applySpeed { $0 + amount })")
         case .current:
             guard let state = WidgetState.load() else { return .result(dialog: "Nothing is playing in Libation.") }
+            if WidgetState.hiding { return .result(dialog: "\(state.title) is playing. The speed is hidden during blind training.") }
             return .result(dialog: "\(state.title) is at \(WidgetState.formatSpeed(state.speed)), \(WidgetState.formatLeft(state.remaining(at: Date()))).")
         case .pause:
             _ = try await PauseBookIntent().perform()

@@ -201,7 +201,6 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		store = new AudibleSeries(account);
 		pdfs = new BookPdfs(dataDirectory, store);
 		Experiments = new Experiments(dataDirectory);
-		Log.Experiments = Experiments;
 		Settings = new SettingsViewModel(settings, () => NowPlaying?.SettingsChanged(), speed => { if (NowPlaying is { } np) np.Speed = speed; })
 		{
 			currentSpeed = () => (float)(NowPlaying?.Speed ?? settings.Speed)
@@ -211,6 +210,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		var catalogForLog = (LibraryViewModel?)null;
 		Log = new ListeningLogViewModel(listeningLog, new AudibleStats(account, dataDirectory),
 			asin => catalogForLog?.Find(asin) is { } book ? (book.Title, book.Author) : null);
+		Log.Experiments = Experiments;
 		var catalog = new LibraryCatalog(dataDirectory);
 		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog, pdfs);
 		catalogForLog = Library;
@@ -780,6 +780,10 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				break;
 			case "pdf" when parts.Length > 1 && Library.Find(parts[1]) is { } pdfBook:
 				await OpenBookPdf(pdfBook);
+				break;
+			case "blind" when parts.Length > 1 && Library.Find(parts[1]) is { IsDownloaded: true } blindBook:
+				await LoadAsync(blindBook, showNowPlaying: true);
+				NowPlaying?.SetListeningModeCommand.Execute("blind");
 				break;
 			case "log":
 				ShowLog();

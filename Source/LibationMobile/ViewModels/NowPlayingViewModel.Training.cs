@@ -13,15 +13,12 @@ namespace LibationMobile.ViewModels;
 /// </summary>
 public partial class NowPlayingViewModel
 {
-	/// <summary>The speed the climb is heading for, while one is under way.</summary>
-	private double? trainingTarget;
-	private TimeSpan untilNextStep;
 	private DateTime lastTrainingTick = DateTime.MinValue;
 
 	[ObservableProperty]
 	private string trainingText = "";
 
-	public bool IsTraining => trainingTarget is not null;
+	public bool IsTraining => planner is not null;
 
 	/// <summary>The profiles, for the picker in the speed box.</summary>
 	public IReadOnlyList<ProfileChoice> Profiles => settings.Profiles.Select(p => new ProfileChoice(p, p.Name == settings.ActiveProfile)).ToList();
@@ -80,70 +77,143 @@ public partial class NowPlayingViewModel
 		RefreshMode();
 	}
 
-	/// <summary>
-	/// The player's training switch, the same setting as in Settings. On starts a warm-up now (or at the next play);
-	/// off part-way up goes straight to the book's speed.
-	/// </summary>
+	#region Modes: you choose, training, blind training
+
+	/// <summary>"normal" (you set the speed), "training" (a session plan sets it, shown) or "blind" (it sets it, hidden).</summary>
+	public string ListeningMode => !settings.Training ? "normal" : settings.BlindTraining ? "blind" : "training";
+	public bool IsNormalMode => ListeningMode == "normal";
+	public bool IsTrainingMode => ListeningMode == "training";
+	public bool IsBlindMode => ListeningMode == "blind";
+	public bool ShowsSpeed => !IsBlindMode;
+
+	[CommunityToolkit.Mvvm.Input.RelayCommand]
+	private void SetListeningMode(string mode)
+	{
+		var wasTraining = IsTraining;
+		settings.Training = mode != "normal";
+		settings.BlindTraining = mode == "blind";
+		if (mode == "normal")
+		{
+			// Back to the speed the listener set for this book.
+			if (wasTraining && settings.GetBookSpeed(Book.Id) is float own)
+				ApplySpeed(own, save: false);
+			StopTraining();
+		}
+		else
+		{
+			lastTrainingTick = DateTime.MinValue;
+			StopTraining();
+			if (sessionStarted is not null)
+				StartTraining();
+		}
+		RefreshModeDisplay();
+	}
+
+	/// <summary>The player's training switch: training on (shown or blind, as last chosen), or off.</summary>
 	public bool TrainingEnabled
 	{
 		get => settings.Training;
 		set
 		{
-			if (value == settings.Training)
-				return;
-			settings.Training = value;
-			OnPropertyChanged();
-			if (value)
-			{
-				lastTrainingTick = DateTime.MinValue;
-				if (sessionStarted is not null)
-					StartTraining();
-			}
-			else if (trainingTarget is double target)
-			{
-				if (Speed < target)
-					ApplySpeed(target, save: false);
-				StopTraining();
-			}
+			if (value != settings.Training)
+				SetListeningMode(value ? (settings.BlindTraining ? "blind" : "training") : "normal");
 		}
 	}
 
+	public bool IsPlanRamp => settings.TrainingPlan == "ramp";
+	public bool IsPlanIntervals => settings.TrainingPlan == "intervals";
+	public bool IsPlanPyramid => settings.TrainingPlan == "pyramid";
+	public bool IsPlanTracking => settings.TrainingPlan == "tracking";
+
+	[CommunityToolkit.Mvvm.Input.RelayCommand]
+	private void SetPlan(string plan)
+	{
+		settings.TrainingPlan = plan;
+		if (IsTraining)
+		{
+			StopTraining();
+			lastTrainingTick = DateTime.MinValue;
+			if (sessionStarted is not null)
+				StartTraining();
+		}
+		RefreshModeDisplay();
+	}
+
+	private void RefreshModeDisplay()
+	{
+		foreach (var name in new[] { nameof(ListeningMode), nameof(IsNormalMode), nameof(IsTrainingMode), nameof(IsBlindMode), nameof(ShowsSpeed),
+			nameof(TrainingEnabled), nameof(IsTraining), nameof(IsPlanRamp), nameof(IsPlanIntervals), nameof(IsPlanPyramid), nameof(IsPlanTracking),
+			nameof(SpeedText), nameof(RemainingText), nameof(ChapterRemainingText), nameof(ScrubberRemainingText), nameof(ScrubberDetailText) })
+			OnPropertyChanged(name);
+		UpdateSyllableRate();
+		UpdateTrainingText();
+		UpdateMediaSession();
+	}
+
+	#endregion
+
+	#region Session plans
+
+	private SessionPlanner? planner;
+	private SessionBlock? block;
+	private int blockNumber;
+	private TimeSpan blockLeft;
+	private TimeSpan blockSpent;
+	private double blockSyllables;
+	private int? lastBlockRating;
+
+	/// <summary>A block just ended that asks how well it was followed. The card goes after 20 seconds unanswered.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsAskingBlock))]
+	private SessionBlock? blockToRate;
+
+	private DateTime blockAskedAt;
+	private (SessionBlock Block, double? Syllables)? blockToLog;
+	private static readonly TimeSpan BlockQuestionLasts = TimeSpan.FromSeconds(20);
+
+	public bool IsAskingBlock => BlockToRate is not null;
+
 	private void StartTraining()
 	{
-		// A short break carries on the same climb; a longer one starts the warm-up again.
+		// A short break carries on the same session; a longer one starts the warm-up again.
 		var resuming = DateTime.UtcNow - lastTrainingTick < TimeSpan.FromMinutes(settings.TrainingRestartMinutes);
-		if (!settings.Training || resuming)
+		if (!settings.Training || resuming && planner is not null)
 			return;
 		var target = settings.GetBookSpeed(Book.Id) ?? Speed;
-		var start = settings.TrainingFromBelow
-			? Math.Max(1, target - settings.TrainingStartBelow)
-			: Math.Min(target, settings.TrainingStartSpeed);
-		if (start >= target && (!settings.TrainingClimb || target >= settings.TrainingCeiling))
-			return;
-		trainingTarget = target;
-		untilNextStep = TimeSpan.FromMinutes(settings.TrainingMinutes);
-		ApplySpeed(start, save: false);
+		var below = settings.TrainingFromBelow ? settings.TrainingStartBelow : Math.Max(0, target - settings.TrainingStartSpeed);
+		planner = new SessionPlanner(settings.TrainingPlan,
+			new PlanSettings(target, below, settings.TrainingStep, TimeSpan.FromMinutes(settings.TrainingMinutes),
+				settings.TrainingClimb ? Math.Max(target, settings.TrainingCeiling) : 10, settings.TrainingClimb),
+			settings.BlindTraining);
+		blockNumber = 0;
+		NextBlock();
 		OnPropertyChanged(nameof(IsTraining));
-		UpdateTrainingText();
 	}
 
-	/// <summary>
-	/// The listener changed the speed during a warm-up: the climb carries on from the new speed, with a full step's
-	/// time before the next rise. The book's own speed, where the climb is heading, is left as it was.
-	/// </summary>
-	private void AdjustTraining(double speed)
+	private void NextBlock()
 	{
-		ApplySpeed(speed, save: false);
-		untilNextStep = TimeSpan.FromMinutes(settings.TrainingMinutes);
+		if (planner is null)
+			return;
+		block = planner.Next(lastBlockRating);
+		lastBlockRating = null;
+		blockNumber++;
+		blockLeft = block.Length;
+		blockSpent = TimeSpan.Zero;
+		blockSyllables = 0;
+		ApplySpeed(block.Speed, save: false);
 		UpdateTrainingText();
 	}
 
-	/// <summary>Training was turned off, or the climb is over: leave the speed where it is.</summary>
+	/// <summary>The listener changed the speed during training: it holds until the next block, which follows the plan.</summary>
+	private void AdjustTraining(double speed) => ApplySpeed(speed, save: false);
+
+	/// <summary>Training was turned off: leave the speed where it is.</summary>
 	private void StopTraining()
 	{
-		if (trainingTarget is null)
-			return;
-		trainingTarget = null;
+		FlushBlockLog();
+		planner = null;
+		block = null;
+		BlockToRate = null;
 		OnPropertyChanged(nameof(IsTraining));
 		UpdateTrainingText();
 	}
@@ -152,49 +222,91 @@ public partial class NowPlayingViewModel
 	private void TrainingTick(TimeSpan listened)
 	{
 		lastTrainingTick = DateTime.UtcNow;
-		if (trainingTarget is not double target)
+		if (BlockToRate is not null && DateTime.UtcNow - blockAskedAt > BlockQuestionLasts)
+		{
+			BlockToRate = null;
+			FlushBlockLog();
+		}
+		if (block is null)
 			return;
 		if (!settings.Training)
 		{
 			StopTraining();
 			return;
 		}
-		untilNextStep -= listened;
-		if (untilNextStep <= TimeSpan.Zero)
+		blockLeft -= listened;
+		blockSpent += listened;
+		if (player.SourceSyllablesPerSecond is double rate)
+			blockSyllables += rate * (listened * Speed).TotalSeconds;
+		if (blockLeft <= TimeSpan.Zero)
 		{
-			untilNextStep = TimeSpan.FromMinutes(settings.TrainingMinutes);
-			var top = settings.TrainingClimb ? Math.Max(target, settings.TrainingCeiling) : target;
-			// Already there, or set past it by hand: the climb is done, at the listener's speed.
-			if (Speed >= top - 0.001)
+			var syllables = blockSpent > TimeSpan.Zero && blockSyllables > 0 ? blockSyllables / blockSpent.TotalSeconds : (double?)null;
+			FlushBlockLog();
+			blockToLog = (block, syllables);
+			if (block.AskAfter)
 			{
-				StopTraining();
-				return;
+				BlockToRate = block;
+				blockAskedAt = DateTime.UtcNow;
 			}
-			var next = Speed + settings.TrainingStep;
-			if (next >= top - 0.001)
-			{
-				ApplySpeed(top, save: top > target + 0.001);
-				StopTraining();
-				return;
-			}
-			// Past the book's speed, a climb is kept: next time starts from there.
-			ApplySpeed(next, save: next > target + 0.001);
+			else
+				FlushBlockLog();
+			NextBlock();
+			return;
 		}
 		UpdateTrainingText();
 	}
 
+	/// <summary>How well the block just played was followed: steers tracking, and goes in the log.</summary>
+	[CommunityToolkit.Mvvm.Input.RelayCommand]
+	private void RateBlock(string score)
+	{
+		if (int.TryParse(score, out var rating))
+		{
+			lastBlockRating = rating;
+			FlushBlockLog(rating);
+		}
+		BlockToRate = null;
+	}
+
+	[CommunityToolkit.Mvvm.Input.RelayCommand]
+	private void SkipBlock()
+	{
+		BlockToRate = null;
+		FlushBlockLog();
+	}
+
+	private void FlushBlockLog(int? rating = null)
+	{
+		if (blockToLog is not { } done || planner is null)
+			return;
+		blockToLog = null;
+		Experiments?.Add(new TrainingBlockLog(DateTimeOffset.Now, Book.Id, Title, planner.Plan, done.Block.Kind, done.Block.Speed,
+			done.Syllables, rating, planner.Blind, settings.ActiveProfile));
+	}
+
 	private void UpdateTrainingText()
 	{
-		if (trainingTarget is not double target)
+		if (block is null || planner is null)
 		{
 			TrainingText = "";
 			return;
 		}
-		// Where the climb really ends: past the book's speed to the ceiling when climbing.
-		var top = settings.TrainingClimb ? Math.Max(target, settings.TrainingCeiling) : target;
-		var wait = untilNextStep.TotalMinutes >= 1
-			? $"{(int)untilNextStep.TotalMinutes} min {untilNextStep.Seconds} s"
-			: $"{Math.Max(0, untilNextStep.Seconds)} s";
-		TrainingText = $"{Speed:0.0}× now, climbing to {top:0.0}×. Next +{settings.TrainingStep:0.0#}× in {wait}.";
+		var left = $"{(int)Math.Max(0, blockLeft.TotalMinutes)}:{Math.Max(0, blockLeft.Seconds):00}";
+		var plan = planner.Plan switch { "intervals" => "Intervals", "pyramid" => "Pyramid", "tracking" => "Tracking", _ => "Ramp" };
+		// Blind: nothing that gives the speed away, not even the kind of block.
+		TrainingText = planner.Blind
+			? $"Blind training · block {blockNumber} · {left} left"
+			: $"{plan} · {Kind(block.Kind)} · {Speed:0.0}× · {left} left";
 	}
+
+	private static string Kind(string kind) => kind switch
+	{
+		"warm-up" => "Warm-up",
+		"push" => "Push",
+		"recover" => "Recover",
+		"step" => "Step",
+		_ => "Hold",
+	};
+
+	#endregion
 }

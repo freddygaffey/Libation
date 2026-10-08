@@ -97,7 +97,7 @@ public partial class NowPlayingViewModel
 			return;
 		var chapter = HasChapters ? CurrentChapter : null;
 		widget.Show(new WidgetInfo(Book.Id, Title, Author, Book.Cover, Duration - player.Position, Speed, player.IsPlaying, Duration,
-			chapter?.Title, chapter is null ? null : chapter.EndOffset - player.Position, chapter?.Duration, settings.SkipSeconds));
+			chapter?.Title, chapter is null ? null : chapter.EndOffset - player.Position, chapter?.Duration, settings.SkipSeconds, IsBlindMode));
 	}
 
 	private void OnWidgetSpeedRequested(string bookId, double speed) => OnUi(() =>

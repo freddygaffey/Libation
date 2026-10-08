@@ -45,6 +45,8 @@ public class MobileSettings
 		public bool Training { get; set; }
 		public float TrainingStartSpeed { get; set; } = 3.5f;
 		public bool TrainingFromBelow { get; set; } = true;
+		public bool BlindTraining { get; set; }
+		public string TrainingPlan { get; set; } = "ramp";
 		public float TrainingStartBelow { get; set; } = 1f;
 		public float TrainingCeiling { get; set; } = 10f;
 		public float TrainingRestartMinutes { get; set; } = 10f;
@@ -356,6 +358,20 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.TrainingStartBelow; }
 		set { lock (locker) { state.TrainingStartBelow = Math.Clamp(value, 0.25f, 5f); Save(); } }
+	}
+
+	/// <summary>Training with the speed hidden everywhere, so the algorithm can try speeds and placebos unnoticed.</summary>
+	public bool BlindTraining
+	{
+		get { lock (locker) return state.BlindTraining; }
+		set { lock (locker) { state.BlindTraining = value; Save(); } }
+	}
+
+	/// <summary>"ramp", "intervals", "pyramid" or "tracking" (Services/SessionPlanner.cs).</summary>
+	public string TrainingPlan
+	{
+		get { lock (locker) return state.TrainingPlan; }
+		set { lock (locker) { state.TrainingPlan = value; Save(); } }
 	}
 
 	/// <summary>The fastest that keep climbing goes.</summary>

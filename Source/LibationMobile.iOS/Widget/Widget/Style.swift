@@ -134,7 +134,8 @@ struct ProgressBar: View {
 
 /// The notch at or below the speed: the one a slider marks as current.
 func currentStop(_ stops: [Double], _ speed: Double) -> Double {
-    stops.last { $0 <= speed + 0.001 } ?? stops[0]
+    // In blind training no notch is lit.
+    WidgetState.hiding ? -1 : stops.last { $0 <= speed + 0.001 } ?? stops[0]
 }
 
 /// A tap-to-set speed slider laid out across: a segment per notch, filled up to the current speed.
@@ -156,7 +157,7 @@ struct HorizontalSpeedSlider: View {
                             .fill(fill(stop, current))
                             .frame(height: stop == current ? barHeight + 4 : barHeight)
                             .frame(height: barHeight + 4)
-                        Text(labelled(stop) ? WidgetState.formatSpeed(stop) : " ")
+                        Text(labelled(stop) ? WidgetState.formatSpeedValue(stop) : " ")
                             .font(.system(size: labelSize, weight: stop == current ? .bold : .medium))
                             .foregroundStyle(stop == current ? (tinted ? Color.primary : Color.lamp) : (tinted ? Color.secondary : Color.dust))
                             .lineLimit(1)
@@ -187,7 +188,7 @@ struct VerticalSpeedSlider: View {
             ForEach(stops.reversed(), id: \.self) { stop in
                 Button(intent: SetSpeedIntent(speed: stop)) {
                     HStack(spacing: 5) {
-                        Text(WidgetState.formatSpeed(stop))
+                        Text(WidgetState.formatSpeedValue(stop))
                             .font(.system(size: 11, weight: stop == current ? .heavy : .medium))
                             .monospacedDigit()
                             .foregroundStyle(stop == current ? Color.lamp : Color.dust)

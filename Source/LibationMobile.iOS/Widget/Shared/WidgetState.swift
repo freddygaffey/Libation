@@ -21,6 +21,11 @@ struct WidgetState: Codable {
     var chapterDurationSeconds: Double?
     /// The app's skip length, for the skip buttons' labels.
     var skipSeconds: Double?
+    /// Blind training: the speed, and the time left that would give it away, are not shown anywhere.
+    var speedHidden: Bool?
+
+    /// Set as the state is read, for the formatting below: one book, one state, per widget or intent process.
+    static var hiding = false
 
     static let minSpeed = 0.5
     static let maxSpeed = 10.0
@@ -35,7 +40,9 @@ struct WidgetState: Codable {
     static let commandPosted = "io.github.freddygaffey.libation.widget.command"
 
     static func load() -> WidgetState? {
-        SharedKeychain.read("state").flatMap { try? JSONDecoder().decode(WidgetState.self, from: $0) }
+        let state = SharedKeychain.read("state").flatMap { try? JSONDecoder().decode(WidgetState.self, from: $0) }
+        hiding = state?.speedHidden ?? false
+        return state
     }
 
     func save() {
@@ -84,11 +91,18 @@ struct WidgetState: Codable {
 
     /// Like Audible: "3h 12m left", "12m left".
     static func formatLeft(_ seconds: Double) -> String {
+        if hiding { return "Blind training" }
         let minutes = Int(seconds / 60)
         return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m left" : "\(minutes)m left"
     }
 
+    /// A speed for showing as the current one: "?" in blind training.
     static func formatSpeed(_ speed: Double) -> String {
+        hiding ? "?" : formatSpeedValue(speed)
+    }
+
+    /// Any speed, such as a slider's notch: always shown.
+    static func formatSpeedValue(_ speed: Double) -> String {
         let rounded = (speed * 10).rounded() / 10
         return rounded == rounded.rounded() ? "\(Int(rounded))×" : String(format: "%.1f×", rounded)
     }

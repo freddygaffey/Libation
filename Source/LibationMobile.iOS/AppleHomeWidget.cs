@@ -30,7 +30,8 @@ public sealed class AppleHomeWidget : IHomeWidget
 	private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
 	private sealed record State(string BookId, string Title, string? Author, double RemainingSeconds, double Speed, bool IsPlaying, double UpdatedAt,
-		double DurationSeconds, string? ChapterTitle, double? ChapterRemainingSeconds, double? ChapterDurationSeconds, double SkipSeconds);
+		double DurationSeconds, string? ChapterTitle, double? ChapterRemainingSeconds, double? ChapterDurationSeconds, double SkipSeconds,
+		bool SpeedHidden);
 	private sealed record WidgetCommand(string Command, string? BookId, double? Speed, bool? Forward, double At);
 	private sealed record RecentBook(string BookId, string Title);
 	/// <summary>Books before the current one, for the large widget.</summary>
@@ -59,7 +60,8 @@ public sealed class AppleHomeWidget : IHomeWidget
 	{
 		var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
 		var state = new State(info.BookId, info.Title, info.Author, info.Remaining.TotalSeconds, info.Speed, info.IsPlaying, now,
-			info.Duration.TotalSeconds, info.ChapterTitle, info.ChapterRemaining?.TotalSeconds, info.ChapterDuration?.TotalSeconds, info.SkipSeconds);
+			info.Duration.TotalSeconds, info.ChapterTitle, info.ChapterRemaining?.TotalSeconds, info.ChapterDuration?.TotalSeconds, info.SkipSeconds,
+			info.SpeedHidden);
 		try
 		{
 			if (shown is { } previousBook && previousBook.BookId != info.BookId)
@@ -84,6 +86,7 @@ public sealed class AppleHomeWidget : IHomeWidget
 		var previous = shown;
 		shown = state;
 		if (previous is null || previous.BookId != state.BookId || previous.IsPlaying != state.IsPlaying || previous.ChapterTitle != state.ChapterTitle
+			|| previous.SpeedHidden != state.SpeedHidden
 			|| Math.Abs(previous.Speed - state.Speed) > 0.001 || Math.Abs(Predicted(previous, now) - state.RemainingSeconds) > 60)
 			Reload();
 	}
