@@ -48,6 +48,8 @@ public class MobileSettings
 		public bool AutoPauseHoursChosen { get; set; }
 		public bool UseHealthSleep { get; set; }
 		public int SleepTimerCustomMinutes { get; set; } = 20;
+		public double TargetSyllableRate { get; set; } = 12;
+		public bool UseTargetSyllableRate { get; set; }
 		public bool UseHeadMovement { get; set; } = true;
 		/// <summary>When each downloaded book's download was asked for, so a new download sorts as just listened to.</summary>
 		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
@@ -293,6 +295,20 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.UseHeadMovement; }
 		set { lock (locker) { state.UseHeadMovement = value; Save(); } }
+	}
+
+	/// <summary>Syllables a second to hold the speed at, when <see cref="UseTargetSyllableRate"/> is on.</summary>
+	public double TargetSyllableRate
+	{
+		get { lock (locker) return state.TargetSyllableRate; }
+		set { lock (locker) { state.TargetSyllableRate = Math.Round(Math.Clamp(value, 3, 40) * 2) / 2; Save(); } }
+	}
+
+	/// <summary>Set the speed from the narrator's measured syllable rate, so every book is heard at the same rate.</summary>
+	public bool UseTargetSyllableRate
+	{
+		get { lock (locker) return state.UseTargetSyllableRate; }
+		set { lock (locker) { state.UseTargetSyllableRate = value; Save(); } }
 	}
 
 	/// <summary>The sleep timer's own length, as last set.</summary>

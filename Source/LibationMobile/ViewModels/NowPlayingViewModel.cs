@@ -152,7 +152,10 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			if (IsTraining)
 				AdjustTraining(value);
 			else
+			{
 				ApplySpeed(value, save: true);
+				RetargetRate();
+			}
 		}
 	}
 
@@ -353,6 +356,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		UpdateCurrentChapter();
 		UpdateAnnotations();
 		UpdateSyllableRate();
+		TargetRateTick();
 		CountListening();
 		SleepTick();
 		SleepTimerTick();
