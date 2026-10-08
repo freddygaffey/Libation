@@ -220,7 +220,7 @@ public class MobileSettings
 	public float BaselineSpeed
 	{
 		get { lock (locker) return state.BaselineSpeed; }
-		set { lock (locker) { state.BaselineSpeed = Math.Clamp(value, 1f, 3.5f); Save(); } }
+		set { lock (locker) { state.BaselineSpeed = Math.Clamp(value, 1f, 10f); Save(); } }
 	}
 
 	public void AddListening(TimeSpan bookTime, TimeSpan timeSpent)

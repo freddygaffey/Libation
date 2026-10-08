@@ -163,20 +163,16 @@
 							<PathIcon Grid.Column="2" Data="{StaticResource IconChevronDown}" Width="14" Height="14" Foreground="{StaticResource Dust}" RenderTransform="rotate(-90deg)" />
 						</Grid>
 					</Button>
-					<Button Classes="settingsRow" Command="{Binding OpenPageCommand}" CommandParameter="account">
-						<Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-							<Border Width="34" Height="34" CornerRadius="8" Background="{StaticResource Lamp}">
-								<PathIcon Data="{StaticResource IconInfo}" Width="18" Height="18" Foreground="{StaticResource Ink}" />
-							</Border>
-							<StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-								<TextBlock Text="Account" FontSize="16" />
-								<TextBlock Classes="muted" Text="{Binding AccountSummary}" FontSize="12" TextTrimming="CharacterEllipsis" />
-							</StackPanel>
-							<PathIcon Grid.Column="2" Data="{StaticResource IconChevronDown}" Width="14" Height="14" Foreground="{StaticResource Dust}" RenderTransform="rotate(-90deg)" />
-						</Grid>
-					</Button>
 					</StackPanel>
 				</Border>
+				<!-- Signing out, at the foot: Audible's account, which the library needs. -->
+				<Button Classes="quiet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="14,12" Margin="0,18,0,0"
+					Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).SignOutCommand}">
+					<StackPanel Spacing="2">
+						<TextBlock Text="Sign out" FontSize="15" HorizontalAlignment="Center" Foreground="{StaticResource Lamp}" />
+						<TextBlock Classes="muted" Text="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).AccountText}" FontSize="12" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
 				</StackPanel>
 				<!-- Speed -->
 				<StackPanel IsVisible="{Binding IsSpeedPage}">
@@ -385,25 +381,141 @@
 					<Button Classes="choice" Classes.selected="{Binding IsClip45}" Content="45 s" Command="{Binding SetClipCommand}" CommandParameter="45" />
 				</StackPanel>
 				</StackPanel>
-				<!-- Siri and voice -->
+				<!-- Siri and voice: every command, as tables. -->
 				<StackPanel IsVisible="{Binding IsSiriPage}">
-				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Margin="0,0,0,8"
-					Text="Say Libation or Speed. Tap (i) for every command. After an update, open the app once so Siri learns them." />
-				<StackPanel Spacing="10" Margin="0,0,0,12" >
-					<StackPanel.Styles>
-						<Style Selector="TextBlock.say"><Setter Property="FontSize" Value="14" /><Setter Property="TextWrapping" Value="Wrap" /></Style>
-						<Style Selector="TextBlock.does"><Setter Property="FontSize" Value="12" /><Setter Property="TextWrapping" Value="Wrap" /><Setter Property="Foreground" Value="{StaticResource Dust}" /></Style>
-					</StackPanel.Styles>
-					<StackPanel><TextBlock Classes="say" Text="&quot;Hey Siri, Speed 7.3&quot; · &quot;set Libation to seven and a half&quot;" /><TextBlock Classes="does" Text="Any speed from 0.5× to 10×, to a tenth." /></StackPanel>
-					<StackPanel><TextBlock Classes="say" Text="&quot;Speed faster&quot; · &quot;Speed faster by 0.1&quot; · &quot;slow down Libation by a half&quot;" /><TextBlock Classes="does" Text="Up or down by 0.5×, or by an amount from 0.1 to 2: decimals or a tenth, a fifth, a half." /></StackPanel>
-					<StackPanel><TextBlock Classes="say" Text="&quot;Speed play&quot; · &quot;Speed pause&quot;" /><TextBlock Classes="does" Text="Play the last book (opens the app) or pause. Plain &quot;Hey Siri, pause&quot; and &quot;resume&quot; work too." /></StackPanel>
-					<StackPanel><TextBlock Classes="say" Text="&quot;Speed list&quot; · &quot;list my last 10 books in Libation&quot;" /><TextBlock Classes="does" Text="Reads your downloaded books and episodes, last listened first, numbered." /></StackPanel>
-					<StackPanel><TextBlock Classes="say" Text="&quot;Speed play number 3&quot;" /><TextBlock Classes="does" Text="Plays that one from the list." /></StackPanel>
-					<StackPanel><TextBlock Classes="say" Text="&quot;Speed play a book&quot;, then &quot;Dune&quot; · &quot;the Andy Weir one&quot; · &quot;number 2&quot;" /><TextBlock Classes="does" Text="Plays a book by title, author or number." /></StackPanel>
-					<StackPanel><TextBlock Classes="say" Text="&quot;Speed speed&quot; · &quot;what's my speed in Libation&quot;" /><TextBlock Classes="does" Text="The speed and the time left." /></StackPanel>
-					<StackPanel><TextBlock Classes="say" Text="&quot;Tell Libation&quot;, then anything" /><TextBlock Classes="does" Text="In your own words: &quot;a bit faster&quot;, &quot;seven point three&quot;, &quot;slower by a tenth&quot;, &quot;go back&quot;, &quot;list my books&quot;, &quot;pause&quot;." /></StackPanel>
-					<TextBlock Classes="does" Text="Every command is also an action in the Shortcuts app, with Set exact speed for any value. A shortcut you name yourself, such as &quot;faster&quot;, runs with no app name." />
-				</StackPanel>
+				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Margin="0,8,0,0"
+					Text="Start with &quot;Hey Siri,&quot; then say Libation or Speed. After an update, open the app once so Siri learns the commands." />
+				<TextBlock Classes="section" Text="Speed" Margin="0,18,0,8" />
+				<Border Background="{StaticResource Slate}" CornerRadius="10" ClipToBounds="True">
+					<StackPanel>
+						<Border Padding="12,8" Background="{StaticResource Hairline}">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="Say" FontSize="12" FontWeight="SemiBold" />
+								<TextBlock Grid.Column="1" Text="It does" FontSize="12" FontWeight="SemiBold" />
+							</Grid>
+						</Border>
+						<Border Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Speed 7.3&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Sets 7.3×. Any tenth from 0.5× to 10×." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Background="{StaticResource Ink}" Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Set Libation to seven and a half&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Sets 7.5×. Halves can be said as fractions." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Speed faster&quot; · &quot;Speed slower&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Up or down by 0.5×." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Background="{StaticResource Ink}" Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Speed faster by 0.1&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Up by an amount: 0.1 to 2, or a tenth, a fifth, a half." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Slow down Libation by a half&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Down by an amount." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Background="{StaticResource Ink}" Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Speed 2&quot;, with a book playing" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Siri's own speed command, also works." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+					</StackPanel>
+				</Border>
+				<TextBlock Classes="section" Text="Playing" Margin="0,18,0,8" />
+				<Border Background="{StaticResource Slate}" CornerRadius="10" ClipToBounds="True">
+					<StackPanel>
+						<Border Padding="12,8" Background="{StaticResource Hairline}">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="Say" FontSize="12" FontWeight="SemiBold" />
+								<TextBlock Grid.Column="1" Text="It does" FontSize="12" FontWeight="SemiBold" />
+							</Grid>
+						</Border>
+						<Border Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Speed play&quot; · &quot;Speed pause&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Play the last book (opens the app), or pause." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Background="{StaticResource Ink}" Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Pause&quot; · &quot;Resume&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Siri's own commands, for whatever is playing." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Speed list&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Reads your downloaded books, last listened first, numbered." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Background="{StaticResource Ink}" Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Speed play number 3&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Plays number 3 on that list." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Speed play a book&quot;, then &quot;Dune&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Plays a book by title, author or number." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Background="{StaticResource Ink}" Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Speed speed&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Tells you the speed and the time left." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+					</StackPanel>
+				</Border>
+				<TextBlock Classes="section" Text="In your own words" Margin="0,18,0,8" />
+				<Border Background="{StaticResource Slate}" CornerRadius="10" ClipToBounds="True">
+					<StackPanel>
+						<Border Padding="12,8" Background="{StaticResource Hairline}">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="Say" FontSize="12" FontWeight="SemiBold" />
+								<TextBlock Grid.Column="1" Text="It does" FontSize="12" FontWeight="SemiBold" />
+							</Grid>
+						</Border>
+						<Border Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;Tell Libation&quot;, then anything" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Siri asks what to do. Say it your way:" FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Background="{StaticResource Ink}" Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;a bit faster&quot; · &quot;seven point three&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Changes the speed." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;slower by a tenth&quot; · &quot;minus 0.2&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Changes it by that much." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+						<Border Background="{StaticResource Ink}" Padding="12,9" CornerRadius="0">
+							<Grid ColumnDefinitions="1.25*,*" ColumnSpacing="12">
+								<TextBlock Text="&quot;go back&quot; · &quot;pause&quot; · &quot;list my books&quot;" FontSize="14" TextWrapping="Wrap" />
+								<TextBlock Grid.Column="1" Classes="muted" Text="Skips, pauses or lists." FontSize="13" TextWrapping="Wrap" />
+							</Grid>
+						</Border>
+					</StackPanel>
+				</Border>
+				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="12" Margin="0,12,0,0"
+					Text="Every command is also an action in the Shortcuts app, with Set exact speed for any value. A shortcut you name yourself, such as &quot;faster&quot;, runs with no app name." />
 				</StackPanel>
 				<!-- Time saved -->
 				<StackPanel IsVisible="{Binding IsTimeSavedPage}">
@@ -418,7 +530,7 @@
 							<TextBlock Text="Compared with listening at" FontSize="14" VerticalAlignment="Center" />
 							<TextBlock Grid.Column="1" Text="{Binding BaselineText}" FontSize="14" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
 						</Grid>
-						<Slider Classes="scrubber" Minimum="1" Maximum="3.5" TickFrequency="0.25" IsSnapToTickEnabled="True" Value="{Binding BaselineSpeed}" />
+						<Slider Classes="scrubber" Minimum="1" Maximum="10" TickFrequency="0.25" IsSnapToTickEnabled="True" Value="{Binding BaselineSpeed}" />
 						<StackPanel Orientation="Horizontal" Spacing="8">
 							<Button Classes="quiet" Content="Listening log" Padding="12,8"
 								Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).ShowLogCommand}" />
@@ -448,12 +560,6 @@
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding HighQualityDownloads}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
-				</StackPanel>
-				<!-- Account -->
-				<StackPanel IsVisible="{Binding IsAccountPage}">
-				<TextBlock Classes="muted" FontSize="13" Text="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).AccountText}" />
-				<Button Classes="quiet" Content="Sign out" Margin="0,12,0,0" Padding="14,10"
-					Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).SignOutCommand}" />
 				</StackPanel>
 			</StackPanel>
 		</ScrollViewer>
