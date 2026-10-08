@@ -191,6 +191,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	private void UpdateSyllableRate()
 	{
+		UpdateSpeedChip();
 		SyllableRateText = !settings.ShowSyllableRate || IsBlindMode ? ""
 			: player.SourceSyllablesPerSecond is double rate && rate > 0 ? $"≈ {rate * Speed:0} syllables a second"
 			: "Measuring syllables a second…";

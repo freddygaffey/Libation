@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.ComponentModel;
 using System;
+using System.Collections.Generic;
 
 namespace LibationMobile.ViewModels;
 
@@ -17,8 +19,33 @@ public partial class NowPlayingViewModel
 
 	private DateTime nextTargetCheck;
 
+	public const double MIN_TARGET_RATE = 4;
+	public const double MAX_TARGET_RATE = 40;
+	public static IReadOnlyList<double> TargetRateStops { get; } = [5, 10, 15, 20, 25, 30, 35, 40];
+
 	public bool IsTargetRateOn => settings.UseTargetSyllableRate;
-	public string TargetRateText => $"{settings.TargetSyllableRate:0.0} syllables a second";
+	/// <summary>The Speed sheet's main control while on: in the sheet's big number and on the rail.</summary>
+	public bool ShowsTargetRate => ShowsSpeed && IsTargetRateOn;
+	public bool ShowsSpeedRail => ShowsSpeed && !IsTargetRateOn;
+	public string TargetRateText => $"{settings.TargetSyllableRate:0.0}";
+
+	/// <summary>The target, set from the rail or the ± buttons. The speed follows at once, from the rate last measured.</summary>
+	public double TargetRate
+	{
+		get => settings.TargetSyllableRate;
+		set
+		{
+			if (Math.Abs(value - settings.TargetSyllableRate) < 0.01)
+				return;
+			settings.TargetSyllableRate = value;
+			OnTargetRateChanged();
+			FollowTargetRate(now: true);
+		}
+	}
+
+	/// <summary>Below the target: the speed it takes with this narrator.</summary>
+	[ObservableProperty]
+	private string targetSpeedText = "";
 
 	[RelayCommand]
 	private void ToggleTargetRate()
@@ -26,7 +53,7 @@ public partial class NowPlayingViewModel
 		settings.UseTargetSyllableRate = !settings.UseTargetSyllableRate;
 		// Start from what is heard now, so turning it on does not jump the speed.
 		if (settings.UseTargetSyllableRate && HeardRate() is double heard)
-			settings.TargetSyllableRate = heard;
+			settings.TargetSyllableRate = Math.Clamp(heard, MIN_TARGET_RATE, MAX_TARGET_RATE);
 		nextTargetCheck = DateTime.MinValue;
 		LogEvent("mode", detail: settings.UseTargetSyllableRate ? $"target rate {settings.TargetSyllableRate:0.0}" : "target rate off");
 		OnTargetRateChanged();
@@ -34,17 +61,16 @@ public partial class NowPlayingViewModel
 
 	/// <summary>"+" or "-": a tenth of a syllable a second.</summary>
 	[RelayCommand]
-	private void NudgeTargetRate(string direction)
-	{
-		settings.TargetSyllableRate += direction == "-" ? -0.1 : 0.1;
-		nextTargetCheck = DateTime.MinValue;
-		OnTargetRateChanged();
-	}
+	private void NudgeTargetRate(string direction) => TargetRate = settings.TargetSyllableRate + (direction == "-" ? -0.1 : 0.1);
 
 	private void OnTargetRateChanged()
 	{
 		OnPropertyChanged(nameof(IsTargetRateOn));
+		OnPropertyChanged(nameof(ShowsTargetRate));
+		OnPropertyChanged(nameof(ShowsSpeedRail));
 		OnPropertyChanged(nameof(TargetRateText));
+		OnPropertyChanged(nameof(TargetRate));
+		UpdateSpeedChip();
 	}
 
 	private double? HeardRate() => player.SourceSyllablesPerSecond is double rate && rate > 0 ? rate * Speed : null;
@@ -57,22 +83,59 @@ public partial class NowPlayingViewModel
 		settings.TargetSyllableRate = heard;
 		nextTargetCheck = DateTime.UtcNow + TargetRateInterval;
 		OnPropertyChanged(nameof(TargetRateText));
+		OnPropertyChanged(nameof(TargetRate));
 	}
 
 	/// <summary>Each tick: every few seconds, move the speed toward the one that gives the target rate.</summary>
 	private void TargetRateTick()
 	{
-		var now = DateTime.UtcNow;
-		if (!settings.UseTargetSyllableRate || !IsPlaying || IsTraining || IsTrialRunning || now < nextTargetCheck)
+		if (IsPlaying && DateTime.UtcNow >= nextTargetCheck)
+			FollowTargetRate(now: false);
+	}
+
+	/// <param name="now">The listener just set the target: move straight to it, however small the change.</param>
+	private void FollowTargetRate(bool now)
+	{
+		if (!settings.UseTargetSyllableRate || IsTraining || IsTrialRunning)
 			return;
-		nextTargetCheck = now + TargetRateInterval;
+		nextTargetCheck = DateTime.UtcNow + TargetRateInterval;
 		if (player.SourceSyllablesPerSecond is not double rate || rate < 1)
 			return;
 		var wanted = Math.Clamp(settings.TargetSyllableRate / rate, MIN_SPEED, MAX_SPEED);
-		if (Math.Abs(wanted - Speed) < TargetRateDeadband)
+		if (Math.Abs(wanted - Speed) < (now ? 0.05 : TargetRateDeadband))
 			return;
 		speedSource = "rate";
 		ApplySpeed(wanted, save: true);
 		speedSource = "you";
+	}
+
+	/// <summary>The player's speed chip: × and syllables a second, the one in charge first.</summary>
+	[ObservableProperty]
+	private string speedChipPrimary = "";
+
+	[ObservableProperty]
+	private string speedChipSecondary = "";
+
+	/// <summary>Each tick, as the measured rate moves, and when the speed or mode changes.</summary>
+	private void UpdateSpeedChip()
+	{
+		var heard = HeardRate();
+		if (IsBlindMode)
+		{
+			SpeedChipPrimary = "Speed hidden";
+			SpeedChipSecondary = "";
+		}
+		else if (settings.UseTargetSyllableRate)
+		{
+			SpeedChipPrimary = $"{settings.TargetSyllableRate:0.0} syl/s";
+			SpeedChipSecondary = SpeedText;
+		}
+		else
+		{
+			SpeedChipPrimary = SpeedText;
+			SpeedChipSecondary = heard is double h ? $"{h:0.0} syl/s" : "";
+		}
+		TargetSpeedText = heard is double ? $"{SpeedText} with this narrator, heard at {heard:0.0} syllables a second"
+			: $"{SpeedText} · measuring the narrator…";
 	}
 }

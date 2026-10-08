@@ -108,9 +108,17 @@
 				<PathIcon Data="{StaticResource IconChevronDown}" />
 			</Button>
 			<!-- Everything else for the book: details, saved bookmarks and clips, history, settings. -->
-			<Button Grid.Column="2" Classes="transport" Width="48" Height="48" Margin="0,0,-12,0" Command="{Binding OpenSheetCommand}" CommandParameter="more" ToolTip.Tip="More">
-				<PathIcon Data="{StaticResource IconMore}" Width="22" Height="22" />
-			</Button>
+			<StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,-12,0">
+				<Button Classes="transport" Width="48" Height="48" Command="{Binding AddBookmarkCommand}" ToolTip.Tip="Bookmark">
+					<PathIcon Data="{StaticResource IconBookmark}" Width="18" Height="18" />
+				</Button>
+				<Button Classes="transport" Width="48" Height="48" Command="{Binding AddClipCommand}" ToolTip.Tip="Clip">
+					<PathIcon Data="{StaticResource IconClip}" Width="18" Height="18" />
+				</Button>
+				<Button Classes="transport" Width="48" Height="48" Command="{Binding OpenSheetCommand}" CommandParameter="more" ToolTip.Tip="More">
+					<PathIcon Data="{StaticResource IconMore}" Width="22" Height="22" />
+				</Button>
+			</StackPanel>
 		</Grid>
 
 		<Border
@@ -196,12 +204,6 @@
 				</Grid>
 			</Border>
 			<WrapPanel HorizontalAlignment="Center">
-				<Button Classes="chip lead" Command="{Binding OpenSheetCommand}" CommandParameter="speed">
-					<StackPanel Orientation="Horizontal" Spacing="6">
-						<PathIcon Data="{StaticResource IconSpeed}" Width="16" Height="16" />
-						<TextBlock Text="{Binding SpeedChipText}" FontSize="16" FontWeight="SemiBold" />
-					</StackPanel>
-				</Button>
 				<Button Classes="chip" Command="{Binding OpenSheetCommand}" CommandParameter="profile">
 					<StackPanel Orientation="Horizontal" Spacing="5">
 						<TextBlock Text="{Binding ProfileText}" FontSize="14" />
@@ -220,12 +222,6 @@
 						<TextBlock Text="{Binding ModeChipText}" FontSize="14" />
 					</StackPanel>
 				</Button>
-				<Button Classes="chip" Command="{Binding AddBookmarkCommand}" ToolTip.Tip="Bookmark">
-					<PathIcon Data="{StaticResource IconBookmark}" Width="15" Height="15" />
-				</Button>
-				<Button Classes="chip" Command="{Binding AddClipCommand}" ToolTip.Tip="Clip">
-					<PathIcon Data="{StaticResource IconClip}" Width="15" Height="15" />
-				</Button>
 			</WrapPanel>
 			<!-- What is running, and which of the phone's data is in use. Tap for the Sleep settings and permissions. -->
 			<Button Background="Transparent" Padding="4,2" HorizontalAlignment="Center" IsVisible="{Binding HasStatusLine}"
@@ -233,6 +229,15 @@
 				<StackPanel Orientation="Horizontal" Spacing="6">
 					<Ellipse Width="6" Height="6" Fill="{StaticResource Lamp}" VerticalAlignment="Center" />
 					<TextBlock Classes="muted" Text="{Binding StatusLine}" FontSize="12" TextTrimming="CharacterEllipsis" />
+				</StackPanel>
+			</Button>
+			<!-- Speed, as × and as syllables a second heard; whichever is in charge comes first. -->
+			<Button Classes="chip lead" HorizontalAlignment="Center" Padding="18,8" Command="{Binding OpenSheetCommand}" CommandParameter="speed">
+				<StackPanel Orientation="Horizontal" Spacing="8">
+					<PathIcon Data="{StaticResource IconSpeed}" Width="16" Height="16" VerticalAlignment="Center" />
+					<TextBlock Text="{Binding SpeedChipPrimary}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+					<TextBlock Text="{Binding SpeedChipSecondary}" FontSize="14" Foreground="{StaticResource Dust}" VerticalAlignment="Center"
+						IsVisible="{Binding SpeedChipSecondary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 				</StackPanel>
 			</Button>
 		</StackPanel>
@@ -251,7 +256,38 @@
 						<TextBlock Classes="muted" Text="{Binding TrainingText}" FontSize="13" />
 						<TextBlock Classes="muted" Text="The speed is hidden so the trainer can try speeds you would not pick. Switch modes below to see it." FontSize="11" TextWrapping="Wrap" />
 					</StackPanel>
-					<Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding ShowsSpeed}">
+					<Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowsSpeed}">
+						<StackPanel VerticalAlignment="Center">
+							<TextBlock Text="Follow the narrator" FontSize="15" />
+							<TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+								Text="Set syllables a second instead of ×: slow narrators sped up more, fast ones less." />
+						</StackPanel>
+						<ToggleSwitch Grid.Column="1" IsChecked="{Binding IsTargetRateOn, Mode=OneWay}" Command="{Binding ToggleTargetRateCommand}" OnContent="" OffContent="" />
+					</Grid>
+					<Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding ShowsTargetRate}">
+						<StackPanel VerticalAlignment="Center">
+							<TextBlock FontFamily="{StaticResource DisplayFont}" FontWeight="Light">
+								<Run Text="{Binding TargetRateText}" FontSize="52" />
+								<Run Text=" syllables/s" FontSize="18" />
+							</TextBlock>
+							<TextBlock Classes="muted" Text="{Binding TargetSpeedText}" FontSize="12" TextWrapping="Wrap" />
+						</StackPanel>
+						<Button Grid.Column="1" Classes="transport" Width="48" Height="48" Command="{Binding NudgeTargetRateCommand}" CommandParameter="-">
+							<PathIcon Data="{StaticResource IconMinus}" />
+						</Button>
+						<Button Grid.Column="2" Classes="transport" Width="48" Height="48" Command="{Binding NudgeTargetRateCommand}" CommandParameter="+">
+							<PathIcon Data="{StaticResource IconPlus}" />
+						</Button>
+					</Grid>
+					<controls:SpeedRail IsVisible="{Binding ShowsTargetRate}"
+						Speed="{Binding TargetRate}"
+						Logarithmic="False"
+						TickStep="1"
+						Unit=""
+						Minimum="{x:Static vm:NowPlayingViewModel.MIN_TARGET_RATE}"
+						Maximum="{x:Static vm:NowPlayingViewModel.MAX_TARGET_RATE}"
+						Stops="{x:Static vm:NowPlayingViewModel.TargetRateStops}" />
+					<Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding ShowsSpeedRail}">
 						<StackPanel VerticalAlignment="Center">
 							<TextBlock
 								Text="{Binding SpeedText}"
@@ -270,30 +306,11 @@
 							<PathIcon Data="{StaticResource IconPlus}" />
 						</Button>
 					</Grid>
-					<controls:SpeedRail IsVisible="{Binding ShowsSpeed}"
+					<controls:SpeedRail IsVisible="{Binding ShowsSpeedRail}"
 						Speed="{Binding Speed}"
 						Minimum="{x:Static vm:NowPlayingViewModel.MIN_SPEED}"
 						Maximum="{x:Static vm:NowPlayingViewModel.MAX_SPEED}"
 						Stops="{x:Static vm:NowPlayingViewModel.SpeedStops}" />
-					<StackPanel IsVisible="{Binding ShowsSpeed}" Spacing="6">
-						<Grid ColumnDefinitions="*,Auto">
-							<StackPanel VerticalAlignment="Center">
-								<TextBlock Text="Follow the narrator" FontSize="15" />
-								<TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-									Text="Holds a syllable rate: slow narrators sped up more, fast ones less. Moving the speed sets a new rate." />
-							</StackPanel>
-							<ToggleSwitch Grid.Column="1" IsChecked="{Binding IsTargetRateOn, Mode=OneWay}" Command="{Binding ToggleTargetRateCommand}" OnContent="" OffContent="" />
-						</Grid>
-						<Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" IsVisible="{Binding IsTargetRateOn}">
-							<TextBlock Text="{Binding TargetRateText}" Foreground="{StaticResource Lamp}" FontSize="14" VerticalAlignment="Center" />
-							<Button Grid.Column="1" Classes="transport" Width="40" Height="40" Command="{Binding NudgeTargetRateCommand}" CommandParameter="-">
-								<PathIcon Data="{StaticResource IconMinus}" />
-							</Button>
-							<Button Grid.Column="2" Classes="transport" Width="40" Height="40" Command="{Binding NudgeTargetRateCommand}" CommandParameter="+">
-								<PathIcon Data="{StaticResource IconPlus}" />
-							</Button>
-						</Grid>
-					</StackPanel>
 					<Border Height="1" Background="{StaticResource Hairline}" />
 					<Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
 						<TextBlock Text="Method" FontSize="15" VerticalAlignment="Center" />

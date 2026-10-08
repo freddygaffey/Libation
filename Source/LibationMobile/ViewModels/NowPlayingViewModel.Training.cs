@@ -159,7 +159,7 @@ public partial class NowPlayingViewModel
 
 	private void RefreshModeDisplay()
 	{
-		foreach (var name in new[] { nameof(ListeningMode), nameof(IsNormalMode), nameof(IsTrainingMode), nameof(IsBlindMode), nameof(ShowsSpeed),
+		foreach (var name in new[] { nameof(ListeningMode), nameof(IsNormalMode), nameof(IsTrainingMode), nameof(IsBlindMode), nameof(ShowsSpeed), nameof(ShowsTargetRate), nameof(ShowsSpeedRail),
 			nameof(TrainingEnabled), nameof(IsTraining), nameof(IsPlanRamp), nameof(IsPlanIntervals), nameof(IsPlanPyramid), nameof(IsPlanTracking),
 			nameof(SpeedText), nameof(RemainingText), nameof(ChapterRemainingText), nameof(ScrubberRemainingText), nameof(ScrubberDetailText) })
 			OnPropertyChanged(name);
