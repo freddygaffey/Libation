@@ -43,7 +43,7 @@ public class MobileSettings
 		/// <summary>When each downloaded book's download was asked for, so a new download sorts as just listened to.</summary>
 		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
 		public bool Training { get; set; }
-		public float TrainingStartSpeed { get; set; } = 3f;
+		public float TrainingStartSpeed { get; set; } = 3.5f;
 		public float TrainingCeiling { get; set; } = 10f;
 		public float TrainingRestartMinutes { get; set; } = 10f;
 		public float PauseCap { get; set; }
@@ -52,17 +52,20 @@ public class MobileSettings
 		public float RhythmGap { get; set; }
 		public float RhythmRate { get; set; } = 6f;
 		public float TrainingStep { get; set; } = 0.1f;
-		public float TrainingMinutes { get; set; } = 2f;
+		public float TrainingMinutes { get; set; } = 1.5f;
 		public bool TrainingClimb { get; set; }
 		public bool ShowSyllableRate { get; set; } = true;
 		public Dictionary<string, SpeedProfile> Profiles { get; set; } = new();
 		public string? ActiveProfile { get; set; }
+		/// <summary>Which set of defaults the saved values were made with, to move ones never changed to newer defaults.</summary>
+		public int DefaultsVersion { get; set; }
 	}
 
 	public MobileSettings(string path)
 	{
 		this.path = path;
 		state = Load(path);
+		UpgradeDefaults();
 		AudioBackend.Nonlinearity = state.Nonlinearity;
 		AudioBackend.UseNonlinear = state.UseNonlinearSpeed;
 		AudioBackend.PauseCap = state.PauseCap;
@@ -70,6 +73,20 @@ public class MobileSettings
 		AudioBackend.SpeedFloor = state.SpeedFloor;
 		AudioBackend.RhythmGap = state.RhythmGap;
 		AudioBackend.RhythmRate = state.RhythmRate;
+	}
+
+	/// <summary>Move settings still at an old default to the current one; anything the listener chose stays.</summary>
+	private void UpgradeDefaults()
+	{
+		if (state.DefaultsVersion >= 2)
+			return;
+		// 2026-10-08: training starts higher and climbs sooner, for listeners already at 3.5x without a warm-up.
+		if (state.TrainingStartSpeed == 3f)
+			state.TrainingStartSpeed = 3.5f;
+		if (state.TrainingMinutes == 2f)
+			state.TrainingMinutes = 1.5f;
+		state.DefaultsVersion = 2;
+		Save();
 	}
 
 	/// <summary>Speed up with speechwarp (true) or with the original even method (false).</summary>
@@ -506,13 +523,13 @@ public record SpeedProfile(string Name, float Speed, bool UseNonlinear, float No
 	public static readonly IReadOnlyList<SpeedProfile> Defaults =
 	[
 		// Relaxed: Speedy as designed, nothing else.
-		new("Casual", 2f, true, 1f, 0f, true, 0f, 0f, 6f),
-		// Study and textbooks: moderate speed, every part of the speech at least 60% of the speed, so nothing is rushed.
-		new("School", 1.8f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
+		new("Casual", 2.5f, true, 1f, 0f, true, 0f, 0f, 6f),
+		// Study and textbooks: every part of the speech at least 60% of the speed, so nothing is rushed.
+		new("School", 2.5f, true, 0.7f, 0f, true, 0.6f, 0f, 6f),
 		// Fast and still comfortable: pauses shortened, the hardest sounds kept at half speed or more.
-		new("Hard", 4f, true, 1f, 0.06f, true, 0.5f, 0f, 6f),
+		new("Hard", 5f, true, 1f, 0.06f, true, 0.5f, 0f, 6f),
 		// Record attempts: everything the research suggests at 6x and above, rhythm gaps included.
-		new("Max", 7f, true, 1f, 0.04f, true, 0.5f, 0.04f, 6f),
+		new("Max", 8f, true, 1f, 0.04f, true, 0.55f, 0.04f, 6f),
 	];
 }
 
