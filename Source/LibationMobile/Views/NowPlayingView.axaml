@@ -19,6 +19,15 @@
 		<Style Selector="ListBox.chapters ListBoxItem:selected /template/ ContentPresenter, ListBox.chapters ListBoxItem:pointerover /template/ ContentPresenter, ListBox.chapters ListBoxItem:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="Transparent" />
 		</Style>
+		<Style Selector="Button.choice">
+			<Setter Property="Background" Value="{StaticResource Ink}" />
+			<Setter Property="Foreground" Value="{StaticResource Paper}" />
+			<Setter Property="Padding" Value="0,10" />
+			<Setter Property="Margin" Value="3,0" />
+			<Setter Property="HorizontalAlignment" Value="Stretch" />
+			<Setter Property="HorizontalContentAlignment" Value="Center" />
+			<Setter Property="CornerRadius" Value="8" />
+		</Style>
 		<Style Selector="Button.labelled">
 			<Setter Property="Background" Value="Transparent" />
 			<Setter Property="Foreground" Value="{StaticResource Paper}" />
@@ -188,6 +197,12 @@
 						<PathIcon Data="{StaticResource IconPlus}" />
 					</Button>
 				</Grid>
+				<Border Background="{StaticResource Lamp}" CornerRadius="6" Padding="10,6" IsVisible="{Binding IsTrialPlaying}">
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Text="{Binding TrialStatus}" Foreground="{StaticResource Ink}" FontSize="13" VerticalAlignment="Center" />
+						<Button Grid.Column="1" Content="Stop" Padding="10,4" Background="Transparent" Foreground="{StaticResource Ink}" Command="{Binding CancelTrialCommand}" />
+					</Grid>
+				</Border>
 				<controls:SpeedRail
 					Speed="{Binding Speed}"
 					Minimum="{x:Static vm:NowPlayingViewModel.MIN_SPEED}"
@@ -238,6 +253,14 @@
 									</Grid>
 
 									<Border Height="1" Background="{StaticResource Hairline}" />
+									<Button Classes="quiet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="8,8" Command="{Binding StartTrialCommand}" IsVisible="{Binding !IsTrialRunning}">
+										<StackPanel Spacing="1">
+											<TextBlock Text="Run a blind trial" FontSize="15" />
+											<TextBlock Classes="muted" Text="Two 2-minute parts with one setting changed, not shown. Rate each, then see which it was." FontSize="11" TextWrapping="Wrap" />
+										</StackPanel>
+									</Button>
+
+									<Border Height="1" Background="{StaticResource Hairline}" />
 									<Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
 										<TextBlock Text="Method" FontSize="15" VerticalAlignment="Center" />
 										<ToggleButton Grid.Column="1" Content="Speedy" IsChecked="{Binding IsSpeedy, Mode=OneWay}" Command="{Binding SetMethodCommand}" CommandParameter="speedy" Padding="12,6" />
@@ -256,6 +279,57 @@
 			</StackPanel>
 		</Border>
 	</Grid>
+
+
+	<!-- Questions for the listener's own research: after a session, and during a blind trial. -->
+	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
+		BorderBrush="{StaticResource Lamp}" BorderThickness="1"
+		IsVisible="{Binding IsAskingFollow}">
+		<StackPanel Spacing="10">
+			<TextBlock Text="How well did you follow that?" FontSize="16" />
+			<TextBlock Classes="muted" Text="1 lost it · 3 got the gist · 5 every word" FontSize="12" />
+			<UniformGrid Columns="5">
+				<Button Classes="choice" Content="1" Command="{Binding RateFollowCommand}" CommandParameter="1" />
+				<Button Classes="choice" Content="2" Command="{Binding RateFollowCommand}" CommandParameter="2" />
+				<Button Classes="choice" Content="3" Command="{Binding RateFollowCommand}" CommandParameter="3" />
+				<Button Classes="choice" Content="4" Command="{Binding RateFollowCommand}" CommandParameter="4" />
+				<Button Classes="choice" Content="5" Command="{Binding RateFollowCommand}" CommandParameter="5" />
+			</UniformGrid>
+			<Button Classes="quiet" Content="Skip" HorizontalAlignment="Right" Padding="10,4" Command="{Binding SkipFollowCommand}" />
+		</StackPanel>
+	</Border>
+	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
+		BorderBrush="{StaticResource Lamp}" BorderThickness="1"
+		IsVisible="{Binding IsTrialRunning}">
+		<Panel>
+			<StackPanel Spacing="10" IsVisible="{Binding IsAskingTrialFollow}">
+				<TextBlock Text="{Binding TrialQuestion}" FontSize="16" />
+				<TextBlock Classes="muted" Text="1 lost it · 3 got the gist · 5 every word" FontSize="12" />
+				<UniformGrid Columns="5">
+					<Button Classes="choice" Content="1" Command="{Binding RateTrialPartCommand}" CommandParameter="1" />
+					<Button Classes="choice" Content="2" Command="{Binding RateTrialPartCommand}" CommandParameter="2" />
+					<Button Classes="choice" Content="3" Command="{Binding RateTrialPartCommand}" CommandParameter="3" />
+					<Button Classes="choice" Content="4" Command="{Binding RateTrialPartCommand}" CommandParameter="4" />
+					<Button Classes="choice" Content="5" Command="{Binding RateTrialPartCommand}" CommandParameter="5" />
+				</UniformGrid>
+				<Button Classes="quiet" Content="Stop the trial" HorizontalAlignment="Right" Padding="10,4" Command="{Binding CancelTrialCommand}" />
+			</StackPanel>
+			<StackPanel Spacing="10" IsVisible="{Binding IsAskingPreference}">
+				<TextBlock Text="Which was easier to follow?" FontSize="16" />
+				<UniformGrid Columns="3">
+					<Button Classes="choice" Content="Part 1" Command="{Binding PreferTrialPartCommand}" CommandParameter="-1" />
+					<Button Classes="choice" Content="Same" Command="{Binding PreferTrialPartCommand}" CommandParameter="0" />
+					<Button Classes="choice" Content="Part 2" Command="{Binding PreferTrialPartCommand}" CommandParameter="1" />
+				</UniformGrid>
+			</StackPanel>
+			<StackPanel Spacing="10" IsVisible="{Binding IsShowingTrialResult}">
+				<TextBlock Text="What you heard" FontSize="16" />
+				<TextBlock Text="{Binding TrialResult}" FontSize="13" TextWrapping="Wrap" />
+				<TextBlock Classes="muted" Text="Saved. Results build up on the stats page." FontSize="12" />
+				<Button Classes="quiet" Content="Back to the book" HorizontalAlignment="Right" Padding="10,4" Command="{Binding FinishTrialCommand}" />
+			</StackPanel>
+		</Panel>
+	</Border>
 
 	<!-- Chapter list: over the player, so closing it returns exactly where you were. -->
 	<Grid RowDefinitions="Auto,*" Background="{StaticResource Ink}" IsVisible="{Binding IsChapterListOpen}">

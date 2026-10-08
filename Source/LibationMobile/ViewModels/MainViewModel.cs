@@ -180,6 +180,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	}
 
 	private readonly BookPdfs pdfs;
+	public Experiments Experiments { get; }
 
 	/// <summary>Play the book on the details page, or download it if it is not on the device.</summary>
 	[RelayCommand]
@@ -199,6 +200,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		annotations = new AudibleAnnotations(account, settings);
 		store = new AudibleSeries(account);
 		pdfs = new BookPdfs(dataDirectory, store);
+		Experiments = new Experiments(dataDirectory);
+		Log.Experiments = Experiments;
 		Settings = new SettingsViewModel(settings, () => NowPlaying?.SettingsChanged(), speed => { if (NowPlaying is { } np) np.Speed = speed; })
 		{
 			currentSpeed = () => (float)(NowPlaying?.Speed ?? settings.Speed)
@@ -561,6 +564,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	/// <summary>Keep the playing book's library row in step with playback, not just with the last save.</summary>
 	partial void OnNowPlayingChanged(NowPlayingViewModel? oldValue, NowPlayingViewModel? newValue)
 	{
+		if (newValue is not null)
+			newValue.Experiments = Experiments;
 		Library.PlayingBookId = newValue?.Book.Id;
 		// The book playing goes to the top of Siri's list.
 		RefreshPlayableBooks();

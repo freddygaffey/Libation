@@ -348,6 +348,13 @@
 				<TextBlock Classes="section" Text="Measuring" />
 				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
 					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Ask how well I followed" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="After a session of 5 minutes or more, one tap from 1 to 5. Saved with the speed, syllables a second and settings, for your own research on the stats page." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding AskFollowRating}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+					<StackPanel VerticalAlignment="Center">
 						<TextBlock Text="Show syllables a second" FontSize="15" />
 						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Under the speed in the player, measured from the audio. The usual measure in speech research: untrained listeners manage about 8, trained blind screen-reader users 17 to 22." />
 					</StackPanel>

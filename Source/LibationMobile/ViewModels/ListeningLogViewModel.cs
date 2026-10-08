@@ -38,6 +38,12 @@ public record ChartBar(string Label, double AudibleHeight, double LibationHeight
 /// <summary>A book finished, with when.</summary>
 public record FinishedRow(string Title, string? Author, string DateText);
 
+/// <summary>How well sessions were followed at a rate of syllables a second, as a bar.</summary>
+public record FollowBar(string Label, double Height, string ValueText);
+
+/// <summary>A setting's results in one speed band, as lines of text.</summary>
+public record ResearchRow(string Title, IReadOnlyList<string> Lines, string? Verdict);
+
 /// <summary>A figure at the top of the page: "312 h", "total listening".</summary>
 public record StatTile(string Value, string Label);
 
@@ -98,6 +104,41 @@ public partial class ListeningLogViewModel : ObservableObject
 	[ObservableProperty]
 	private string? audibleStatus;
 
+	/// <summary>The listener's own research, from ratings and blind trials. Set by the main view model.</summary>
+	public Experiments? Experiments { get; set; }
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(HasResearch))]
+	private IReadOnlyList<FollowBar> followBars = [];
+
+	[ObservableProperty]
+	private IReadOnlyList<ResearchRow> research = [];
+
+	[ObservableProperty]
+	private string researchSummary = "";
+
+	public bool HasResearch => FollowBars.Count > 0 || Research.Count > 0;
+
+	private void BuildResearch()
+	{
+		if (Experiments is not { } experiments)
+			return;
+		var follow = experiments.FollowBySyllables();
+		FollowBars = follow.Select(f => new FollowBar($"{f.From}", 60 * f.MeanFollow / 5, $"{f.MeanFollow:0.0} from {f.Count}")).ToList();
+		Research = experiments.Results()
+			.Select(r => new ResearchRow($"{r.Parameter.Name}, {r.Band}× to {r.Band + 1}×",
+				r.Values.Select(v => $"{v.Description}: won {v.Won}, lost {v.Lost}, same {v.Tied}; followed {v.MeanFollow:0.0} on average ({v.Heard} heard)").ToList(),
+				r.Verdict))
+			.ToList();
+		// The ceiling: the fastest band still followed well (4 or more on average).
+		var ceiling = follow.Where(f => f.MeanFollow >= 4).Select(f => f.From + 2).DefaultIfEmpty().Max();
+		var ratings = experiments.Ratings.Count;
+		var trials = experiments.Trials.Count;
+		ResearchSummary = ratings + trials == 0
+			? "Rate sessions and run blind trials from the player's mode panel; what works for you builds up here."
+			: $"{ratings} session ratings, {trials} blind trials." + (ceiling > 0 ? $" You follow well up to about {ceiling} syllables a second." : "");
+	}
+
 	[ObservableProperty]
 	private bool isRefreshing;
 
@@ -118,6 +159,7 @@ public partial class ListeningLogViewModel : ObservableObject
 			.Select(g => new LogDayViewModel(g.Key, g.ToList()))
 			.ToList();
 		Build(audible?.Cached);
+		BuildResearch();
 		if (audible?.Cached is not { } cached || DateTimeOffset.Now - cached.Fetched > TimeSpan.FromHours(1))
 			_ = RefreshFromAudibleAsync();
 	}

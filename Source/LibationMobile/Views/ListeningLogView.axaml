@@ -110,6 +110,46 @@
 					</Panel>
 				</Grid>
 
+				<!-- The listener's own research: how well followed against syllables a second, and blind trial results. -->
+				<TextBlock Text="Your research" FontFamily="{StaticResource DisplayFont}" FontSize="20" Margin="24,20,24,4" />
+				<TextBlock Classes="muted" Text="{Binding Log.ResearchSummary}" FontSize="13" TextWrapping="Wrap" Margin="24,0,24,8" />
+				<Border Background="{StaticResource Slate}" CornerRadius="6" Padding="14,12" Margin="24,0,24,8" IsVisible="{Binding Log.FollowBars.Count}">
+					<StackPanel Spacing="6">
+						<TextBlock Text="How well you followed, by syllables a second" FontSize="14" />
+						<ItemsControl ItemsSource="{Binding Log.FollowBars}" Height="84">
+							<ItemsControl.ItemsPanel>
+								<ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6" /></ItemsPanelTemplate>
+							</ItemsControl.ItemsPanel>
+							<ItemsControl.ItemTemplate>
+								<DataTemplate x:DataType="vm:FollowBar">
+									<Grid RowDefinitions="*,Auto" Width="30" ToolTip.Tip="{Binding ValueText}">
+										<Border Height="{Binding Height}" VerticalAlignment="Bottom" Background="{StaticResource Lamp}" CornerRadius="2,2,0,0" />
+										<TextBlock Grid.Row="1" Classes="muted" Text="{Binding Label}" FontSize="10" HorizontalAlignment="Center" />
+									</Grid>
+								</DataTemplate>
+							</ItemsControl.ItemTemplate>
+						</ItemsControl>
+						<TextBlock Classes="muted" Text="Bar height: average rating out of 5. Label: syllables a second, from." FontSize="11" />
+					</StackPanel>
+				</Border>
+				<ItemsControl ItemsSource="{Binding Log.Research}" Margin="24,0,24,0">
+					<ItemsControl.ItemTemplate>
+						<DataTemplate x:DataType="vm:ResearchRow">
+							<Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource Hairline}" Padding="0,8">
+								<StackPanel Spacing="2">
+									<TextBlock Text="{Binding Title}" FontSize="15" />
+									<ItemsControl ItemsSource="{Binding Lines}">
+										<ItemsControl.ItemTemplate>
+											<DataTemplate><TextBlock Classes="muted" Text="{Binding}" FontSize="12" TextWrapping="Wrap" /></DataTemplate>
+										</ItemsControl.ItemTemplate>
+									</ItemsControl>
+									<TextBlock Text="{Binding Verdict}" FontSize="12" Foreground="{StaticResource Lamp}" IsVisible="{Binding Verdict, Converter={x:Static ObjectConverters.IsNotNull}}" />
+								</StackPanel>
+							</Border>
+						</DataTemplate>
+					</ItemsControl.ItemTemplate>
+				</ItemsControl>
+
 				<!-- Finished on Audible, newest first. -->
 				<StackPanel IsVisible="{Binding Log.HasFinished}" Margin="0,16,0,0">
 					<TextBlock Text="Recently finished" FontFamily="{StaticResource DisplayFont}" FontSize="20" Margin="24,0,24,6" />

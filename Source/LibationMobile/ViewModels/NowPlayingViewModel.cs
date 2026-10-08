@@ -374,6 +374,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		if (listening && lastListeningTick is DateTime last && now - last < LongestCountedTick)
 		{
 			TrainingTick(now - last);
+			TrialTick(now - last);
 			uncountedTimeSpent += now - last;
 			uncountedBookTime += (now - last) * Speed;
 			sessionSpent += now - last;
@@ -412,6 +413,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	private void EndSession()
 	{
+		OfferFollowRating(sessionSpent, sessionSyllables);
 		if (sessionStarted is DateTimeOffset started && sessionSpent >= ShortestLoggedSession)
 			log?.Add(new ListeningSession(Book.Id, Title, started, DateTimeOffset.Now, sessionFrom, Position,
 				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed, sessionMarks.Count > 0 ? sessionMarks.ToList() : null,

@@ -222,6 +222,12 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 		}
 	}
 
+	public bool AskFollowRating
+	{
+		get => settings.AskFollowRating;
+		set { settings.AskFollowRating = value; OnPropertyChanged(); }
+	}
+
 	public bool ShowSyllableRate
 	{
 		get => settings.ShowSyllableRate;

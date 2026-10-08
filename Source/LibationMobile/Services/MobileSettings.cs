@@ -57,6 +57,7 @@ public class MobileSettings
 		public float TrainingMinutes { get; set; } = 1.5f;
 		public bool TrainingClimb { get; set; }
 		public bool ShowSyllableRate { get; set; } = true;
+		public bool AskFollowRating { get; set; } = true;
 		public Dictionary<string, SpeedProfile> Profiles { get; set; } = new();
 		public string? ActiveProfile { get; set; }
 		/// <summary>Which set of defaults the saved values were made with, to move ones never changed to newer defaults.</summary>
@@ -423,6 +424,13 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.RhythmRate; }
 		set { lock (locker) { state.RhythmRate = value; Save(); } AudioBackend.RhythmRate = value; }
+	}
+
+	/// <summary>After a session of 5 minutes or more, ask how well it was followed, for the listener's own research.</summary>
+	public bool AskFollowRating
+	{
+		get { lock (locker) return state.AskFollowRating; }
+		set { lock (locker) { state.AskFollowRating = value; Save(); } }
 	}
 
 	/// <summary>Show syllables a second under the speed in the player.</summary>
