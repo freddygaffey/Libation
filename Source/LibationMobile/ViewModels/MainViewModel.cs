@@ -167,16 +167,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 					await OpenUri(await store.GetPdfLinkAsync(asin));
 				return;
 			}
-			var path = Path.Combine(pdfDirectory, asin + ".pdf");
-			if (!File.Exists(path))
-			{
+			if (!pdfs.Has(asin))
 				Say("Downloading the PDF…");
-				Directory.CreateDirectory(pdfDirectory);
-				var link = await store.GetPdfLinkAsync(asin);
-				var partial = path + ".partial";
-				await Task.Run(() => BookDownloader.DownloadFileAsync(link.ToString(), partial, _ => { }, default));
-				File.Move(partial, path, overwrite: true);
-			}
+			var path = await pdfs.EnsureAsync(asin);
 			Say(null);
 			viewer.Show(path, item.Title);
 		}
@@ -186,7 +179,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		}
 	}
 
-	private readonly string pdfDirectory;
+	private readonly BookPdfs pdfs;
 
 	/// <summary>Play the book on the details page, or download it if it is not on the device.</summary>
 	[RelayCommand]
@@ -202,10 +195,10 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 	public MainViewModel(string dataDirectory)
 	{
 		settings = new MobileSettings(Path.Combine(dataDirectory, "settings.json"));
-		pdfDirectory = Path.Combine(dataDirectory, "Pdfs");
 		account = new AudibleAccount(Path.Combine(dataDirectory, "audible-identity.json"), settings);
 		annotations = new AudibleAnnotations(account, settings);
 		store = new AudibleSeries(account);
+		pdfs = new BookPdfs(dataDirectory, store);
 		Settings = new SettingsViewModel(settings, () => NowPlaying?.SettingsChanged(), speed => { if (NowPlaying is { } np) np.Speed = speed; })
 		{
 			currentSpeed = () => (float)(NowPlaying?.Speed ?? settings.Speed)
@@ -216,7 +209,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		Log = new ListeningLogViewModel(listeningLog, new AudibleStats(account, dataDirectory),
 			asin => catalogForLog?.Find(asin) is { } book ? (book.Title, book.Author) : null);
 		var catalog = new LibraryCatalog(dataDirectory);
-		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog);
+		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog, pdfs);
 		catalogForLog = Library;
 		Podcasts = new PodcastsViewModel(new PodcastLibrary(dataDirectory), settings);
 		Podcasts.PlayRequested += row => _ = PlayEpisodeAsync(row);

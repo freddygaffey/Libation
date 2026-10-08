@@ -128,6 +128,7 @@ public partial class LibraryViewModel : ObservableObject
 	private readonly MobileSettings settings;
 	private readonly AudibleAnnotations annotations;
 	private readonly ListeningLog listeningLog;
+	private readonly BookPdfs? pdfs;
 	private List<BookItemViewModel> allBooks = [];
 	private DateTime lastPositionRefresh = DateTime.MinValue;
 
@@ -269,8 +270,9 @@ public partial class LibraryViewModel : ObservableObject
 	public bool IsLibraryEmpty => IsLoaded && !IsSyncing && allBooks.Count == 0;
 	public bool IsDownloadedEmpty => IsLoaded && ShowDownloadedOnly && !IsSearching && !HasActiveFilters && Books.Count == 0 && allBooks.Count > 0;
 
-	public LibraryViewModel(LibraryCatalog catalog, AudibleAccount account, BookDownloader downloader, MobileSettings settings, AudibleAnnotations annotations, ListeningLog listeningLog)
+	public LibraryViewModel(LibraryCatalog catalog, AudibleAccount account, BookDownloader downloader, MobileSettings settings, AudibleAnnotations annotations, ListeningLog listeningLog, BookPdfs? pdfs = null)
 	{
+		this.pdfs = pdfs;
 		this.listeningLog = listeningLog;
 		this.annotations = annotations;
 		this.catalog = catalog;
@@ -294,6 +296,7 @@ public partial class LibraryViewModel : ObservableObject
 		SetBooks(await catalog.LoadAsync());
 		IsLoaded = true;
 		ResumeDownloads();
+		_ = FetchMissingPdfsAsync();
 		if (allBooks.Count == 0)
 			await SyncAsync();
 		else
@@ -383,6 +386,19 @@ public partial class LibraryViewModel : ObservableObject
 			var api = await account.GetApiAsync();
 			await Task.Run(() => downloader.DownloadAsync(api, item.Book, progress, cancellation.Token));
 			item.State = DownloadState.Downloaded;
+			// The PDF that comes with it, so it opens offline. A failure leaves the book downloaded; it is fetched on opening.
+			if (item.Book.HasPdf && pdfs is not null)
+				_ = Task.Run(async () =>
+				{
+					try
+					{
+						await pdfs.EnsureAsync(item.Book.Asin);
+					}
+					catch (Exception ex)
+					{
+						Console.WriteLine($"PDF for {item.Book.Asin} not downloaded: {ex.Message}");
+					}
+				});
 		}
 		catch (OperationCanceledException)
 		{
@@ -403,6 +419,24 @@ public partial class LibraryViewModel : ObservableObject
 		}
 	}
 
+	/// <summary>PDFs for books downloaded before PDFs came with them, one at a time in the background.</summary>
+	private async Task FetchMissingPdfsAsync()
+	{
+		if (pdfs is null)
+			return;
+		foreach (var item in allBooks.Where(b => b.IsDownloaded && b.Book.HasPdf && !pdfs.Has(b.Book.Asin)).ToList())
+		{
+			try
+			{
+				await pdfs.EnsureAsync(item.Book.Asin);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"PDF for {item.Book.Asin} not downloaded: {ex.Message}");
+			}
+		}
+	}
+
 	/// <summary>Carry on with downloads that were under way when the app was closed.</summary>
 	private void ResumeDownloads()
 	{
@@ -420,6 +454,7 @@ public partial class LibraryViewModel : ObservableObject
 	public void RemoveDownload(BookItemViewModel item)
 	{
 		catalog.DeleteDownload(item.Book.Asin);
+		pdfs?.Delete(item.Book.Asin);
 		settings.SetDownloadTime(item.Book.Asin, null);
 		item.State = DownloadState.NotDownloaded;
 		RefreshItem(item);
