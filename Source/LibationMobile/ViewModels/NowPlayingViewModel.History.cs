@@ -92,7 +92,8 @@ public partial class NowPlayingViewModel
 	private ListeningSession? CurrentSession()
 		=> sessionStarted is DateTimeOffset started
 			? new ListeningSession(Book.Id, Title, started, DateTimeOffset.Now, sessionFrom, Position,
-				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed, sessionMarks.ToList())
+				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed, sessionMarks.ToList(),
+				sessionSyllables > 0 ? Math.Round(sessionSyllables) : null)
 			: null;
 
 	private void StartMarks()

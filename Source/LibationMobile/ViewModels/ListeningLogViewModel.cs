@@ -16,7 +16,8 @@ public class LogEntryViewModel(ListeningSession session)
 	public string TimeText { get; } = $"{session.Started.ToLocalTime():t} to {session.Ended.ToLocalTime():t}";
 	public string DetailText { get; } =
 		$"{Describe(TimeSpan.FromSeconds(session.SpentSeconds))} at {session.Speed:0.0}×, heard {Describe(TimeSpan.FromSeconds(session.BookSeconds))} " +
-		$"({NowPlayingViewModel.FormatTime(session.From)} to {NowPlayingViewModel.FormatTime(session.To)})";
+		$"({NowPlayingViewModel.FormatTime(session.From)} to {NowPlayingViewModel.FormatTime(session.To)})" +
+		(session.Syllables is > 0 && session.SpentSeconds > 0 ? $", {session.Syllables / session.SpentSeconds:0} syllables a second" : "");
 
 	internal static string Describe(TimeSpan time)
 		=> time.TotalHours >= 1 ? $"{(int)time.TotalHours} h {time.Minutes} min" : time.TotalMinutes >= 1 ? $"{(int)time.TotalMinutes} min" : $"{time.Seconds} s";
@@ -65,11 +66,25 @@ public partial class ListeningLogViewModel : ObservableObject
 	[ObservableProperty]
 	private IReadOnlyList<ChartBar> bars = [];
 
+	/// <summary>"day" (30 days), "month" (12 months) or "year" (every year).</summary>
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsByMonth))]
-	private bool isByDay = true;
+	[NotifyPropertyChangedFor(nameof(IsByDay), nameof(IsByMonth), nameof(IsByYear), nameof(CanPage))]
+	private string chartScale = "day";
 
-	public bool IsByMonth => !IsByDay;
+	public bool IsByDay => ChartScale == "day";
+	public bool IsByMonth => ChartScale == "month";
+	public bool IsByYear => ChartScale == "year";
+	public bool CanPage => !IsByYear;
+
+	/// <summary>How many pages back from now: 1 is the 30 days or 12 months before the latest.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(CanGoNewer))]
+	private int pagesBack;
+
+	public bool CanGoNewer => PagesBack > 0;
+
+	[ObservableProperty]
+	private string chartTitle = "";
 
 	[ObservableProperty]
 	private string chartTotalText = "";
@@ -128,16 +143,34 @@ public partial class ListeningLogViewModel : ObservableObject
 	}
 
 	[RelayCommand]
-	private void ShowByDay()
+	private void ShowByDay() => SetScale("day");
+
+	[RelayCommand]
+	private void ShowByMonth() => SetScale("month");
+
+	[RelayCommand]
+	private void ShowByYear() => SetScale("year");
+
+	private void SetScale(string scale)
 	{
-		IsByDay = true;
+		ChartScale = scale;
+		PagesBack = 0;
 		Build(audible?.Cached);
 	}
 
 	[RelayCommand]
-	private void ShowByMonth()
+	private void Older()
 	{
-		IsByDay = false;
+		PagesBack++;
+		Build(audible?.Cached);
+	}
+
+	[RelayCommand]
+	private void Newer()
+	{
+		if (PagesBack == 0)
+			return;
+		PagesBack--;
 		Build(audible?.Cached);
 	}
 
@@ -159,23 +192,56 @@ public partial class ListeningLogViewModel : ObservableObject
 			localByDay.GetValueOrDefault(day) + AudibleDay(day) >= 1.0 / 60; day = day.AddDays(-1))
 			streak++;
 		var finishedThisYear = (stats?.Finished ?? []).Count(f => f.Finished && f.At.ToLocalTime().Year == today.Year);
+		// Measured in Libation: book time against real time, and syllables heard against real time.
+		var spent = sessions.Sum(s => s.SpentSeconds);
+		var heard = sessions.Sum(s => s.BookSeconds);
+		var counted = sessions.Where(s => s.Syllables is > 0).ToList();
+		var syllablesPerSecond = counted.Sum(s => s.SpentSeconds) is > 60 and var countedSpent ? counted.Sum(s => s.Syllables!.Value) / countedSpent : (double?)null;
 		Tiles =
 		[
 			new(Hours(total), stats is null ? "listened here" : "listened, all apps"),
 			new(Hours(thisMonth), today.ToString("MMMM", CultureInfo.CurrentCulture)),
 			new(streak == 1 ? "1 day" : $"{streak} days", "streak"),
 			new(stats is null ? "–" : finishedThisYear.ToString(CultureInfo.CurrentCulture), $"finished in {today.Year}"),
+			new(spent > 0 ? $"{heard / spent:0.0}×" : "–", "average speed here"),
+			new(syllablesPerSecond is double sps ? $"{sps:0}" : "–", "syllables a second heard"),
+			new(Hours(Math.Max(0, heard - spent) / 3600), "saved here, against 1×"),
+			new(counted.Count > 0 ? $"{counted.Sum(s => s.Syllables!.Value) / 1000:0}k" : "–", "syllables heard here"),
 		];
 
-		// Chart: the last 30 days or 12 months, oldest first.
-		var points = IsByDay
-			? Enumerable.Range(0, 30).Select(i => today.AddDays(i - 29)).Select(d => (Label: d.Day.ToString(CultureInfo.CurrentCulture), Audible: AudibleDay(d), Local: localByDay.GetValueOrDefault(d), Show: (29 - (today - d).Days) % 5 == 4))
-			: Enumerable.Range(0, 12).Select(i => new DateTime(today.Year, today.Month, 1).AddMonths(i - 11)).Select(m => (Label: m.ToString("MMM", CultureInfo.CurrentCulture)[..1], Audible: AudibleMonth(m), Local: LocalMonth(m), Show: true));
-		var list = points.ToList();
+		// Chart: 30 days or 12 months, oldest first, paged back through the history; or every year.
+		double AudibleYear(int year) => stats?.MonthlyMs.Where(m => m.Key.StartsWith(year.ToString(CultureInfo.InvariantCulture))).Sum(m => m.Value) / 3.6e6 ?? 0;
+		double LocalYear(int year) => localByDay.Where(d => d.Key.Year == year).Sum(d => d.Value);
+		List<(string Label, double Audible, double Local, bool Show)> list;
+		if (IsByDay)
+		{
+			var last = today.AddDays(-30 * PagesBack);
+			list = Enumerable.Range(0, 30).Select(i => last.AddDays(i - 29))
+				.Select(d => (d.Day.ToString(CultureInfo.CurrentCulture), AudibleDay(d), localByDay.GetValueOrDefault(d), (29 - (last - d).Days) % 5 == 4)).ToList();
+			ChartTitle = PagesBack == 0 ? "Last 30 days" : $"{last.AddDays(-29):d MMM} to {last:d MMM yyyy}";
+		}
+		else if (IsByMonth)
+		{
+			var lastMonth = new DateTime(today.Year, today.Month, 1).AddMonths(-12 * PagesBack);
+			list = Enumerable.Range(0, 12).Select(i => lastMonth.AddMonths(i - 11))
+				.Select(m => (m.ToString("MMM", CultureInfo.CurrentCulture)[..1], AudibleMonth(m), LocalMonth(m), true)).ToList();
+			ChartTitle = PagesBack == 0 ? "Last 12 months" : $"{lastMonth.AddMonths(-11):MMM yyyy} to {lastMonth:MMM yyyy}";
+		}
+		else
+		{
+			var years = (stats?.MonthlyMs.Keys.AsEnumerable() ?? []).Select(k => int.Parse(k[..4], CultureInfo.InvariantCulture))
+				.Concat(localByDay.Keys.Select(d => d.Year)).Append(today.Year).ToList();
+			var first = years.Min();
+			list = Enumerable.Range(first, today.Year - first + 1)
+				.Select(y => ($"'{y % 100:00}", AudibleYear(y), LocalYear(y), true)).ToList();
+			ChartTitle = $"Every year since {first}";
+		}
 		var tallest = Math.Max(list.Max(p => p.Audible + p.Local), 1.0 / 60);
 		Bars = list.Select(p => new ChartBar(p.Label, CHART_HEIGHT * p.Audible / tallest, CHART_HEIGHT * p.Local / tallest, Hours(p.Audible + p.Local), p.Show)).ToList();
 		var sum = list.Sum(p => p.Audible + p.Local);
-		ChartTotalText = IsByDay ? $"{Hours(sum)} in 30 days, {Hours(sum / 30)} a day" : $"{Hours(sum)} in 12 months, {Hours(sum / 12)} a month";
+		ChartTotalText = IsByDay ? $"{Hours(sum)}, {Hours(sum / 30)} a day"
+			: IsByMonth ? $"{Hours(sum)}, {Hours(sum / 12)} a month"
+			: $"{Hours(sum)} in all, {Hours(sum / list.Count)} a year";
 
 		// Recently finished, on Audible.
 		Finished = (stats?.Finished ?? []).Where(f => f.Finished).Take(15)

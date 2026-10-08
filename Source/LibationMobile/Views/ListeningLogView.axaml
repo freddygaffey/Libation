@@ -56,10 +56,19 @@
 				<!-- Listening by day or month: the Audible app and Libation stacked. -->
 				<Border Background="{StaticResource Slate}" CornerRadius="6" Padding="14,12" Margin="24,8,24,0">
 					<StackPanel Spacing="8">
-						<Grid ColumnDefinitions="*,Auto,Auto">
-							<TextBlock Text="Listening" FontSize="15" VerticalAlignment="Center" />
-							<Button Grid.Column="1" Classes="choice" Classes.selected="{Binding Log.IsByDay}" Content="30 days" Command="{Binding Log.ShowByDayCommand}" Margin="0,0,6,0" />
-							<Button Grid.Column="2" Classes="choice" Classes.selected="{Binding Log.IsByMonth}" Content="12 months" Command="{Binding Log.ShowByMonthCommand}" />
+						<StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+							<Button Classes="choice" Classes.selected="{Binding Log.IsByDay}" Content="30 days" Command="{Binding Log.ShowByDayCommand}" />
+							<Button Classes="choice" Classes.selected="{Binding Log.IsByMonth}" Content="12 months" Command="{Binding Log.ShowByMonthCommand}" />
+							<Button Classes="choice" Classes.selected="{Binding Log.IsByYear}" Content="Years" Command="{Binding Log.ShowByYearCommand}" />
+						</StackPanel>
+						<Grid ColumnDefinitions="Auto,*,Auto">
+							<Button Classes="transport" Width="40" Height="40" Command="{Binding Log.OlderCommand}" IsVisible="{Binding Log.CanPage}" ToolTip.Tip="Earlier">
+								<PathIcon Data="{StaticResource IconChevronDown}" Width="16" Height="16" RenderTransform="rotate(90deg)" />
+							</Button>
+							<TextBlock Grid.Column="1" Text="{Binding Log.ChartTitle}" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+							<Button Grid.Column="2" Classes="transport" Width="40" Height="40" Command="{Binding Log.NewerCommand}" IsVisible="{Binding Log.CanPage}" IsEnabled="{Binding Log.CanGoNewer}" ToolTip.Tip="Later">
+								<PathIcon Data="{StaticResource IconChevronDown}" Width="16" Height="16" RenderTransform="rotate(-90deg)" />
+							</Button>
 						</Grid>
 						<ItemsControl ItemsSource="{Binding Log.Bars}" Height="140">
 							<ItemsControl.ItemsPanel>

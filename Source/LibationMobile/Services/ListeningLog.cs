@@ -14,6 +14,7 @@ namespace LibationMobile.Services;
 /// <param name="BookSeconds">How much of the book was heard, at normal speed.</param>
 /// <param name="SpentSeconds">How long the listening took.</param>
 /// <param name="Marks">Where in the book the listener was every few minutes, to find the place again after dozing off.</param>
+/// <param name="Syllables">Syllables heard, measured from the audio (AudioFilePlayer.SourceSyllablesPerSecond). Null before this was recorded.</param>
 public record ListeningSession(
 	string BookId,
 	string Title,
@@ -24,7 +25,8 @@ public record ListeningSession(
 	double BookSeconds,
 	double SpentSeconds,
 	float Speed,
-	IReadOnlyList<ListeningMark>? Marks = null);
+	IReadOnlyList<ListeningMark>? Marks = null,
+	double? Syllables = null);
 
 /// <summary>Where in the book the listener was at a moment in a session.</summary>
 public record ListeningMark(DateTimeOffset At, TimeSpan Position);

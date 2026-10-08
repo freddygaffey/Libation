@@ -378,6 +378,9 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			uncountedBookTime += (now - last) * Speed;
 			sessionSpent += now - last;
 			sessionBookTime += (now - last) * Speed;
+			// Syllables heard: the book's own rate, measured from the audio, over the book time just played.
+			if (player.SourceSyllablesPerSecond is double rate)
+				sessionSyllables += rate * ((now - last) * Speed).TotalSeconds;
 		}
 		lastListeningTick = listening ? now : null;
 
@@ -386,6 +389,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			sessionStarted = DateTimeOffset.Now;
 			sessionFrom = Position;
 			sessionSpent = sessionBookTime = TimeSpan.Zero;
+			sessionSyllables = 0;
 			StartMarks();
 			StartTraining();
 		}
@@ -402,6 +406,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	private TimeSpan sessionFrom;
 	private TimeSpan sessionSpent;
 	private TimeSpan sessionBookTime;
+	private double sessionSyllables;
 	/// <summary>Shorter stretches, such as checking where a chapter starts, are not worth a line in the log.</summary>
 	private static readonly TimeSpan ShortestLoggedSession = TimeSpan.FromSeconds(30);
 
@@ -409,7 +414,8 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	{
 		if (sessionStarted is DateTimeOffset started && sessionSpent >= ShortestLoggedSession)
 			log?.Add(new ListeningSession(Book.Id, Title, started, DateTimeOffset.Now, sessionFrom, Position,
-				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed, sessionMarks.Count > 0 ? sessionMarks.ToList() : null));
+				sessionBookTime.TotalSeconds, sessionSpent.TotalSeconds, (float)Speed, sessionMarks.Count > 0 ? sessionMarks.ToList() : null,
+				sessionSyllables > 0 ? Math.Round(sessionSyllables) : null));
 		sessionStarted = null;
 	}
 
