@@ -123,6 +123,18 @@
 							<PathIcon Grid.Column="2" Data="{StaticResource IconChevronDown}" Width="14" Height="14" Foreground="{StaticResource Dust}" RenderTransform="rotate(-90deg)" />
 						</Grid>
 					</Button>
+					<Button Classes="settingsRow" Command="{Binding OpenPageCommand}" CommandParameter="sleep">
+						<Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+							<Border Width="34" Height="34" CornerRadius="8" Background="{StaticResource Lamp}">
+								<PathIcon Data="{StaticResource IconMoon}" Width="18" Height="18" Foreground="{StaticResource Ink}" />
+							</Border>
+							<StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+								<TextBlock Text="Sleep" FontSize="16" />
+								<TextBlock Classes="muted" Text="{Binding SleepSummary}" FontSize="12" TextTrimming="CharacterEllipsis" />
+							</StackPanel>
+							<PathIcon Grid.Column="2" Data="{StaticResource IconChevronDown}" Width="14" Height="14" Foreground="{StaticResource Dust}" RenderTransform="rotate(-90deg)" />
+						</Grid>
+					</Button>
 					<Button Classes="settingsRow" Command="{Binding OpenPageCommand}" CommandParameter="siri">
 						<Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
 							<Border Width="34" Height="34" CornerRadius="8" Background="{StaticResource Lamp}">
@@ -135,7 +147,7 @@
 							<PathIcon Grid.Column="2" Data="{StaticResource IconChevronDown}" Width="14" Height="14" Foreground="{StaticResource Dust}" RenderTransform="rotate(-90deg)" />
 						</Grid>
 					</Button>
-					<Button Classes="settingsRow" Command="{Binding OpenPageCommand}" CommandParameter="timesaved">
+					<Button Classes="settingsRow" Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).ShowLogCommand}">
 						<Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
 							<Border Width="34" Height="34" CornerRadius="8" Background="{StaticResource Lamp}">
 								<PathIcon Data="{StaticResource IconHistory}" Width="18" Height="18" Foreground="{StaticResource Ink}" />
@@ -367,42 +379,6 @@
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding ScrubByChapter}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
-				<!-- Auto-pause when asleep -->
-				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-					<StackPanel VerticalAlignment="Center">
-						<TextBlock Text="Pause when you fall asleep" FontSize="15" />
-						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
-							Text="After a while with no touch, and your head (with AirPods that report it) or the phone lying still, the sound fades for 30 seconds, then pauses. Touch anything to keep listening." />
-					</StackPanel>
-					<ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPauseAsleep}" OnContent="" OffContent="" Margin="12,0,0,0" />
-				</Grid>
-				<StackPanel IsVisible="{Binding AutoPauseAsleep}" Margin="0,0,0,12">
-					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="12" Text="{Binding MotionStatus}" Foreground="{StaticResource Lamp}" />
-					<TextBlock Classes="setting" Text="Asleep after no touch for" />
-					<StackPanel Orientation="Horizontal">
-						<Button Classes="choice" Classes.selected="{Binding IsAsleep10}" Content="10 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="10" />
-						<Button Classes="choice" Classes.selected="{Binding IsAsleep20}" Content="20 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="20" />
-						<Button Classes="choice" Classes.selected="{Binding IsAsleep30}" Content="30 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="30" />
-						<Button Classes="choice" Classes.selected="{Binding IsAsleep45}" Content="45 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="45" />
-					</StackPanel>
-					<Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
-						<TextBlock Text="Only from 9 p.m. to 7 a.m." FontSize="14" VerticalAlignment="Center" />
-						<ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPauseNightOnly}" OnContent="" OffContent="" Margin="12,0,0,0" />
-					</Grid>
-				</StackPanel>
-				<!-- Hidden until the app ID carries the HealthKit capability; without it iOS will not ask. -->
-				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16" IsVisible="False">
-					<StackPanel VerticalAlignment="Center">
-						<TextBlock Text="Sleep from Apple Health" FontSize="15" />
-						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
-							Text="Your watch's sleep record (Garmin Connect or Apple Watch, through Apple Health) marks where in a book you fell asleep, in its history, once the watch syncs." />
-						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="12" Text="{Binding HealthStatus}" Foreground="{StaticResource Lamp}" />
-					</StackPanel>
-					<Button Grid.Column="1" Classes="quiet" Content="Connect" Padding="12,8" Margin="12,0,0,0" VerticalAlignment="Center"
-						Command="{Binding ConnectHealthCommand}" IsVisible="{Binding !UseHealthSleep}" />
-					<TextBlock Grid.Column="1" Text="Connected" FontSize="13" Foreground="{StaticResource Lamp}" Margin="12,0,0,0" VerticalAlignment="Center"
-						IsVisible="{Binding UseHealthSleep}" />
-				</Grid>
 				<TextBlock Classes="setting" Text="Skip back and forward by" />
 				<StackPanel Orientation="Horizontal">
 					<Button Classes="choice" Classes.selected="{Binding IsSkip10}" Content="10 s" Command="{Binding SetSkipCommand}" CommandParameter="10" />
@@ -554,49 +530,74 @@
 					Text="Every command is also an action in the Shortcuts app, with Set exact speed for any value. A shortcut you name yourself, such as &quot;faster&quot;, runs with no app name." />
 				</StackPanel>
 				<!-- Time saved -->
-				<StackPanel IsVisible="{Binding IsTimeSavedPage}">
-				<!-- Time saved: what the speed has bought against 1x, in Audible's app and in Libation. -->
-				<Border Background="{StaticResource Slate}" CornerRadius="6" Padding="16,14" Margin="0,8,0,0">
-					<StackPanel Spacing="4">
-						<TextBlock Classes="muted" Text="Time saved" FontSize="13" />
-						<TextBlock Text="{Binding TimeSavedText}" FontFamily="{StaticResource DisplayFont}" FontWeight="Light" FontSize="36"
-							Foreground="{StaticResource Lamp}" TextWrapping="Wrap" />
-						<TextBlock Classes="muted" Text="{Binding TimeSavedDetail}" FontSize="13" TextWrapping="Wrap" />
-						<!-- Each app on a row: real (wall-clock) time, book time heard, time saved against 1x, and the speed. -->
-						<Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6" Margin="0,12,0,0">
-							<TextBlock Grid.Column="1" Grid.Row="0" Text="Real time" HorizontalAlignment="Right" Classes="muted" FontSize="12" />
-							<TextBlock Grid.Column="2" Grid.Row="0" Text="Book time" HorizontalAlignment="Right" Classes="muted" FontSize="12" />
-							<TextBlock Grid.Column="3" Grid.Row="0" Text="Saved" HorizontalAlignment="Right" Classes="muted" FontSize="12" />
-							<TextBlock Grid.Column="4" Grid.Row="0" Text="Speed" HorizontalAlignment="Right" Classes="muted" FontSize="12" />
-							<TextBlock Grid.Row="1" Text="Audible app" FontSize="13" />
-							<TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding AudibleRealText}" FontSize="13" HorizontalAlignment="Right" />
-							<TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding AudibleBookText}" FontSize="13" HorizontalAlignment="Right" />
-							<TextBlock Grid.Column="3" Grid.Row="1" Text="{Binding AudibleSavedText}" FontSize="13" HorizontalAlignment="Right" />
-							<TextBlock Grid.Column="4" Grid.Row="1" Text="{Binding AudibleSpeedText}" FontSize="13" HorizontalAlignment="Right" />
-							<TextBlock Grid.Row="2" Text="Libation" FontSize="13" />
-							<TextBlock Grid.Column="1" Grid.Row="2" Text="{Binding LibationRealText}" FontSize="13" HorizontalAlignment="Right" />
-							<TextBlock Grid.Column="2" Grid.Row="2" Text="{Binding LibationBookText}" FontSize="13" HorizontalAlignment="Right" />
-							<TextBlock Grid.Column="3" Grid.Row="2" Text="{Binding LibationSavedText}" FontSize="13" HorizontalAlignment="Right" />
-							<TextBlock Grid.Column="4" Grid.Row="2" Text="{Binding LibationSpeedText}" FontSize="13" HorizontalAlignment="Right" />
-							<TextBlock Grid.Row="3" Text="Total" FontSize="13" FontWeight="SemiBold" />
-							<TextBlock Grid.Column="1" Grid.Row="3" Text="{Binding TotalRealText}" FontSize="13" HorizontalAlignment="Right" FontWeight="SemiBold" />
-							<TextBlock Grid.Column="2" Grid.Row="3" Text="{Binding TotalBookText}" FontSize="13" HorizontalAlignment="Right" FontWeight="SemiBold" />
-							<TextBlock Grid.Column="3" Grid.Row="3" Text="{Binding TotalSavedText}" FontSize="13" HorizontalAlignment="Right" FontWeight="SemiBold" />
-							<TextBlock Grid.Column="4" Grid.Row="3" Text="{Binding TotalSpeedText}" FontSize="13" HorizontalAlignment="Right" FontWeight="SemiBold" />
+				<!-- Sleep: auto-pause, head movement, and the access they use. The sleep timer itself is in the player. -->
+				<StackPanel IsVisible="{Binding IsSleepPage}">
+				<!-- Auto-pause when asleep -->
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Pause when you fall asleep" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="After a while with no touch, and your head (with AirPods that report it) or the phone lying still, the sound fades for 30 seconds, then pauses. Touch anything to keep listening." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPauseAsleep}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<StackPanel IsVisible="{Binding AutoPauseAsleep}" Margin="0,0,0,12">
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="12" Text="{Binding MotionStatus}" Foreground="{StaticResource Lamp}" />
+					<TextBlock Classes="setting" Text="Asleep after no touch for" />
+					<StackPanel Orientation="Horizontal">
+						<Button Classes="choice" Classes.selected="{Binding IsAsleep10}" Content="10 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="10" />
+						<Button Classes="choice" Classes.selected="{Binding IsAsleep20}" Content="20 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="20" />
+						<Button Classes="choice" Classes.selected="{Binding IsAsleep30}" Content="30 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="30" />
+						<Button Classes="choice" Classes.selected="{Binding IsAsleep45}" Content="45 min" Command="{Binding SetAsleepMinutesCommand}" CommandParameter="45" />
+					</StackPanel>
+					<Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+						<TextBlock Text="Only from 9 p.m. to 7 a.m." FontSize="14" VerticalAlignment="Center" />
+						<ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPauseNightOnly}" OnContent="" OffContent="" Margin="12,0,0,0" />
+					</Grid>
+				</StackPanel>
+				<!-- Hidden until the app ID carries the HealthKit capability; without it iOS will not ask. -->
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16" IsVisible="False">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Sleep from Apple Health" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="Your watch's sleep record (Garmin Connect or Apple Watch, through Apple Health) marks where in a book you fell asleep, in its history, once the watch syncs." />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="12" Text="{Binding HealthStatus}" Foreground="{StaticResource Lamp}" />
+					</StackPanel>
+					<Button Grid.Column="1" Classes="quiet" Content="Connect" Padding="12,8" Margin="12,0,0,0" VerticalAlignment="Center"
+						Command="{Binding ConnectHealthCommand}" IsVisible="{Binding !UseHealthSleep}" />
+					<TextBlock Grid.Column="1" Text="Connected" FontSize="13" Foreground="{StaticResource Lamp}" Margin="12,0,0,0" VerticalAlignment="Center"
+						IsVisible="{Binding UseHealthSleep}" />
+				</Grid>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Use head movement (AirPods)" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="With AirPods Pro, Max or 3rd generation and later: a still head counts towards asleep, and a nod or shake keeps the sleep timer and auto-pause from pausing. Off, the headphones are never asked." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding UseHeadMovement}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<TextBlock Classes="section" Text="Access and permissions" />
+				<Border Background="{StaticResource Slate}" CornerRadius="10" Padding="14,10">
+					<StackPanel Spacing="10">
+						<Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+							<StackPanel VerticalAlignment="Center">
+								<TextBlock Text="Motion &amp; Fitness" FontSize="15" />
+								<TextBlock Classes="muted" Text="Phone stillness and AirPods head movement, read on the phone only." FontSize="12" TextWrapping="Wrap" />
+							</StackPanel>
+							<TextBlock Grid.Column="1" Text="{Binding MotionPermissionText}" FontSize="13" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
+							<Button Grid.Column="2" Classes="quiet" Content="{Binding MotionActionText}" Padding="12,6" VerticalAlignment="Center"
+								Command="{Binding MotionActionCommand}" IsVisible="{Binding HasMotionAction}" />
 						</Grid>
-						<TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0"
-							Text="Audible counts real time, so its book time is that times its speed. Libation's are measured as you listen." />
-						<TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="{Binding AudibleSpeedSourceText}" />
-						<Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,8,0,0">
-							<TextBlock Text="Audible speed if it can't be worked out" FontSize="14" VerticalAlignment="Center" TextWrapping="Wrap" />
-							<Button Grid.Column="1" Classes="quiet" Content="−" Padding="14,6" Command="{Binding ChangeAudibleDefaultCommand}" CommandParameter="-0.1" />
-							<TextBlock Grid.Column="2" Text="{Binding AudibleDefaultText}" FontSize="14" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" MinWidth="40" TextAlignment="Center" />
-							<Button Grid.Column="3" Classes="quiet" Content="+" Padding="14,6" Command="{Binding ChangeAudibleDefaultCommand}" CommandParameter="0.1" />
+						<Border Height="1" Background="{StaticResource Hairline}" />
+						<Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+							<StackPanel VerticalAlignment="Center">
+								<TextBlock Text="Apple Health (sleep)" FontSize="15" />
+								<TextBlock Classes="muted" Text="Where in a book you fell asleep, from your watch's sleep record. Coming once HealthKit is enabled for the app." FontSize="12" TextWrapping="Wrap" />
+							</StackPanel>
+							<TextBlock Grid.Column="1" Text="Not set up" FontSize="13" Foreground="{StaticResource Dust}" VerticalAlignment="Center" />
 						</Grid>
-						<StackPanel Orientation="Horizontal" Spacing="8">
-							<Button Classes="quiet" Content="Listening log" Padding="12,8"
-								Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).ShowLogCommand}" />
-						</StackPanel>
+						<TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+							Text="iOS asks once. To change a choice later, Change opens Libation's page in the iPhone's Settings." />
 					</StackPanel>
 				</Border>
 				</StackPanel>

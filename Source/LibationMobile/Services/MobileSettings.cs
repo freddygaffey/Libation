@@ -45,6 +45,7 @@ public class MobileSettings
 		public bool AutoPauseNightOnly { get; set; } = true;
 		public bool UseHealthSleep { get; set; }
 		public int SleepTimerCustomMinutes { get; set; } = 20;
+		public bool UseHeadMovement { get; set; } = true;
 		/// <summary>When each downloaded book's download was asked for, so a new download sorts as just listened to.</summary>
 		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
 		public bool Training { get; set; }
@@ -257,6 +258,13 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.UseHealthSleep; }
 		set { lock (locker) { state.UseHealthSleep = value; Save(); } }
+	}
+
+	/// <summary>Use head movement from AirPods: for auto-pause, and a nod or shake to keep listening.</summary>
+	public bool UseHeadMovement
+	{
+		get { lock (locker) return state.UseHeadMovement; }
+		set { lock (locker) { state.UseHeadMovement = value; Save(); } }
 	}
 
 	/// <summary>The sleep timer's own length, as last set.</summary>

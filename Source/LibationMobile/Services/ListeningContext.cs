@@ -25,6 +25,9 @@ public interface IListeningContext
 	/// </summary>
 	void WatchHead(bool on);
 
+	/// <summary>Whether head movement may be used at all, from the listener's settings. Off stops it at once.</summary>
+	bool UseHead { get; set; }
+
 	/// <summary>When the head last moved, while headphones that report it are worn and watched; null otherwise.</summary>
 	DateTimeOffset? HeadLastMoved { get; }
 
@@ -36,6 +39,12 @@ public interface IListeningContext
 	/// turns on something that needs it, rather than later, perhaps while asleep. True if allowed.
 	/// </summary>
 	Task<bool> RequestMotionAsync();
+
+	/// <summary>Motion &amp; Fitness: "allowed", "denied", "not asked" or "unavailable".</summary>
+	string MotionPermission { get; }
+
+	/// <summary>Open this app's page in the iPhone's Settings, where its access can be changed.</summary>
+	void OpenAppSettings();
 
 	/// <summary>Ask once to read sleep from Apple Health, where a watch's app (Garmin Connect, Apple Watch) writes it.</summary>
 	Task<bool> ConnectHealthAsync();

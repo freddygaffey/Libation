@@ -13,10 +13,10 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 {
 	#region Pages
 
-	/// <summary>Which group is open: "" for the front page, else "speed", "training", "playback", "siri", "timesaved", "sync" or "account".</summary>
+	/// <summary>Which group is open: "" for the front page, else "speed", "training", "playback", "sleep", "siri", "sync" or "account".</summary>
 	[ObservableProperty]
 	[NotifyPropertyChangedFor(nameof(IsRootPage), nameof(IsSpeedPage), nameof(IsTrainingPage), nameof(IsPlaybackPage), nameof(IsSiriPage),
-		nameof(IsTimeSavedPage), nameof(IsSyncPage), nameof(IsAccountPage), nameof(PageTitle))]
+		nameof(IsSleepPage), nameof(IsSyncPage), nameof(IsAccountPage), nameof(PageTitle))]
 	private string page = "";
 
 	public bool IsRootPage => Page == "";
@@ -24,7 +24,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	public bool IsTrainingPage => Page == "training";
 	public bool IsPlaybackPage => Page == "playback";
 	public bool IsSiriPage => Page == "siri";
-	public bool IsTimeSavedPage => Page == "timesaved";
+	public bool IsSleepPage => Page == "sleep";
 	public bool IsSyncPage => Page == "sync";
 	public bool IsAccountPage => Page == "account";
 
@@ -34,7 +34,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 		"training" => "Training",
 		"playback" => "Playback",
 		"siri" => "Siri and voice",
-		"timesaved" => "Time saved",
+		"sleep" => "Sleep",
 		"sync" => "Sync and downloads",
 		"account" => "Account",
 		_ => "Settings",
@@ -44,6 +44,8 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	private void OpenPage(string name)
 	{
 		Page = name ?? "";
+		if (Page == "sleep")
+			RefreshPermissions();
 		// The front page's summaries may have changed in the group just closed.
 		OnPropertyChanged(string.Empty);
 	}
@@ -77,7 +79,10 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 		? $"On · from {(settings.TrainingFromBelow ? $"{settings.TrainingStartBelow:0.0#}× below the book's speed" : $"{settings.TrainingStartSpeed:0.0}×")}, +{settings.TrainingStep:0.0#}× every {(settings.TrainingMinutes < 1 ? $"{settings.TrainingMinutes * 60:0} s" : $"{settings.TrainingMinutes:0.#} min")}"
 		: "Off";
 
-	public string PlaybackSummary => $"Skips {settings.SkipSeconds} s · clips {settings.ClipSeconds} s{(settings.AutoPauseAsleep ? " · pauses when asleep" : "")}";
+	public string PlaybackSummary => $"Skips {settings.SkipSeconds} s · clips {settings.ClipSeconds} s · bar shows the {(settings.ScrubByChapter ? "chapter" : "book")}";
+	public string SleepSummary => settings.AutoPauseAsleep
+		? $"Pauses when you fall asleep, after {settings.AutoPauseMinutes} min{(settings.AutoPauseNightOnly ? ", at night" : "")}"
+		: "Sleep timer in the player · auto-pause off";
 	public string SiriSummary => "\"Hey Siri, Speed 7.3\", \"Speed play a book\" and more";
 	public string TimeSavedSummary => TimeSavedText;
 	public string SyncSummary => $"{(settings.SyncPosition ? "Positions synced with Audible" : "Not syncing")} · {(settings.HighQualityDownloads ? "high quality" : "standard")} downloads";
@@ -156,7 +161,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 		{
 			settings.AutoPauseAsleep = value;
 			OnPropertyChanged();
-			OnPropertyChanged(nameof(PlaybackSummary));
+			OnPropertyChanged(nameof(SleepSummary));
 			// Ask for motion now, while the listener is looking, not the first night it is needed.
 			if (value && ListeningContext.Platform is { } context)
 				_ = AskMotionAsync(context);
@@ -169,7 +174,59 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	private async Task AskMotionAsync(IListeningContext context)
 	{
 		var allowed = await context.RequestMotionAsync();
-		MotionStatus = allowed ? "" : "Without Motion & Fitness, only the time since your last touch is used. Allow it in Settings › Privacy › Motion & Fitness.";
+		MotionStatus = allowed ? "" : "Without Motion & Fitness, only the time since your last touch is used. Allow it below.";
+		RefreshPermissions();
+	}
+
+	public bool UseHeadMovement
+	{
+		get => settings.UseHeadMovement;
+		set
+		{
+			settings.UseHeadMovement = value;
+			if (ListeningContext.Platform is { } context)
+				context.UseHead = value;
+			OnPropertyChanged();
+		}
+	}
+
+	[ObservableProperty]
+	private string motionPermissionText = "";
+
+	[ObservableProperty]
+	private string motionActionText = "";
+
+	[ObservableProperty]
+	private bool hasMotionAction;
+
+	/// <summary>Motion &amp; Fitness as it stands, read again whenever the Sleep page opens.</summary>
+	public void RefreshPermissions()
+	{
+		var state = ListeningContext.Platform?.MotionPermission ?? "unavailable";
+		MotionPermissionText = state switch
+		{
+			"allowed" => "Allowed",
+			"denied" => "Not allowed",
+			"not asked" => "Not asked yet",
+			_ => "Not on this device",
+		};
+		MotionActionText = state == "not asked" ? "Allow" : "Change";
+		HasMotionAction = state != "unavailable";
+	}
+
+	/// <summary>Ask, if never asked; otherwise open the app's page in the iPhone's Settings, the only place it can change.</summary>
+	[RelayCommand]
+	private async Task MotionAction()
+	{
+		if (ListeningContext.Platform is not { } context)
+			return;
+		if (context.MotionPermission == "not asked")
+		{
+			await context.RequestMotionAsync();
+			RefreshPermissions();
+		}
+		else
+			context.OpenAppSettings();
 	}
 
 	/// <summary>The log to look back over once Apple Health is connected. Set by the main view model.</summary>
@@ -178,7 +235,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	public bool AutoPauseNightOnly
 	{
 		get => settings.AutoPauseNightOnly;
-		set { settings.AutoPauseNightOnly = value; OnPropertyChanged(); }
+		set { settings.AutoPauseNightOnly = value; OnPropertyChanged(); OnPropertyChanged(nameof(SleepSummary)); }
 	}
 
 	public bool IsAsleep10 => settings.AutoPauseMinutes == 10;
@@ -191,6 +248,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	{
 		if (int.TryParse(minutes, out var m))
 			settings.AutoPauseMinutes = m;
+		OnPropertyChanged(nameof(SleepSummary));
 		foreach (var name in new[] { nameof(IsAsleep10), nameof(IsAsleep20), nameof(IsAsleep30), nameof(IsAsleep45) })
 			OnPropertyChanged(name);
 	}
@@ -464,47 +522,7 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	private TimeBreakdown? Breakdown => breakdown ??= TimeBreakdown?.Invoke();
 	private TimeBreakdown? breakdown;
 
-	/// <summary>The speed assumed for Audible's app when its history cannot give one.</summary>
-	public string AudibleDefaultText => $"{settings.AudibleAppSpeed:0.0}×";
-
-	[RelayCommand]
-	private void ChangeAudibleDefault(string step)
-	{
-		if (double.TryParse(step, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var by))
-			settings.AudibleAppSpeed = (float)Math.Round(settings.AudibleAppSpeed + by, 1);
-		RefreshTimeSaved();
-	}
-
-	public string TimeSavedText => Breakdown is { } b && b.Real > TimeSpan.Zero ? FormatLong(b.Saved) : "Nothing yet";
-
-	public string TimeSavedDetail => Breakdown is { } b && b.Real > TimeSpan.Zero
-		? $"Against listening at 1×: {FormatLong(b.Book)} of books heard in {FormatLong(b.Real)} of real time, an average of {b.Speed:0.00}×."
-		: "Listen to a book and the time you save against 1× adds up here.";
-
-	public string AudibleRealText => Breakdown is { HasAudible: true } b ? Hours(b.AudibleReal) : "–";
-	public string AudibleBookText => Breakdown is { HasAudible: true } b ? Hours(b.AudibleBook) : "–";
-	public string AudibleSavedText => Breakdown is { HasAudible: true } b ? Hours(b.AudibleSaved) : "–";
-	public string AudibleSpeedText => Breakdown is { HasAudible: true } b ? $"{b.AudibleSpeed:0.00}×" : "–";
-	public string LibationRealText => Breakdown is { } b ? Hours(b.LibationReal) : "–";
-	public string LibationBookText => Breakdown is { } b ? Hours(b.LibationBook) : "–";
-	public string LibationSavedText => Breakdown is { } b ? Hours(b.LibationSaved) : "–";
-	public string LibationSpeedText => Breakdown is { } b && b.LibationReal > TimeSpan.Zero ? $"{b.LibationSpeed:0.00}×" : "–";
-	public string TotalRealText => Breakdown is { } b ? Hours(b.Real) : "–";
-	public string TotalBookText => Breakdown is { } b ? Hours(b.Book) : "–";
-	public string TotalSavedText => Breakdown is { } b ? Hours(b.Saved) : "–";
-	public string TotalSpeedText => Breakdown is { } b && b.Real > TimeSpan.Zero ? $"{b.Speed:0.00}×" : "–";
-
-	/// <summary>Where the Audible app's speed came from.</summary>
-	public string AudibleSpeedSourceText => Breakdown switch
-	{
-		{ HasAudible: false } => "Audible's figures have not been fetched yet. Open the listening log to fetch them.",
-		{ Estimate: { } e } => $"Worked out from your Audible history: at least {e.Speed:0.00}×, the best of {e.Stretches} three-month stretches comparing the books "
-			+ "you finished with the hours Audible counted. Listening that finishes no book, such as a book left playing while asleep, "
-			+ "only adds hours, so it is a lower bound.",
-		_ => "Your Audible history could not give a speed (no finished books found in your library), so the default below is used.",
-	};
-
-	private static string Hours(TimeSpan time) => time.TotalHours >= 10 ? $"{time.TotalHours:N0} h" : $"{time.TotalHours:0.0} h";
+	public string TimeSavedText => Breakdown is { } b && b.Real > TimeSpan.Zero ? $"{b.Saved.TotalHours:N0} hours saved at {b.Speed:0.00}× on average" : "Nothing yet";
 
 	/// <summary>Called when the settings page opens, to show figures from listening since it was last open.</summary>
 	public void RefreshTimeSaved()
@@ -512,26 +530,8 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 		// The player has its own training switch.
 		OnPropertyChanged(nameof(Training));
 		breakdown = null;
-		foreach (var name in new[] { nameof(TimeSavedText), nameof(TimeSavedDetail), nameof(TimeSavedSummary), nameof(AudibleDefaultText),
-			nameof(AudibleRealText), nameof(AudibleBookText), nameof(AudibleSavedText), nameof(AudibleSpeedText),
-			nameof(LibationRealText), nameof(LibationBookText), nameof(LibationSavedText), nameof(LibationSpeedText),
-			nameof(TotalRealText), nameof(TotalBookText), nameof(TotalSavedText), nameof(TotalSpeedText), nameof(AudibleSpeedSourceText) })
+		foreach (var name in new[] { nameof(TimeSavedText), nameof(TimeSavedSummary) })
 			OnPropertyChanged(name);
-	}
-
-	/// <summary>Weeks, days, hours, minutes and seconds, leaving out leading units that are zero.</summary>
-	private static string FormatLong(TimeSpan time)
-	{
-		var seconds = (long)time.TotalSeconds;
-		(string Unit, long Size)[] units = [("w", 604800), ("d", 86400), ("h", 3600), ("m", 60), ("s", 1)];
-		var parts = new System.Collections.Generic.List<string>();
-		foreach (var (unit, size) in units)
-		{
-			if (seconds >= size || parts.Count > 0 || size == 1)
-				parts.Add($"{seconds / size}{unit}");
-			seconds %= size;
-		}
-		return string.Join(" ", parts);
 	}
 
 	#endregion

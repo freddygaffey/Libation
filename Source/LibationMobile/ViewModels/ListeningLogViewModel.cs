@@ -48,11 +48,18 @@ public record TimeBreakdown(TimeSpan AudibleReal, double AudibleSpeed, AudibleSp
 	public double Speed => Real > TimeSpan.Zero ? Book / Real : 0;
 }
 
-/// <summary>One bar of the chart: listening in the Audible app and in Libation, as fractions of the tallest bar.</summary>
-public record ChartBar(string Label, double AudibleHeight, double LibationHeight, string ValueText, bool ShowLabel);
+/// <summary>One bar of the chart: listening in the Audible app and in Libation, as heights in pixels. Tap to see its figures.</summary>
+/// <param name="Name">What it covers in full, as "Tue 7 Oct" or "March 2026", shown when tapped.</param>
+public record ChartBar(int Index, string Label, string Name, double AudibleHeight, double LibationHeight, string ValueText, bool ShowLabel, bool IsSelected)
+{
+	public double Opacity => IsSelected ? 1 : 0.55;
+}
 
-/// <summary>A book finished, with when.</summary>
-public record FinishedRow(string Title, string? Author, string DateText);
+/// <summary>A book finished, with when, and the book in the library for its cover.</summary>
+public record FinishedRow(string Title, string? Author, string DateText, BookItemViewModel? Book);
+
+/// <summary>One app's share: real time, book time, time saved and speed.</summary>
+public record AppShare(string Name, string Real, string Book, string Saved, string Speed, string Note);
 
 /// <summary>How well sessions were followed at a rate of syllables a second, as a bar.</summary>
 public record FollowBar(string Label, double Height, string ValueText);
@@ -72,7 +79,7 @@ public partial class ListeningLogViewModel : ObservableObject
 {
 	private readonly ListeningLog log;
 	private readonly AudibleStats? audible;
-	private readonly Func<string, (string Title, string? Author)?> findBook;
+	private readonly Func<string, BookItemViewModel?> findBook;
 	/// <summary>The height of the chart, in pixels, that the tallest bar fills.</summary>
 	public const double CHART_HEIGHT = 120;
 
@@ -97,6 +104,69 @@ public partial class ListeningLogViewModel : ObservableObject
 	public bool IsByMonth => ChartScale == "month";
 	public bool IsByYear => ChartScale == "year";
 	public bool CanPage => !IsByYear;
+
+	/// <summary>The bar tapped; -1 for none, when the heading shows the whole range.</summary>
+	private int selectedBar = -1;
+
+	/// <summary>Over the chart, as Audible's: the range's total, or the tapped bar's.</summary>
+	[ObservableProperty]
+	private string periodLabel = "";
+
+	[ObservableProperty]
+	private string periodValue = "";
+
+	[ObservableProperty]
+	private string periodDetail = "";
+
+	[RelayCommand]
+	private void SelectBar(ChartBar bar)
+	{
+		selectedBar = selectedBar == bar.Index ? -1 : bar.Index;
+		Build(audible?.Cached);
+	}
+
+	#region Time saved, at the top
+
+	[ObservableProperty]
+	private string savedHero = "";
+
+	[ObservableProperty]
+	private string savedHeroUnit = "";
+
+	[ObservableProperty]
+	private string savedHeroDetail = "";
+
+	[ObservableProperty]
+	private string realTotalText = "";
+
+	[ObservableProperty]
+	private string bookTotalText = "";
+
+	/// <summary>Real time as a share of book time, 0 to 100: the rest of the bar is time saved.</summary>
+	[ObservableProperty]
+	private double realShare;
+
+	[ObservableProperty]
+	private IReadOnlyList<AppShare> apps = [];
+
+	[ObservableProperty]
+	private string howWorkedOut = "";
+
+	/// <summary>Changes the speed assumed for Audible's app when its history cannot give one. Set by the main view model.</summary>
+	public Action<double>? SetAudibleAppSpeed { get; set; }
+
+	public string AudibleDefaultText => $"{AudibleAppSpeed?.Invoke() ?? 1:0.0}×";
+
+	[RelayCommand]
+	private void ChangeAudibleDefault(string step)
+	{
+		if (double.TryParse(step, NumberStyles.Float, CultureInfo.InvariantCulture, out var by) && AudibleAppSpeed is { } get)
+			SetAudibleAppSpeed?.Invoke(Math.Round(get() + by, 1));
+		OnPropertyChanged(nameof(AudibleDefaultText));
+		Build(audible?.Cached);
+	}
+
+	#endregion
 
 	/// <summary>How many pages back from now: 1 is the 30 days or 12 months before the latest.</summary>
 	[ObservableProperty]
@@ -193,7 +263,7 @@ public partial class ListeningLogViewModel : ObservableObject
 			stats is not null);
 	}
 
-	public ListeningLogViewModel(ListeningLog log, AudibleStats? audible = null, Func<string, (string Title, string? Author)?>? findBook = null)
+	public ListeningLogViewModel(ListeningLog log, AudibleStats? audible = null, Func<string, BookItemViewModel?>? findBook = null)
 	{
 		this.log = log;
 		this.audible = audible;
@@ -248,6 +318,7 @@ public partial class ListeningLogViewModel : ObservableObject
 	{
 		ChartScale = scale;
 		PagesBack = 0;
+		selectedBar = -1;
 		Build(audible?.Cached);
 	}
 
@@ -255,6 +326,7 @@ public partial class ListeningLogViewModel : ObservableObject
 	private void Older()
 	{
 		PagesBack++;
+		selectedBar = -1;
 		Build(audible?.Cached);
 	}
 
@@ -264,6 +336,7 @@ public partial class ListeningLogViewModel : ObservableObject
 		if (PagesBack == 0)
 			return;
 		PagesBack--;
+		selectedBar = -1;
 		Build(audible?.Cached);
 	}
 
@@ -277,52 +350,63 @@ public partial class ListeningLogViewModel : ObservableObject
 		var today = DateTime.Today;
 
 		// Tiles.
-		var thisMonth = AudibleMonth(today) + LocalMonth(today);
 		var streak = 0;
 		for (var day = localByDay.ContainsKey(today) || AudibleDay(today) > 0 ? today : today.AddDays(-1);
 			localByDay.GetValueOrDefault(day) + AudibleDay(day) >= 1.0 / 60; day = day.AddDays(-1))
 			streak++;
 		var finishedThisYear = (stats?.Finished ?? []).Count(f => f.Finished && f.At.ToLocalTime().Year == today.Year);
 		// Measured in Libation: book time against real time, and syllables heard against real time.
-		var spent = sessions.Sum(s => s.SpentSeconds);
-		var heard = sessions.Sum(s => s.BookSeconds);
 		var counted = sessions.Where(s => s.Syllables is > 0).ToList();
 		var syllablesPerSecond = counted.Sum(s => s.SpentSeconds) is > 60 and var countedSpent ? counted.Sum(s => s.Syllables!.Value) / countedSpent : (double?)null;
 		var breakdown = Breakdown(stats);
-		var audibleSpeed = breakdown.AudibleSpeed;
-		var realHours = breakdown.Real.TotalHours;
-		var bookHours = breakdown.Book.TotalHours;
-		var savedHours = breakdown.Saved.TotalHours;
+		SavedHero = breakdown.Saved.TotalHours >= 1 ? $"{breakdown.Saved.TotalHours:N0}" : $"{breakdown.Saved.TotalMinutes:N0}";
+		SavedHeroUnit = breakdown.Saved.TotalHours >= 1 ? "hours saved" : "minutes saved";
+		SavedHeroDetail = breakdown.Real > TimeSpan.Zero
+			? $"{breakdown.Book.TotalHours:N0} hours of books in {breakdown.Real.TotalHours:N0} hours of listening, at {breakdown.Speed:0.00}× on average. "
+				+ (breakdown.Saved.TotalDays >= 2 ? $"That is {breakdown.Saved.TotalDays:N0} days back." : "")
+			: "Listen to a book and the time your speed saves adds up here.";
+		RealTotalText = $"{Hours(breakdown.Real.TotalHours)} listening";
+		BookTotalText = $"{Hours(breakdown.Book.TotalHours)} of books";
+		RealShare = breakdown.Book > TimeSpan.Zero ? 100 * breakdown.Real / breakdown.Book : 100;
+		Apps =
+		[
+			new("Audible app", stats is null ? "–" : Hours(breakdown.AudibleReal.TotalHours), stats is null ? "–" : Hours(breakdown.AudibleBook.TotalHours),
+				stats is null ? "–" : Hours(breakdown.AudibleSaved.TotalHours), stats is null ? "–" : $"{breakdown.AudibleSpeed:0.00}×",
+				stats is null ? "Not fetched yet" : breakdown.Estimate is null ? "Speed: your default" : "Speed: from your history"),
+			new("Libation", Hours(breakdown.LibationReal.TotalHours), Hours(breakdown.LibationBook.TotalHours), Hours(breakdown.LibationSaved.TotalHours),
+				breakdown.LibationReal > TimeSpan.Zero ? $"{breakdown.LibationSpeed:0.00}×" : "–", "Measured as you listen"),
+		];
+		HowWorkedOut = stats is null
+			? "Audible's figures have not been fetched yet."
+			: breakdown.Estimate is { } e
+				? $"Audible counts listening in real time, and not the speed. Comparing the books you finished with the hours it counted, your best three-month stretch "
+					+ $"(of {e.Stretches}) gives at least {e.Speed:0.00}×. Listening that finishes no book, such as a book left playing while asleep, only adds hours, "
+					+ "so this is a floor. Libation measures its own."
+				: "Your Audible history could not give a speed (no finished book found in your library), so the default below is used.";
 		Tiles =
 		[
-			new(Hours(realHours), stats is null ? "listened here (real time)" : "listened, all apps (real time)"),
-			new(Hours(bookHours), stats is null ? "of books heard here" : $"of books heard, all apps (Audible app at {audibleSpeed:0.00}×{(breakdown.Estimate is null ? ", default" : "")})"),
-			new(Hours(savedHours), "saved against 1×, all apps"),
-			new(realHours > 0 ? $"{bookHours / realHours:0.00}×" : "–", "average speed, all apps"),
-			new(Hours(thisMonth), today.ToString("MMMM", CultureInfo.CurrentCulture)),
-			new(streak == 1 ? "1 day" : $"{streak} days", "streak"),
+			new(streak == 1 ? "1" : $"{streak}", streak == 1 ? "day streak" : "day streak"),
 			new(stats is null ? "–" : finishedThisYear.ToString(CultureInfo.CurrentCulture), $"finished in {today.Year}"),
-			new(spent > 0 ? $"{heard / spent:0.0}×" : "–", "average speed in Libation"),
-			new(syllablesPerSecond is double sps ? $"{sps:0}" : "–", "syllables a second heard"),
-			new(counted.Count > 0 ? $"{counted.Sum(s => s.Syllables!.Value) / 1000:0}k" : "–", "syllables heard in Libation"),
+			new(syllablesPerSecond is double sps ? $"{sps:0}" : "–", "syllables a second"),
 		];
 
 		// Chart: 30 days or 12 months, oldest first, paged back through the history; or every year.
 		double AudibleYear(int year) => stats?.MonthlyMs.Where(m => m.Key.StartsWith(year.ToString(CultureInfo.InvariantCulture))).Sum(m => m.Value) / 3.6e6 ?? 0;
 		double LocalYear(int year) => localByDay.Where(d => d.Key.Year == year).Sum(d => d.Value);
-		List<(string Label, double Audible, double Local, bool Show)> list;
+		List<(string Label, string Name, double Audible, double Local, bool Show)> list;
 		if (IsByDay)
 		{
 			var last = today.AddDays(-30 * PagesBack);
 			list = Enumerable.Range(0, 30).Select(i => last.AddDays(i - 29))
-				.Select(d => (d.Day.ToString(CultureInfo.CurrentCulture), AudibleDay(d), localByDay.GetValueOrDefault(d), (29 - (last - d).Days) % 5 == 4)).ToList();
+				.Select(d => (d.Day.ToString(CultureInfo.CurrentCulture), d == today ? "Today" : d == today.AddDays(-1) ? "Yesterday" : d.ToString("ddd d MMM", CultureInfo.CurrentCulture),
+					AudibleDay(d), localByDay.GetValueOrDefault(d), (29 - (last - d).Days) % 5 == 4)).ToList();
 			ChartTitle = PagesBack == 0 ? "Last 30 days" : $"{last.AddDays(-29):d MMM} to {last:d MMM yyyy}";
 		}
 		else if (IsByMonth)
 		{
 			var lastMonth = new DateTime(today.Year, today.Month, 1).AddMonths(-12 * PagesBack);
 			list = Enumerable.Range(0, 12).Select(i => lastMonth.AddMonths(i - 11))
-				.Select(m => (m.ToString("MMM", CultureInfo.CurrentCulture)[..1], AudibleMonth(m), LocalMonth(m), true)).ToList();
+				.Select(m => (m.ToString("MMM", CultureInfo.CurrentCulture)[..1], m.ToString("MMMM yyyy", CultureInfo.CurrentCulture), AudibleMonth(m), LocalMonth(m), true)).ToList();
 			ChartTitle = PagesBack == 0 ? "Last 12 months" : $"{lastMonth.AddMonths(-11):MMM yyyy} to {lastMonth:MMM yyyy}";
 		}
 		else
@@ -331,25 +415,42 @@ public partial class ListeningLogViewModel : ObservableObject
 				.Concat(localByDay.Keys.Select(d => d.Year)).Append(today.Year).ToList();
 			var first = years.Min();
 			list = Enumerable.Range(first, today.Year - first + 1)
-				.Select(y => ($"'{y % 100:00}", AudibleYear(y), LocalYear(y), true)).ToList();
+				.Select(y => ($"'{y % 100:00}", y.ToString(CultureInfo.InvariantCulture), AudibleYear(y), LocalYear(y), true)).ToList();
 			ChartTitle = $"Every year since {first}";
 		}
 		var tallest = Math.Max(list.Max(p => p.Audible + p.Local), 1.0 / 60);
-		Bars = list.Select(p => new ChartBar(p.Label, CHART_HEIGHT * p.Audible / tallest, CHART_HEIGHT * p.Local / tallest, Hours(p.Audible + p.Local), p.Show)).ToList();
+		if (selectedBar >= list.Count)
+			selectedBar = -1;
+		Bars = list.Select((p, i) => new ChartBar(i, p.Label, p.Name, CHART_HEIGHT * p.Audible / tallest, CHART_HEIGHT * p.Local / tallest,
+			Hours(p.Audible + p.Local), p.Show, selectedBar < 0 || selectedBar == i)).ToList();
 		var sum = list.Sum(p => p.Audible + p.Local);
-		ChartTotalText = IsByDay ? $"{Hours(sum)}, {Hours(sum / 30)} a day"
-			: IsByMonth ? $"{Hours(sum)}, {Hours(sum / 12)} a month"
-			: $"{Hours(sum)} in all, {Hours(sum / list.Count)} a year";
+		ChartTotalText = IsByDay ? $"{Hours(sum / 30)} a day on average"
+			: IsByMonth ? $"{Hours(sum / 12)} a month on average"
+			: $"{Hours(sum / list.Count)} a year on average";
+		if (selectedBar >= 0)
+		{
+			var bar = list[selectedBar];
+			PeriodLabel = bar.Name;
+			PeriodValue = Hours(bar.Audible + bar.Local);
+			PeriodDetail = bar.Local > 0 && bar.Audible > 0 ? $"{Hours(bar.Audible)} in the Audible app, {Hours(bar.Local)} in Libation"
+				: bar.Local > 0 ? "In Libation" : bar.Audible > 0 ? "In the Audible app" : "No listening";
+		}
+		else
+		{
+			PeriodLabel = ChartTitle;
+			PeriodValue = Hours(sum);
+			PeriodDetail = ChartTotalText;
+		}
 
 		// Recently finished, on Audible.
 		Finished = (stats?.Finished ?? []).Where(f => f.Finished).Take(15)
-			.Select(f => findBook(f.Asin) is { } book ? new FinishedRow(book.Title, book.Author, f.At.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture)) : null)
+			.Select(f => findBook(f.Asin) is { } book ? new FinishedRow(book.Title, book.Author, f.At.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture), book) : null)
 			.OfType<FinishedRow>().ToList();
-		AudibleStatus = stats is null ? "Audible's figures appear here once fetched." : $"Audible's figures as of {stats.Fetched.ToLocalTime().ToString("t", CultureInfo.CurrentCulture)}, {stats.Fetched.ToLocalTime().ToString("d MMM", CultureInfo.CurrentCulture)}. They count the Audible app; Libation adds this phone.";
+		AudibleStatus = stats is null ? "Audible's figures appear here once fetched." : $"Audible's figures as of {stats.Fetched.ToLocalTime().ToString("t", CultureInfo.CurrentCulture)}, {stats.Fetched.ToLocalTime().ToString("d MMM", CultureInfo.CurrentCulture)}.";
 	}
 
 	private static string Hours(double hours)
-		=> hours >= 100 ? $"{hours:0} h" : hours >= 1 ? $"{(int)hours} h {(int)(hours % 1 * 60)} m" : $"{Math.Round(hours * 60)} m";
+		=> hours >= 100 ? $"{hours:N0} h" : hours >= 1 ? $"{(int)hours} h {(int)(hours % 1 * 60)} m" : $"{Math.Round(hours * 60)} m";
 
 	[RelayCommand]
 	private void ClearLog()

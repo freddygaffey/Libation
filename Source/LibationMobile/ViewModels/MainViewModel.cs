@@ -217,13 +217,16 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		}
 		var catalogForLog = (LibraryViewModel?)null;
 		Log = new ListeningLogViewModel(listeningLog, new AudibleStats(account, dataDirectory),
-			asin => catalogForLog?.Find(asin) is { } book ? (book.Title, book.Author) : null);
+			asin => catalogForLog?.Find(asin));
 		Log.Experiments = Experiments;
 		Log.Events = Events;
 		Log.Profiles = () => settings.Profiles;
 		Log.AudibleAppSpeed = () => settings.AudibleAppSpeed;
+		Log.SetAudibleAppSpeed = speed => settings.AudibleAppSpeed = (float)speed;
 		Log.BookHours = asin => catalogForLog?.Find(asin) is { } found && found.Book.Length > TimeSpan.Zero ? found.Book.Length.TotalHours : null;
 		Settings.TimeBreakdown = Log.Breakdown;
+		if (ListeningContext.Platform is { } headContext)
+			headContext.UseHead = settings.UseHeadMovement;
 		Settings.ListeningLog = listeningLog;
 		var catalog = new LibraryCatalog(dataDirectory);
 		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog, pdfs);

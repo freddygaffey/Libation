@@ -33,12 +33,16 @@ public sealed class AppleListeningContext : IListeningContext
 	/// </summary>
 	private const double HEAD_GESTURE = 1.2;
 
+	/// <summary>Whether head movement may be used at all: the listener's setting.</summary>
+	public bool UseHead { get; set; } = true;
+
 	public DateTimeOffset? HeadLastMoved => head is { DeviceMotionActive: true } ? headLastMoved : null;
 
 	public DateTimeOffset? HeadGestured => head is { DeviceMotionActive: true } ? headGestured : null;
 
 	public void WatchHead(bool on)
 	{
+		on &= UseHead;
 		try
 		{
 			if (on && head is null)
@@ -106,6 +110,20 @@ public sealed class AppleListeningContext : IListeningContext
 			Console.WriteLine($"Stillness not read: {ex.Message}");
 			return null;
 		}
+	}
+
+	public string MotionPermission => !CMMotionActivityManager.IsActivityAvailable ? "unavailable"
+		: CMMotionActivityManager.AuthorizationStatus switch
+		{
+			CMAuthorizationStatus.Authorized => "allowed",
+			CMAuthorizationStatus.NotDetermined => "not asked",
+			_ => "denied",
+		};
+
+	public void OpenAppSettings()
+	{
+		if (NSUrl.FromString(UIKit.UIApplication.OpenSettingsUrlString) is { } url)
+			UIKit.UIApplication.SharedApplication.OpenUrl(url, new UIKit.UIApplicationOpenUrlOptions(), null);
 	}
 
 	public async Task<bool> RequestMotionAsync()
