@@ -259,7 +259,7 @@
 						<TextBlock Grid.Column="1" Text="{Binding RhythmGapText}" FontSize="15" Foreground="{StaticResource Lamp}" VerticalAlignment="Center" />
 					</Grid>
 					<Slider Classes="scrubber" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding RhythmGapMs}" />
-					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Short silences at a steady beat. At 3× they made squeezed speech much easier to follow; the words play faster to make room. Try 30 to 50 ms." />
+					<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Short silences at a steady beat. At 3× they made squeezed speech much easier to follow, but the words play faster to make room, and 40 ms felt like too much at high speed. If you try them, start at 10 to 20 ms." />
 				</StackPanel>
 				<StackPanel Margin="0,4,0,12" IsVisible="{Binding RhythmOn}">
 					<Grid ColumnDefinitions="*,Auto">
@@ -274,7 +274,7 @@
 					<Button Classes="quiet" Content="All off" Padding="12,8" Command="{Binding ResetHighSpeedCommand}" />
 				</StackPanel>
 				<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
-					Text="Suggested: pauses shortened to 60 ms, keep the overall speed, floor at 50%. Rhythm is left off: whether it helps above 3× is not known yet." />
+					Text="Suggested: pauses shortened to 60 ms, keep the overall speed, floor at 50%. Rhythm is left off: it felt like too much in use, and whether it helps above 3× is not known." />
 				</StackPanel>
 				<!-- Training -->
 				<StackPanel IsVisible="{Binding IsTrainingPage}">
