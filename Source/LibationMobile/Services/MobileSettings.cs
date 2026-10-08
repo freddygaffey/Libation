@@ -39,7 +39,7 @@ public class MobileSettings
 		public double BookSecondsHeard { get; set; }
 		public double SecondsSpentListening { get; set; }
 		public DateTimeOffset? ListeningCountedSince { get; set; }
-		public float BaselineSpeed { get; set; } = 1f;
+		public float AudibleAppSpeed { get; set; } = 1f;
 		/// <summary>When each downloaded book's download was asked for, so a new download sorts as just listened to.</summary>
 		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
 		public bool Training { get; set; }
@@ -216,11 +216,14 @@ public class MobileSettings
 	/// <summary>When counting began. Null if nothing has been counted.</summary>
 	public DateTimeOffset? ListeningCountedSince { get { lock (locker) return state.ListeningCountedSince; } }
 
-	/// <summary>The speed time saved is measured against: what the listener would otherwise listen at.</summary>
-	public float BaselineSpeed
+	/// <summary>
+	/// The speed to assume for Audible's own app when it cannot be worked out from Audible's figures (see
+	/// AudibleStats.EstimateSpeed). Audible's statistics count real (wall-clock) time; this turns them into book time.
+	/// </summary>
+	public float AudibleAppSpeed
 	{
-		get { lock (locker) return state.BaselineSpeed; }
-		set { lock (locker) { state.BaselineSpeed = Math.Clamp(value, 1f, 10f); Save(); } }
+		get { lock (locker) return state.AudibleAppSpeed; }
+		set { lock (locker) { state.AudibleAppSpeed = Math.Clamp(value, 1f, 10f); Save(); } }
 	}
 
 	public void AddListening(TimeSpan bookTime, TimeSpan timeSpent)

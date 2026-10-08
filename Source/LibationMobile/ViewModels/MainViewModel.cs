@@ -215,6 +215,9 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		Log.Experiments = Experiments;
 		Log.Events = Events;
 		Log.Profiles = () => settings.Profiles;
+		Log.AudibleAppSpeed = () => settings.AudibleAppSpeed;
+		Log.BookHours = asin => catalogForLog?.Find(asin) is { } found && found.Book.Length > TimeSpan.Zero ? found.Book.Length.TotalHours : null;
+		Settings.TimeBreakdown = Log.Breakdown;
 		var catalog = new LibraryCatalog(dataDirectory);
 		Library = new LibraryViewModel(catalog, account, new BookDownloader(catalog, settings), settings, annotations, listeningLog, pdfs);
 		catalogForLog = Library;

@@ -1,6 +1,7 @@
 using AudibleApi;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -11,6 +12,12 @@ namespace LibationMobile.Services;
 
 /// <summary>A book marked finished, or unmarked, on Audible.</summary>
 public record FinishedEvent(string Asin, DateTimeOffset At, bool Finished);
+
+/// <summary>The Audible app's speed worked out from its own figures.</summary>
+/// <param name="Speed">The estimate: the highest three-month stretch, where least listening went unfinished. Still a lower bound.</param>
+/// <param name="Overall">Every finished book against every hour listened: a lower bound, as relistens and unfinished books count as listening.</param>
+/// <param name="Stretches">How many three-month stretches could be measured.</param>
+public record AudibleSpeedEstimate(double Speed, double Overall, int Stretches);
 
 /// <summary>
 /// Audible's listening statistics, as last fetched: every day and month there was listening, in milliseconds, keyed
@@ -144,6 +151,50 @@ public class AudibleStats(AudibleAccount account, string dataDirectory)
 		using var response = await api.AdHocAuthenticatedGetAsync(path);
 		response.EnsureSuccessStatusCode();
 		return JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+	}
+
+	/// <summary>
+	/// The speed used in Audible's app, from its figures alone. Audible counts listening in real time, so the hours of the
+	/// books finished in a stretch, over the hours listened in it, would be the speed if all listening ended in a finished
+	/// book. Much does not: a book left playing after falling asleep, a relisten, a book given up, one no longer in the
+	/// library. Each three-month stretch is therefore a lower bound, and the highest of them, where least went unfinished,
+	/// is the estimate. Stretches under 40 hours are left out: a few long books finished in them would overstate it.
+	/// </summary>
+	/// <param name="bookHours">A book's length in hours, from the library; null if not there.</param>
+	public static AudibleSpeedEstimate? EstimateSpeed(AudibleStatsSnapshot stats, Func<string, double?> bookHours)
+	{
+		// A book finished again within a month is the same listen marked twice.
+		var finished = new List<(DateTime Month, double Hours)>();
+		foreach (var group in stats.Finished.Where(f => f.Finished).GroupBy(f => f.Asin))
+		{
+			DateTimeOffset? last = null;
+			foreach (var f in group.OrderBy(f => f.At))
+			{
+				if (last is { } l && f.At - l < TimeSpan.FromDays(30))
+					continue;
+				last = f.At;
+				var local = f.At.ToLocalTime();
+				if (bookHours(f.Asin) is double hours)
+					finished.Add((new DateTime(local.Year, local.Month, 1), hours));
+			}
+		}
+		var listened = stats.MonthlyMs.Select(m => (Ok: DateTime.TryParse(m.Key + "-01", CultureInfo.InvariantCulture, out var month), Month: month, Hours: m.Value / 3.6e6))
+			.Where(m => m.Ok).ToDictionary(m => m.Month, m => m.Hours);
+		if (listened.Count == 0 || finished.Count == 0)
+			return null;
+
+		var ratios = new List<double>();
+		for (var start = listened.Keys.Min(); start <= listened.Keys.Max(); start = start.AddMonths(1))
+		{
+			var end = start.AddMonths(3);
+			var hours = listened.Where(m => m.Key >= start && m.Key < end).Sum(m => m.Value);
+			if (hours >= 40)
+				ratios.Add(finished.Where(f => f.Month >= start && f.Month < end).Sum(f => f.Hours) / hours);
+		}
+		if (ratios.Count == 0)
+			return null;
+		var overall = finished.Sum(f => f.Hours) / listened.Values.Sum();
+		return new AudibleSpeedEstimate(Math.Clamp(Math.Round(ratios.Max(), 2), 1, 10), overall, ratios.Count);
 	}
 }
 

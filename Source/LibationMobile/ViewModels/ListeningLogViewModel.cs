@@ -32,6 +32,22 @@ public class LogDayViewModel(DateTime day, IReadOnlyList<ListeningSession> sessi
 	public IReadOnlyList<LogEntryViewModel> Entries { get; } = sessions.OrderByDescending(s => s.Started).Select(s => new LogEntryViewModel(s)).ToList();
 }
 
+/// <summary>Listening in Audible's app and in Libation: real (wall-clock) time, book time heard, and time saved against 1x.</summary>
+/// <param name="AudibleSpeed">The speed Audible's real time is multiplied by: <paramref name="Estimate"/>'s, or the default set.</param>
+/// <param name="HasAudible">Audible's figures have been fetched.</param>
+public record TimeBreakdown(TimeSpan AudibleReal, double AudibleSpeed, AudibleSpeedEstimate? Estimate,
+	TimeSpan LibationReal, TimeSpan LibationBook, bool HasAudible)
+{
+	public TimeSpan AudibleBook => AudibleReal * AudibleSpeed;
+	public TimeSpan AudibleSaved => AudibleBook - AudibleReal;
+	public TimeSpan LibationSaved => LibationBook > LibationReal ? LibationBook - LibationReal : TimeSpan.Zero;
+	public TimeSpan Real => AudibleReal + LibationReal;
+	public TimeSpan Book => AudibleBook + LibationBook;
+	public TimeSpan Saved => AudibleSaved + LibationSaved;
+	public double LibationSpeed => LibationReal > TimeSpan.Zero ? LibationBook / LibationReal : 0;
+	public double Speed => Real > TimeSpan.Zero ? Book / Real : 0;
+}
+
 /// <summary>One bar of the chart: listening in the Audible app and in Libation, as fractions of the tallest bar.</summary>
 public record ChartBar(string Label, double AudibleHeight, double LibationHeight, string ValueText, bool ShowLabel);
 
@@ -154,6 +170,29 @@ public partial class ListeningLogViewModel : ObservableObject
 	[ObservableProperty]
 	private bool isRefreshing;
 
+	/// <summary>The speed set for Audible's app, to turn its real-time hours into book time. Set by the main view model.</summary>
+	public Func<double>? AudibleAppSpeed { get; set; }
+
+	/// <summary>A book's length in hours, from the library, for the estimate.</summary>
+	public Func<string, double?>? BookHours { get; set; }
+
+	/// <summary>
+	/// Listening in Audible's app and in Libation: real time, book time, and so time saved against 1x. Audible's real time
+	/// is its own figure; its book time is that times its speed, worked out from its history where possible, otherwise the
+	/// default set. Libation's are measured.
+	/// </summary>
+	public TimeBreakdown Breakdown() => Breakdown(audible?.Cached);
+
+	private TimeBreakdown Breakdown(AudibleStatsSnapshot? stats)
+	{
+		var estimate = stats is not null && BookHours is { } hours ? AudibleStats.EstimateSpeed(stats, hours) : null;
+		var sessions = log.Sessions;
+		return new TimeBreakdown(
+			TimeSpan.FromMilliseconds(stats?.TotalMs ?? 0), estimate?.Speed ?? AudibleAppSpeed?.Invoke() ?? 1, estimate,
+			TimeSpan.FromSeconds(sessions.Sum(s => s.SpentSeconds)), TimeSpan.FromSeconds(sessions.Sum(s => s.BookSeconds)),
+			stats is not null);
+	}
+
 	public ListeningLogViewModel(ListeningLog log, AudibleStats? audible = null, Func<string, (string Title, string? Author)?>? findBook = null)
 	{
 		this.log = log;
@@ -238,8 +277,6 @@ public partial class ListeningLogViewModel : ObservableObject
 		var today = DateTime.Today;
 
 		// Tiles.
-		var localTotal = sessions.Sum(s => s.SpentSeconds) / 3600;
-		var total = (stats?.TotalMs ?? 0) / 3.6e6 + localTotal;
 		var thisMonth = AudibleMonth(today) + LocalMonth(today);
 		var streak = 0;
 		for (var day = localByDay.ContainsKey(today) || AudibleDay(today) > 0 ? today : today.AddDays(-1);
@@ -251,16 +288,23 @@ public partial class ListeningLogViewModel : ObservableObject
 		var heard = sessions.Sum(s => s.BookSeconds);
 		var counted = sessions.Where(s => s.Syllables is > 0).ToList();
 		var syllablesPerSecond = counted.Sum(s => s.SpentSeconds) is > 60 and var countedSpent ? counted.Sum(s => s.Syllables!.Value) / countedSpent : (double?)null;
+		var breakdown = Breakdown(stats);
+		var audibleSpeed = breakdown.AudibleSpeed;
+		var realHours = breakdown.Real.TotalHours;
+		var bookHours = breakdown.Book.TotalHours;
+		var savedHours = breakdown.Saved.TotalHours;
 		Tiles =
 		[
-			new(Hours(total), stats is null ? "listened here" : "listened, all apps"),
+			new(Hours(realHours), stats is null ? "listened here (real time)" : "listened, all apps (real time)"),
+			new(Hours(bookHours), stats is null ? "of books heard here" : $"of books heard, all apps (Audible app at {audibleSpeed:0.00}×{(breakdown.Estimate is null ? ", default" : "")})"),
+			new(Hours(savedHours), "saved against 1×, all apps"),
+			new(realHours > 0 ? $"{bookHours / realHours:0.00}×" : "–", "average speed, all apps"),
 			new(Hours(thisMonth), today.ToString("MMMM", CultureInfo.CurrentCulture)),
 			new(streak == 1 ? "1 day" : $"{streak} days", "streak"),
 			new(stats is null ? "–" : finishedThisYear.ToString(CultureInfo.CurrentCulture), $"finished in {today.Year}"),
-			new(spent > 0 ? $"{heard / spent:0.0}×" : "–", "average speed here"),
+			new(spent > 0 ? $"{heard / spent:0.0}×" : "–", "average speed in Libation"),
 			new(syllablesPerSecond is double sps ? $"{sps:0}" : "–", "syllables a second heard"),
-			new(Hours(Math.Max(0, heard - spent) / 3600), "saved here, against 1×"),
-			new(counted.Count > 0 ? $"{counted.Sum(s => s.Syllables!.Value) / 1000:0}k" : "–", "syllables heard here"),
+			new(counted.Count > 0 ? $"{counted.Sum(s => s.Syllables!.Value) / 1000:0}k" : "–", "syllables heard in Libation"),
 		];
 
 		// Chart: 30 days or 12 months, oldest first, paged back through the history; or every year.

@@ -377,50 +377,66 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 
 	#region Time saved
 
-	/// <summary>The speed to compare against, for a slider.</summary>
-	public double BaselineSpeed
+	/// <summary>Real time, book time and time saved, in Audible's app and in Libation. Set by the main view model.</summary>
+	public Func<TimeBreakdown>? TimeBreakdown { get; set; }
+
+	/// <summary>Worked out when the page is refreshed, not for each figure shown.</summary>
+	private TimeBreakdown? Breakdown => breakdown ??= TimeBreakdown?.Invoke();
+	private TimeBreakdown? breakdown;
+
+	/// <summary>The speed assumed for Audible's app when its history cannot give one.</summary>
+	public string AudibleDefaultText => $"{settings.AudibleAppSpeed:0.0}×";
+
+	[RelayCommand]
+	private void ChangeAudibleDefault(string step)
 	{
-		get => Math.Round(settings.BaselineSpeed, 2);
-		set
-		{
-			settings.BaselineSpeed = (float)value;
-			RefreshTimeSaved();
-		}
+		if (double.TryParse(step, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var by))
+			settings.AudibleAppSpeed = (float)Math.Round(settings.AudibleAppSpeed + by, 1);
+		RefreshTimeSaved();
 	}
 
-	public string BaselineText => $"{BaselineSpeed:0.##}×";
+	public string TimeSavedText => Breakdown is { } b && b.Real > TimeSpan.Zero ? FormatLong(b.Saved) : "Nothing yet";
 
-	private TimeSpan Saved
+	public string TimeSavedDetail => Breakdown is { } b && b.Real > TimeSpan.Zero
+		? $"Against listening at 1×: {FormatLong(b.Book)} of books heard in {FormatLong(b.Real)} of real time, an average of {b.Speed:0.00}×."
+		: "Listen to a book and the time you save against 1× adds up here.";
+
+	public string AudibleRealText => Breakdown is { HasAudible: true } b ? Hours(b.AudibleReal) : "–";
+	public string AudibleBookText => Breakdown is { HasAudible: true } b ? Hours(b.AudibleBook) : "–";
+	public string AudibleSavedText => Breakdown is { HasAudible: true } b ? Hours(b.AudibleSaved) : "–";
+	public string AudibleSpeedText => Breakdown is { HasAudible: true } b ? $"{b.AudibleSpeed:0.00}×" : "–";
+	public string LibationRealText => Breakdown is { } b ? Hours(b.LibationReal) : "–";
+	public string LibationBookText => Breakdown is { } b ? Hours(b.LibationBook) : "–";
+	public string LibationSavedText => Breakdown is { } b ? Hours(b.LibationSaved) : "–";
+	public string LibationSpeedText => Breakdown is { } b && b.LibationReal > TimeSpan.Zero ? $"{b.LibationSpeed:0.00}×" : "–";
+	public string TotalRealText => Breakdown is { } b ? Hours(b.Real) : "–";
+	public string TotalBookText => Breakdown is { } b ? Hours(b.Book) : "–";
+	public string TotalSavedText => Breakdown is { } b ? Hours(b.Saved) : "–";
+	public string TotalSpeedText => Breakdown is { } b && b.Real > TimeSpan.Zero ? $"{b.Speed:0.00}×" : "–";
+
+	/// <summary>Where the Audible app's speed came from.</summary>
+	public string AudibleSpeedSourceText => Breakdown switch
 	{
-		get
-		{
-			var saved = settings.BookTimeHeard / settings.BaselineSpeed - settings.TimeSpentListening;
-			return saved > TimeSpan.Zero ? saved : TimeSpan.Zero;
-		}
-	}
+		{ HasAudible: false } => "Audible's figures have not been fetched yet. Open the listening log to fetch them.",
+		{ Estimate: { } e } => $"Worked out from your Audible history: at least {e.Speed:0.00}×, the best of {e.Stretches} three-month stretches comparing the books "
+			+ "you finished with the hours Audible counted. Listening that finishes no book, such as a book left playing while asleep, "
+			+ "only adds hours, so it is a lower bound.",
+		_ => "Your Audible history could not give a speed (no finished books found in your library), so the default below is used.",
+	};
 
-	public string TimeSavedText => settings.ListeningCountedSince is null ? "Nothing yet" : FormatLong(Saved);
-	public string TimeSavedDetail => settings.ListeningCountedSince is DateTimeOffset since
-		? $"{FormatLong(settings.BookTimeHeard)} of books heard in {FormatLong(settings.TimeSpentListening)}, an average of {AverageSpeed:0.0}×. Counted since {since.ToLocalTime():d MMM yyyy}."
-		: "Listen to a book and the time you save over your usual speed adds up here.";
-
-	private double AverageSpeed => settings.TimeSpentListening > TimeSpan.Zero ? settings.BookTimeHeard / settings.TimeSpentListening : 1;
+	private static string Hours(TimeSpan time) => time.TotalHours >= 10 ? $"{time.TotalHours:N0} h" : $"{time.TotalHours:0.0} h";
 
 	/// <summary>Called when the settings page opens, to show figures from listening since it was last open.</summary>
 	public void RefreshTimeSaved()
 	{
 		// The player has its own training switch.
 		OnPropertyChanged(nameof(Training));
-		OnPropertyChanged(nameof(BaselineText));
-		OnPropertyChanged(nameof(TimeSavedText));
-		OnPropertyChanged(nameof(TimeSavedDetail));
-	}
-
-	[RelayCommand]
-	private void ResetTimeSaved()
-	{
-		settings.ResetListening();
-		RefreshTimeSaved();
+		breakdown = null;
+		foreach (var name in new[] { nameof(TimeSavedText), nameof(TimeSavedDetail), nameof(TimeSavedSummary), nameof(AudibleDefaultText),
+			nameof(AudibleRealText), nameof(AudibleBookText), nameof(AudibleSavedText), nameof(AudibleSpeedText),
+			nameof(LibationRealText), nameof(LibationBookText), nameof(LibationSavedText), nameof(LibationSpeedText),
+			nameof(TotalRealText), nameof(TotalBookText), nameof(TotalSavedText), nameof(TotalSpeedText), nameof(AudibleSpeedSourceText) })
+			OnPropertyChanged(name);
 	}
 
 	/// <summary>Weeks, days, hours, minutes and seconds, leaving out leading units that are zero.</summary>
