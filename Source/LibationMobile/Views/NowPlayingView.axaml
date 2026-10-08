@@ -220,7 +220,7 @@
 					Maximum="{x:Static vm:NowPlayingViewModel.MAX_SPEED}"
 					Stops="{x:Static vm:NowPlayingViewModel.SpeedStops}" />
 				<!-- Training mode: warm up from a comfortable speed to this one. Set up in Settings, Speed listening. -->
-				<Grid ColumnDefinitions="Auto,*,Auto" Margin="0,-2,0,0">
+				<Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,-2,0,0">
 					<!-- Speed profile: Casual, School, Hard, Max. Set up in Settings. -->
 					<Button Classes="quiet" Padding="10,6" Margin="-10,0,8,0" VerticalAlignment="Center" ToolTip.Tip="Mode: profile, training, method">
 						<StackPanel Orientation="Horizontal" Spacing="4">
@@ -294,11 +294,35 @@
 							</Flyout>
 						</Button.Flyout>
 					</Button>
-					<StackPanel Grid.Column="1" VerticalAlignment="Center">
+					<!-- Sleep timer: a set time of listening, or the end of the chapter. -->
+					<Button Grid.Column="1" Classes="quiet" Padding="10,6" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip.Tip="Sleep timer">
+						<StackPanel Orientation="Horizontal" Spacing="5">
+							<PathIcon Data="{StaticResource IconMoon}" Width="14" Height="14" Foreground="{StaticResource Lamp}" />
+							<TextBlock Text="{Binding SleepTimerText}" FontSize="14" Foreground="{StaticResource Lamp}" />
+						</StackPanel>
+						<Button.Flyout>
+							<Flyout Placement="TopEdgeAlignedLeft">
+								<StackPanel Width="220" Spacing="2" Margin="4">
+									<TextBlock Text="Sleep timer" FontSize="13" Foreground="{StaticResource Dust}" Margin="8,0,0,6" />
+									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="5 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="5" />
+									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="10 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="10" />
+									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="15 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="15" />
+									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="30 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="30" />
+									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="45 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="45" />
+									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="1 hour" Command="{Binding SetSleepTimerCommand}" CommandParameter="60" />
+									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="1½ hours" Command="{Binding SetSleepTimerCommand}" CommandParameter="90" />
+									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="End of chapter" Command="{Binding SetSleepTimerCommand}" CommandParameter="0" />
+									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="Off" Command="{Binding SetSleepTimerCommand}" CommandParameter="off"
+										IsVisible="{Binding IsSleepTimerOn}" />
+								</StackPanel>
+							</Flyout>
+						</Button.Flyout>
+					</Button>
+					<StackPanel Grid.Column="2" VerticalAlignment="Center">
 						<TextBlock Text="Training" FontSize="14" HorizontalAlignment="Right" />
 						<TextBlock Text="{Binding TrainingText}" FontSize="12" Foreground="{StaticResource Lamp}" TextWrapping="Wrap" TextAlignment="Right" IsVisible="{Binding IsTrainingMode}" />
 					</StackPanel>
-					<ToggleSwitch Grid.Column="2" IsChecked="{Binding TrainingEnabled}" OnContent="" OffContent="" Margin="12,0,0,0" />
+					<ToggleSwitch Grid.Column="3" IsChecked="{Binding TrainingEnabled}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
 			</StackPanel>
 		</Border>

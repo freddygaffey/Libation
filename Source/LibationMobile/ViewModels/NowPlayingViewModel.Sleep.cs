@@ -23,6 +23,7 @@ public partial class NowPlayingViewModel
 	private DateTime nextSleepCheck;
 	private bool checkingSleep;
 	private bool watchingHead;
+	private bool watchingForSleep;
 	private DateTimeOffset? fadeStarted;
 	private double volumeBeforeFade = 1;
 	/// <summary>Set as auto-pause pauses, for the session it ends.</summary>
@@ -58,6 +59,8 @@ public partial class NowPlayingViewModel
 		positionAtTouch = Position;
 		if (fadeStarted is not null && kind != "pause")
 			StopFade();
+		if (timerFadeStarted is not null && kind != "pause")
+			RestartSleepTimer();
 	}
 
 	[RelayCommand]
@@ -66,16 +69,24 @@ public partial class NowPlayingViewModel
 		lastTouch = DateTimeOffset.Now;
 		positionAtTouch = Position;
 		StopFade();
+		if (timerFadeStarted is not null)
+			RestartSleepTimer();
 	}
 
 	/// <summary>From Update, four times a second.</summary>
 	private void SleepTick()
 	{
 		var watch = IsPlaying && settings.AutoPauseAsleep && (!settings.AutoPauseNightOnly || SleepFinder.IsNight(DateTime.Now));
-		if (watch != watchingHead)
+		// The head is followed for auto-pause, and while a sleep timer runs, for a nod to keep it going.
+		var followHead = watch || IsPlaying && IsSleepTimerOn;
+		if (followHead != watchingHead)
 		{
-			watchingHead = watch;
-			ListeningContext.Platform?.WatchHead(watch);
+			watchingHead = followHead;
+			ListeningContext.Platform?.WatchHead(followHead);
+		}
+		if (watch != watchingForSleep)
+		{
+			watchingForSleep = watch;
 			if (watch)
 			{
 				lastTouch = DateTimeOffset.Now;
@@ -93,6 +104,9 @@ public partial class NowPlayingViewModel
 			Fade(DateTimeOffset.Now - started);
 			return;
 		}
+		// The sleep timer is fading already.
+		if (timerFadeStarted is not null)
+			return;
 		if (DateTime.UtcNow < nextSleepCheck || checkingSleep)
 			return;
 		nextSleepCheck = DateTime.UtcNow + SleepCheckInterval;
@@ -126,8 +140,10 @@ public partial class NowPlayingViewModel
 
 	private void Fade(TimeSpan gone)
 	{
-		// Moving the head counts as a touch.
-		if (ListeningContext.Platform?.HeadLastMoved is DateTimeOffset moved && moved > fadeStarted)
+		// A nod or a shake of the head, or turning it, counts as a touch.
+		var context = ListeningContext.Platform;
+		if (context?.HeadGestured is DateTimeOffset nodded && nodded > fadeStarted
+			|| context?.HeadLastMoved is DateTimeOffset moved && moved > fadeStarted)
 		{
 			KeepListening();
 			return;
@@ -136,7 +152,8 @@ public partial class NowPlayingViewModel
 		if (left > TimeSpan.Zero)
 		{
 			Volume = volumeBeforeFade * Math.Max(0.05, left / FadeLength);
-			SleepFadeText = $"You seem to be asleep. Pausing in {Math.Ceiling(left.TotalSeconds):0} s.";
+			SleepFadeText = $"You seem to be asleep. Pausing in {Math.Ceiling(left.TotalSeconds):0} s. "
+				+ (context?.HeadLastMoved is not null ? "Nod, shake your head or tap to keep listening." : "Tap to keep listening.");
 			return;
 		}
 		fellAsleep = (lastTouch, positionAtTouch);

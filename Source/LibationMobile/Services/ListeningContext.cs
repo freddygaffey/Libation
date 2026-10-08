@@ -28,6 +28,9 @@ public interface IListeningContext
 	/// <summary>When the head last moved, while headphones that report it are worn and watched; null otherwise.</summary>
 	DateTimeOffset? HeadLastMoved { get; }
 
+	/// <summary>When the head last nodded or shook (turned quickly), while watched; null otherwise.</summary>
+	DateTimeOffset? HeadGestured { get; }
+
 	/// <summary>
 	/// Ask for Motion and Fitness, which covers the phone's activity and the headphones' head movement, as the listener
 	/// turns on something that needs it, rather than later, perhaps while asleep. True if allowed.

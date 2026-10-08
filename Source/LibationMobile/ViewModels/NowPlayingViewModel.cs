@@ -354,6 +354,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		UpdateSyllableRate();
 		CountListening();
 		SleepTick();
+		SleepTimerTick();
 		if (IsPlaying && DateTime.UtcNow - lastSaved > SaveInterval)
 			SavePosition();
 	}

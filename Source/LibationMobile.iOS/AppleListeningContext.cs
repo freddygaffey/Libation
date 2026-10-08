@@ -21,13 +21,21 @@ public sealed class AppleListeningContext : IListeningContext
 	private CMHeadphoneMotionManager? head;
 	private CMAttitude? headRest;
 	private DateTimeOffset? headLastMoved;
+	private DateTimeOffset? headGestured;
 	private readonly HKHealthStore? health = HKHealthStore.IsHealthDataAvailable ? new HKHealthStore() : null;
 	private static readonly HKCategoryType? SleepType = HKCategoryType.Create(HKCategoryTypeIdentifier.SleepAnalysis);
 
 	/// <summary>A turn of the head larger than this, in radians (about 8 degrees), is movement.</summary>
 	private const double HEAD_MOVED = 0.14;
+	/// <summary>
+	/// Turning faster than this, in radians a second, is a nod or a shake: deliberate, where a head settling into sleep
+	/// drifts slowly. About 70 degrees a second; a nod runs at two or three times that.
+	/// </summary>
+	private const double HEAD_GESTURE = 1.2;
 
 	public DateTimeOffset? HeadLastMoved => head is { DeviceMotionActive: true } ? headLastMoved : null;
+
+	public DateTimeOffset? HeadGestured => head is { DeviceMotionActive: true } ? headGestured : null;
 
 	public void WatchHead(bool on)
 	{
@@ -47,6 +55,9 @@ public sealed class AppleListeningContext : IListeningContext
 				{
 					if (motion?.Attitude is not { } attitude)
 						return;
+					var rate = motion.RotationRate;
+					if (Math.Sqrt(rate.x * rate.x + rate.y * rate.y + rate.z * rate.z) > HEAD_GESTURE)
+						headGestured = DateTimeOffset.Now;
 					if (headRest is null)
 					{
 						headRest = attitude;
