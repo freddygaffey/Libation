@@ -302,7 +302,7 @@
 						</StackPanel>
 						<Button.Flyout>
 							<Flyout Placement="TopEdgeAlignedLeft">
-								<StackPanel Width="220" Spacing="2" Margin="4">
+								<StackPanel Width="260" Spacing="2" Margin="4">
 									<TextBlock Text="Sleep timer" FontSize="13" Foreground="{StaticResource Dust}" Margin="8,0,0,6" />
 									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="5 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="5" />
 									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="10 minutes" Command="{Binding SetSleepTimerCommand}" CommandParameter="10" />
@@ -312,6 +312,16 @@
 									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="1 hour" Command="{Binding SetSleepTimerCommand}" CommandParameter="60" />
 									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="1½ hours" Command="{Binding SetSleepTimerCommand}" CommandParameter="90" />
 									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="End of chapter" Command="{Binding SetSleepTimerCommand}" CommandParameter="0" />
+									<!-- A length of your own: set it with − and +, then start. -->
+									<Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,4,0,0">
+										<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Command="{Binding StartCustomTimerCommand}">
+											<TextBlock>
+												<Run Text="Custom: " /><Run Text="{Binding CustomTimerText}" Foreground="{StaticResource Lamp}" />
+											</TextBlock>
+										</Button>
+										<Button Grid.Column="1" Classes="quiet" Content="−" Padding="12,6" Command="{Binding ChangeCustomTimerCommand}" CommandParameter="-" />
+										<Button Grid.Column="2" Classes="quiet" Content="+" Padding="12,6" Command="{Binding ChangeCustomTimerCommand}" CommandParameter="+" />
+									</Grid>
 									<Button Classes="row" Background="Transparent" HorizontalAlignment="Stretch" Padding="8,8" Content="Off" Command="{Binding SetSleepTimerCommand}" CommandParameter="off"
 										IsVisible="{Binding IsSleepTimerOn}" />
 								</StackPanel>

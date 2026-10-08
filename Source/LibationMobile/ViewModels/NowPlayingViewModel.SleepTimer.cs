@@ -58,6 +58,24 @@ public partial class NowPlayingViewModel
 		ShowTimer();
 	}
 
+	/// <summary>The custom length, in the timer's menu.</summary>
+	public string CustomTimerText => settings.SleepTimerCustomMinutes is var m && m >= 60
+		? $"{m / 60} h {(m % 60 > 0 ? $"{m % 60} min" : "")}".Trim()
+		: $"{settings.SleepTimerCustomMinutes} min";
+
+	/// <summary>Change the custom length: by 5 minutes, or by 1 under 10 minutes.</summary>
+	[RelayCommand]
+	private void ChangeCustomTimer(string direction)
+	{
+		var m = settings.SleepTimerCustomMinutes;
+		var step = m < 10 || m == 10 && direction == "-" ? 1 : 5;
+		settings.SleepTimerCustomMinutes = direction == "+" ? m + step : m - step;
+		OnPropertyChanged(nameof(CustomTimerText));
+	}
+
+	[RelayCommand]
+	private void StartCustomTimer() => SetSleepTimer(settings.SleepTimerCustomMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
 	/// <summary>From Update, four times a second.</summary>
 	private void SleepTimerTick()
 	{

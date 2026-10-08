@@ -390,7 +390,8 @@
 						<ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoPauseNightOnly}" OnContent="" OffContent="" Margin="12,0,0,0" />
 					</Grid>
 				</StackPanel>
-				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+				<!-- Hidden until the app ID carries the HealthKit capability; without it iOS will not ask. -->
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16" IsVisible="False">
 					<StackPanel VerticalAlignment="Center">
 						<TextBlock Text="Sleep from Apple Health" FontSize="15" />
 						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"

@@ -44,6 +44,7 @@ public class MobileSettings
 		public int AutoPauseMinutes { get; set; } = 20;
 		public bool AutoPauseNightOnly { get; set; } = true;
 		public bool UseHealthSleep { get; set; }
+		public int SleepTimerCustomMinutes { get; set; } = 20;
 		/// <summary>When each downloaded book's download was asked for, so a new download sorts as just listened to.</summary>
 		public Dictionary<string, DateTimeOffset> DownloadTimes { get; set; } = new();
 		public bool Training { get; set; }
@@ -256,6 +257,13 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.UseHealthSleep; }
 		set { lock (locker) { state.UseHealthSleep = value; Save(); } }
+	}
+
+	/// <summary>The sleep timer's own length, as last set.</summary>
+	public int SleepTimerCustomMinutes
+	{
+		get { lock (locker) return state.SleepTimerCustomMinutes; }
+		set { lock (locker) { state.SleepTimerCustomMinutes = Math.Clamp(value, 1, 480); Save(); } }
 	}
 
 	public void AddListening(TimeSpan bookTime, TimeSpan timeSpent)
