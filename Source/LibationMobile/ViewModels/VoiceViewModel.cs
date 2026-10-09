@@ -108,7 +108,8 @@ public partial class VoiceViewModel : ObservableObject
 	{
 		Reset();
 		Voices = BookVoice.Platform?.Voices() ?? [];
-		Voice = Voices.FirstOrDefault();
+		// The voice last used, or the best there is.
+		Voice = Voices.FirstOrDefault(v => v.Id == library.Books.FirstOrDefault()?.VoiceId) ?? Voices.FirstOrDefault();
 		IsOpen = true;
 	}
 
