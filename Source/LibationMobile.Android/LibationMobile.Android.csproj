@@ -11,8 +11,6 @@
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
     <RootNamespace>LibationMobile.Android</RootNamespace>
-    <!-- speechwarp is not on nuget.org yet; its package is kept in LocalPackages. -->
-    <RestoreAdditionalProjectSources>$(MSBuildThisFileDirectory)..\LibationMobile\LocalPackages</RestoreAdditionalProjectSources>
   </PropertyGroup>
 
   <ItemGroup>
