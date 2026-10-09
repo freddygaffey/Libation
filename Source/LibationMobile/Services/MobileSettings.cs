@@ -74,7 +74,7 @@ public class MobileSettings
 		public bool AskAlertness { get; set; } = true;
 		public bool VoicePrompts { get; set; }
 		public bool PlayNextInSeries { get; set; } = true;
-		public bool DownloadNextInSeries { get; set; } = true;
+		public bool DownloadNextInSeries { get; set; }
 		public Dictionary<string, SpeedProfile> Profiles { get; set; } = new();
 		public string? ActiveProfile { get; set; }
 		/// <summary>Which set of defaults the saved values were made with, to move ones never changed to newer defaults.</summary>
@@ -87,6 +87,7 @@ public class MobileSettings
 		state = Load(path);
 		UpgradeDefaults();
 		UpgradeProfiles();
+		UpgradeSeriesDownload();
 		AudioBackend.Nonlinearity = state.Nonlinearity;
 		AudioBackend.UseNonlinear = state.UseNonlinearSpeed;
 		AudioBackend.PauseCap = state.PauseCap;
@@ -122,6 +123,16 @@ public class MobileSettings
 		// Profiles became rules that scale with speed; none had been saved yet, so start them afresh.
 		state.Profiles.Clear();
 		state.DefaultsVersion = 4;
+		Save();
+	}
+
+	/// <summary>2026-10-09: downloading the next book of a series is off unless asked for; it was on for a few hours.</summary>
+	private void UpgradeSeriesDownload()
+	{
+		if (state.DefaultsVersion >= 5)
+			return;
+		state.DownloadNextInSeries = false;
+		state.DefaultsVersion = 5;
 		Save();
 	}
 
