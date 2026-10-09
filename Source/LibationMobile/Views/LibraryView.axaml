@@ -100,7 +100,7 @@
 			<StackPanel Grid.Row="1" Grid.ColumnSpan="3" Spacing="4" Margin="0,10,0,0" IsVisible="{Binding Library.IsFilterPanelOpen}">
 				<TextBlock Classes="muted" Text="Sort by" FontSize="12" />
 				<WrapPanel>
-					<Button Classes="chip" Classes.selected="{Binding Library.IsSortListened}" Content="Last listened" Command="{Binding Library.SortByCommand}" CommandParameter="listened" />
+					<Button Classes="chip" Classes.selected="{Binding Library.IsSortListened}" Content="Last activity" Command="{Binding Library.SortByCommand}" CommandParameter="listened" />
 					<Button Classes="chip" Classes.selected="{Binding Library.IsSortFinished}" Content="Recently finished" Command="{Binding Library.SortByCommand}" CommandParameter="finished" />
 					<Button Classes="chip" Classes.selected="{Binding Library.IsSortRecent}" Content="Newest" Command="{Binding Library.SortByCommand}" CommandParameter="recent" />
 					<Button Classes="chip" Classes.selected="{Binding Library.IsSortInProgress}" Content="In progress" Command="{Binding Library.SortByCommand}" CommandParameter="progress" />

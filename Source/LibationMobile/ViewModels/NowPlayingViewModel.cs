@@ -467,6 +467,10 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			uncountedBookTime = uncountedTimeSpent = TimeSpan.Zero;
 		}
 		lastSaved = DateTime.UtcNow;
+		// Unmoved, it keeps the time it was saved: just opening or leaving the app must not make this device look like
+		// the latest to be listened on, or the place the Audible app reached would never be picked up.
+		if (settings.GetPosition(Book.Id) is TimeSpan saved && (saved - player.Position).Duration() < TimeSpan.FromSeconds(1))
+			return;
 		settings.SetPosition(Book.Id, player.Position);
 	}
 

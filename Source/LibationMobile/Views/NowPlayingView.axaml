@@ -491,24 +491,10 @@
 	</Border>
 
 	<!-- Questions for the listener's own research: after a session, and during a blind trial. -->
-	<!-- Auto-pause when asleep: the fade, then where to go back to. -->
-	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
-		BorderBrush="{StaticResource Lamp}" BorderThickness="1" IsVisible="{Binding IsFadingForSleep}">
-		<StackPanel Spacing="10">
-			<TextBlock Text="{Binding SleepFadeText}" FontSize="16" TextWrapping="Wrap" />
-			<Button Classes="quiet" Content="Keep listening" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
-				Command="{Binding KeepListeningCommand}" />
-		</StackPanel>
-	</Border>
-	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
-		BorderBrush="{StaticResource Lamp}" BorderThickness="1" IsVisible="{Binding HasAsleepPlace}">
-		<StackPanel Spacing="10">
-			<TextBlock Text="{Binding AsleepPlaceText}" FontSize="15" TextWrapping="Wrap" />
-			<StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-				<Button Classes="quiet" Content="Stay here" Padding="12,8" Command="{Binding DismissAsleepPlaceCommand}" />
-				<Button Classes="quiet" Content="Go back there" Padding="12,8" Command="{Binding GoBackToAsleepPlaceCommand}" />
-			</StackPanel>
-		</StackPanel>
+	<!-- Auto-pause when asleep, fading: one quiet line; a tap anywhere on the player keeps listening. -->
+	<Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="16,0,16,12" Padding="12,6" CornerRadius="14"
+		Background="{StaticResource Slate}" IsVisible="{Binding IsFadingForSleep}" IsHitTestVisible="False">
+		<TextBlock Classes="muted" Text="{Binding SleepFadeText}" FontSize="12" TextWrapping="Wrap" />
 	</Border>
 	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
 		BorderBrush="{StaticResource Lamp}" BorderThickness="1"

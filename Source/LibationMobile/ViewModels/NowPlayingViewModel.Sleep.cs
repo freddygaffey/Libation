@@ -16,7 +16,8 @@ namespace LibationMobile.ViewModels;
 public partial class NowPlayingViewModel
 {
 	private static readonly TimeSpan SleepCheckInterval = TimeSpan.FromSeconds(30);
-	private static readonly TimeSpan FadeLength = TimeSpan.FromSeconds(30);
+	/// <summary>Slow enough to notice and tap, gentle enough not to wake a sleeper.</summary>
+	private static readonly TimeSpan FadeLength = TimeSpan.FromSeconds(60);
 
 	private DateTimeOffset lastTouch = DateTimeOffset.Now;
 	private TimeSpan positionAtTouch;
@@ -35,13 +36,7 @@ public partial class NowPlayingViewModel
 
 	public bool IsFadingForSleep => SleepFadeText.Length > 0;
 
-	/// <summary>After an auto-pause: where to go back to.</summary>
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(HasAsleepPlace))]
-	private string asleepPlaceText = "";
 
-	public bool HasAsleepPlace => AsleepPlaceText.Length > 0;
-	private TimeSpan asleepPlace;
 
 	/// <summary>Something the listener did, from LogEvent: not changes made by a plan, a trial or a sync.</summary>
 	private void NoteTouch(string kind, string? detail)
@@ -63,8 +58,9 @@ public partial class NowPlayingViewModel
 			RestartSleepTimer();
 	}
 
+	/// <summary>A tap on the player while fading, or the button where there is one.</summary>
 	[RelayCommand]
-	private void KeepListening()
+	public void KeepListening()
 	{
 		lastTouch = DateTimeOffset.Now;
 		positionAtTouch = Position;
@@ -152,13 +148,11 @@ public partial class NowPlayingViewModel
 		if (left > TimeSpan.Zero)
 		{
 			Volume = volumeBeforeFade * Math.Max(0.05, left / FadeLength);
-			SleepFadeText = $"You seem to be asleep. Pausing in {Math.Ceiling(left.TotalSeconds):0} s. "
-				+ (context?.HeadLastMoved is not null ? "Nod, shake your head or tap to keep listening." : "Tap to keep listening.");
+			SleepFadeText = context?.HeadLastMoved is not null ? "Fading out. Nod or tap to keep listening." : "Fading out. Tap to keep listening.";
 			return;
 		}
+		// Where it was last touched is kept in the book's history, marked asleep, to go back to from there.
 		fellAsleep = (lastTouch, positionAtTouch);
-		asleepPlace = positionAtTouch;
-		AsleepPlaceText = $"Paused as you seemed to be asleep. You last touched it at {lastTouch.ToLocalTime().ToString("t", CultureInfo.CurrentCulture)}, at {FormatTime(positionAtTouch)}.";
 		LogEvent("asleep", positionAtTouch.TotalSeconds, "auto-pause");
 		StopFade();
 		if (player.IsPlaying)
@@ -173,17 +167,6 @@ public partial class NowPlayingViewModel
 		Volume = volumeBeforeFade;
 		SleepFadeText = "";
 	}
-
-	[RelayCommand]
-	private void GoBackToAsleepPlace()
-	{
-		seekSource = "history";
-		Seek(asleepPlace);
-		AsleepPlaceText = "";
-	}
-
-	[RelayCommand]
-	private void DismissAsleepPlace() => AsleepPlaceText = "";
 
 	/// <summary>For EndSession: the sleep found as the session ended, if any, once.</summary>
 	private (DateTimeOffset At, TimeSpan Position)? TakeFellAsleep()

@@ -560,18 +560,20 @@ public partial class LibraryViewModel : ObservableObject
 	private DateTimeOffset LastListened(BookItemViewModel book)
 		=> book.HasProgress && settings.GetPositionTime(book.Book.Asin) is DateTimeOffset time ? time : DateTimeOffset.MinValue;
 
-	/// <summary>For the last-listened order: a book counts as listened to when its download was asked for, too.</summary>
+	/// <summary>For the recent order: the last time the book was listened to, downloaded, or bought, so a book just bought is at the top.</summary>
 	private DateTimeOffset LastActivity(BookItemViewModel book)
 	{
-		var listened = LastListened(book);
-		return book.State != DownloadState.NotDownloaded && settings.GetDownloadTime(book.Book.Asin) is { } downloaded && downloaded > listened ? downloaded : listened;
+		var latest = LastListened(book);
+		if (book.State != DownloadState.NotDownloaded && settings.GetDownloadTime(book.Book.Asin) is { } downloaded && downloaded > latest)
+			latest = downloaded;
+		return book.Book.Purchased > latest ? book.Book.Purchased : latest;
 	}
 
 	private void ApplySort()
 	{
 		IEnumerable<BookItemViewModel> sorted = Sort switch
 		{
-			SORT_LISTENED => allBooks.OrderByDescending(LastActivity).ThenByDescending(b => b.Book.Purchased),
+			SORT_LISTENED => allBooks.OrderByDescending(LastActivity),
 			// Finished books, the most recently finished first; then the rest, newest first.
 			SORT_FINISHED => allBooks.OrderByDescending(b => b.IsFinished).ThenByDescending(b => b.IsFinished ? LastListened(b) : DateTimeOffset.MinValue).ThenByDescending(b => b.Book.Purchased),
 			SORT_TITLE => allBooks.OrderBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase),

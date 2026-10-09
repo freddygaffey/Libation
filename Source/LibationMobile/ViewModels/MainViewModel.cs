@@ -804,6 +804,14 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				if (parts.Length > 2 && NowPlaying is { } openPlayer)
 					openPlayer.OpenSheetCommand.Execute(parts[2]);
 				break;
+			case "audiblestats":
+				// Read only: Audible's own record of listening by day, the last fortnight.
+				{
+					var stats = await new AudibleStats(account, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)).FetchAsync();
+					foreach (var (day, ms) in stats.DailyMs.OrderByDescending(d => d.Key).Take(14))
+						Console.WriteLine($"LIBATION_TEST audiblestats: {day} {ms / 60000:0} min");
+				}
+				break;
 			case "getvoices":
 				// Download the neural voices, then list every voice.
 				if (BookVoice.Platform is { } installer)

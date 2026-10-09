@@ -303,7 +303,8 @@ public partial class NowPlayingViewModel
 	/// <summary>Send the position to Audible. Failures are ignored: the next one replaces it.</summary>
 	private void PushPosition()
 	{
-		if (annotations is not { } service || !settings.SyncPosition)
+		// Only after listening or moving here: otherwise this device's old place would overwrite the Audible app's.
+		if (annotations is not { } service || !settings.SyncPosition || lastLocalActivity is not { } activity || activity.UtcDateTime <= lastRemoteSave)
 			return;
 		lastRemoteSave = DateTime.UtcNow;
 		var position = player.Position;

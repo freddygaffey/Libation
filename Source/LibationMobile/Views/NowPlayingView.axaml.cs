@@ -23,6 +23,13 @@ public partial class NowPlayingView : UserControl
 				viewModel.PropertyChanged += ViewModel_PropertyChanged;
 		};
 
+		// Fading out for sleep: a tap anywhere on the player keeps listening.
+		AddHandler(PointerPressedEvent, (_, _) =>
+		{
+			if (viewModel is { IsFadingForSleep: true } fading)
+				fading.KeepListening();
+		}, RoutingStrategies.Tunnel, handledEventsToo: true);
+
 		// The scrubber seeks only while a finger is on it; see NowPlayingViewModel.IsScrubbing.
 		foreach (var slider in new[] { scrubber })
 		{
