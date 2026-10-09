@@ -231,6 +231,7 @@ public partial class VoiceViewModel : ObservableObject
 			return;
 		}
 		var book = library.Add(read, source, string.IsNullOrWhiteSpace(Title) ? read.Title ?? "Untitled" : Title.Trim(), Author, chosen);
+		BookVoice.Platform?.VoiceAhead(library.TextPath(book), chosen.Id);
 		if (sourcePath is not null && sourcePath.StartsWith(tempDirectory, StringComparison.Ordinal))
 			File.Delete(sourcePath);
 		Close();

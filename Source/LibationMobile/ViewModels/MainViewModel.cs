@@ -872,6 +872,20 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				if (voiced.Books.FirstOrDefault() is { } newestVoiced && await LoadVoicedAsync(newestVoiced, showNowPlaying: true))
 					Console.WriteLine($"LIBATION_TEST openvoiced: {newestVoiced.Title}, {NowPlaying!.Duration}, {newestVoiced.Chapters.Count} chapters");
 				break;
+			case "addvoice" when parts.Length > 2:
+				// "addvoice:VOICE:ADDRESS": add a document as a voiced book in that voice, without opening it.
+				{
+					var addVoice = parts[1] + (parts[1] is "kokoro" or "espeak" ? ":" + parts[2] : "");
+					var target = action[("addvoice:" + addVoice + ":").Length..];
+					var path = target.StartsWith("http") ? await VoicedLibrary.DownloadAsync(new Uri(target), Path.GetTempPath(), default) : target;
+					var content = DocumentText.Read(path);
+					var choice = BookVoice.Platform!.Voices().First(v => v.Id == addVoice);
+					var added = voiced.Add(content, target, content.Title ?? "Untitled", content.Author, choice);
+					BookVoice.Platform.VoiceAhead(voiced.TextPath(added), choice.Id);
+					Console.WriteLine($"LIBATION_TEST addvoice: '{added.Title}' in {choice.Label}, {added.Chapters.Count} chapters");
+					RefreshDownloads();
+				}
+				break;
 			case "voice" when parts.Length > 1:
 				// "voice:/path/to/file.pdf" or "voice:https://…": add it with the first voice and open it, without playing.
 				{

@@ -30,7 +30,11 @@ public interface IBookVoice
 	IReadOnlyList<VoiceChoice> Voices(string language = "en");
 
 	/// <param name="secondsPerCharacter">The timeline's pace: a character is this long.</param>
-	IVoicedSource Open(string text, string voiceId, double secondsPerCharacter);
+	/// <param name="textPath">Where the text is kept, so a slow voice can read ahead of it later, as overnight.</param>
+	IVoicedSource Open(string text, string voiceId, double secondsPerCharacter, string? textPath = null);
+
+	/// <summary>A slow voice (Kokoro): ask for the book to be read ahead to disk while the phone charges.</summary>
+	void VoiceAhead(string textPath, string voiceId);
 
 	/// <summary>Whether the neural voices (Kokoro, the HSC library's narrators) are on the phone.</summary>
 	bool HasNeuralVoices { get; }

@@ -56,6 +56,12 @@ public sealed class AppleBookVoice : IBookVoice
 		return voices;
 	}
 
+	public void VoiceAhead(string textPath, string voiceId)
+	{
+		if (voiceId.StartsWith("kokoro:"))
+			OvernightVoicing.Ask(new OvernightVoicing.Job(textPath, voiceId, 0));
+	}
+
 	public bool HasNeuralVoices => KokoroVoices.All(KokoroSentenceVoice.IsInstalled);
 
 	private static readonly System.Net.Http.HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(30) };
@@ -97,8 +103,8 @@ public sealed class AppleBookVoice : IBookVoice
 		progress.Report(1);
 	}
 
-	public IVoicedSource Open(string text, string voiceId, double secondsPerCharacter)
-		=> new LiveVoicedSource(text, voiceId, secondsPerCharacter, Make);
+	public IVoicedSource Open(string text, string voiceId, double secondsPerCharacter, string? textPath = null)
+		=> new LiveVoicedSource(text, voiceId, secondsPerCharacter, Make, textPath);
 
 	/// <summary>The engine for a voice: "kokoro:af_heart", "espeak:en-us", or one of Apple's identifiers.</summary>
 	private static ISentenceVoice Make(string voiceId) => voiceId switch

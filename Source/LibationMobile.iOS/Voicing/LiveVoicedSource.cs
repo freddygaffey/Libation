@@ -27,6 +27,10 @@ public sealed class LiveVoicedSource : IVoicedSource
 	private readonly Thread worker;
 	private readonly Dictionary<int, float[]> ready = [];
 	private ISentenceVoice voice;
+	/// <summary>Where a slow voice's sentences are kept; null for a fast one.</summary>
+	private VoiceCache? cache;
+	/// <summary>Sentences of blocks not yet complete, to be kept once they are.</summary>
+	private readonly Dictionary<int, float[]?[]> building = [];
 	/// <summary>Raised by a seek or a new voice: audio made before it is not used.</summary>
 	private int generation;
 	private int sentence;
@@ -41,8 +45,12 @@ public sealed class LiveVoicedSource : IVoicedSource
 	public bool IsWaiting { get; private set; }
 	public string VoiceId { get; private set; }
 
-	public LiveVoicedSource(string text, string voiceId, double secondsPerCharacter, Func<string, ISentenceVoice> makeVoice)
+	/// <summary>Where the text is on disk, for overnight voicing to read; null for none.</summary>
+	private readonly string? textPath;
+
+	public LiveVoicedSource(string text, string voiceId, double secondsPerCharacter, Func<string, ISentenceVoice> makeVoice, string? textPath = null)
 	{
+		this.textPath = textPath;
 		this.text = text;
 		pace = secondsPerCharacter;
 		this.makeVoice = makeVoice;
@@ -50,6 +58,8 @@ public sealed class LiveVoicedSource : IVoicedSource
 		sentences = SpokenText.Split(text);
 		VoiceId = voiceId;
 		voice = makeVoice(voiceId);
+		cache = voice.KeepsSpoken ? new VoiceCache(text, voiceId) : null;
+		AskOvernight();
 		// The player plays at the first voice's rate; another voice's audio is converted to it.
 		SampleRate = voice.SampleRate;
 		marks.Add((0, 0));
@@ -57,17 +67,22 @@ public sealed class LiveVoicedSource : IVoicedSource
 		worker.Start();
 	}
 
-	/// <summary>Speak the next sentence missing within the lookahead, again and again.</summary>
+	/// <summary>
+	/// Speak the next sentence missing within the lookahead, again and again: from the disk where a slow voice has
+	/// spoken it before. With nothing missing, a slow voice carries on further ahead to disk while the phone charges.
+	/// </summary>
 	private void Work()
 	{
 		while (!disposed)
 		{
 			int index = -1, forGeneration;
 			ISentenceVoice speaker;
+			VoiceCache? keep;
 			lock (locker)
 			{
 				forGeneration = generation;
 				speaker = voice;
+				keep = cache;
 				var ahead = 0.0;
 				for (var i = sentence; i < sentences.Count && ahead < LOOKAHEAD; i++)
 				{
@@ -82,41 +97,128 @@ public sealed class LiveVoicedSource : IVoicedSource
 			}
 			if (index < 0)
 			{
-				wake.WaitOne(500);
+				if (keep is null || !Charging() || !SpeakAheadToDisk(speaker, keep, forGeneration))
+					wake.WaitOne(500);
 				continue;
 			}
-			float[] spoken;
-			try
+
+			var block = index / VoiceCache.BLOCK;
+			if (keep?.Load(block, SampleRate) is { } kept)
 			{
-				spoken = Convert(speaker.Speak(sentences[index].Text), speaker.SampleRate);
+				lock (locker)
+				{
+					if (forGeneration == generation)
+						for (var i = 0; i < kept.Length; i++)
+							if (block * VoiceCache.BLOCK + i >= sentence)
+								ready.TryAdd(block * VoiceCache.BLOCK + i, kept[i]);
+				}
+				continue;
 			}
-			catch (Exception ex)
-			{
-				Console.WriteLine($"Sentence {index} not spoken: {ex.Message}");
-				spoken = [];
-			}
+
+			var spoken = Speak(speaker, index);
 			lock (locker)
 			{
-				if (forGeneration == generation)
-					ready[index] = spoken;
+				if (forGeneration != generation)
+					continue;
+				ready[index] = spoken;
 			}
+			if (keep is not null)
+				Build(keep, index, spoken);
 		}
 	}
 
-	private float[] Convert(float[] samples, int rate)
+	private float[] Speak(ISentenceVoice speaker, int index)
 	{
-		if (rate == SampleRate || samples.Length == 0)
-			return samples;
-		var result = new float[(int)((long)samples.Length * SampleRate / rate)];
-		for (var i = 0; i < result.Length; i++)
+		try
 		{
-			var x = (double)i * rate / SampleRate;
-			var j = (int)x;
-			var f = (float)(x - j);
-			result[i] = j + 1 < samples.Length ? samples[j] * (1 - f) + samples[j + 1] * f : samples[^1];
+			return Convert(speaker.Speak(sentences[index].Text), speaker.SampleRate);
 		}
-		return result;
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Sentence {index} not spoken: {ex.Message}");
+			return [];
+		}
 	}
+
+	/// <summary>Add a sentence to its block, and keep the block once every sentence of it is spoken.</summary>
+	private void Build(VoiceCache keep, int index, float[] spoken)
+	{
+		var block = index / VoiceCache.BLOCK;
+		float[][]? complete = null;
+		lock (locker)
+		{
+			if (!building.TryGetValue(block, out var parts))
+				building[block] = parts = new float[]?[Math.Min(VoiceCache.BLOCK, sentences.Count - block * VoiceCache.BLOCK)];
+			parts[index % VoiceCache.BLOCK] = spoken;
+			if (parts.All(p => p is not null))
+			{
+				complete = parts!;
+				building.Remove(block);
+			}
+			// Blocks left part-spoken by a seek are let go.
+			foreach (var stale in building.Keys.Where(k => k < sentence / VoiceCache.BLOCK).ToList())
+				building.Remove(stale);
+		}
+		if (complete is null)
+			return;
+		try
+		{
+			keep.Save(block, complete, SampleRate);
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Voiced block {block} not kept: {ex.Message}");
+		}
+	}
+
+	/// <summary>The next block past what is ready that is not on disk yet, spoken and kept. False when there is none.</summary>
+	private bool SpeakAheadToDisk(ISentenceVoice speaker, VoiceCache keep, int forGeneration)
+	{
+		int first;
+		lock (locker)
+			first = sentence / VoiceCache.BLOCK;
+		var blocks = (sentences.Count + VoiceCache.BLOCK - 1) / VoiceCache.BLOCK;
+		var block = Enumerable.Range(first, Math.Max(0, blocks - first)).FirstOrDefault(b => !keep.Has(b) && !building.ContainsKey(b), -1);
+		if (block < 0)
+			return false;
+		var parts = new List<float[]>();
+		for (var i = block * VoiceCache.BLOCK; i < Math.Min(sentences.Count, (block + 1) * VoiceCache.BLOCK); i++)
+		{
+			// Back to the sentences being heard as soon as they are wanted.
+			if (disposed || forGeneration != generation || NeedsSpeaking())
+				return true;
+			parts.Add(Speak(speaker, i));
+		}
+		try
+		{
+			keep.Save(block, parts, SampleRate);
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Voiced block {block} not kept: {ex.Message}");
+		}
+		return true;
+	}
+
+	/// <summary>Whether a sentence within the lookahead is missing.</summary>
+	private bool NeedsSpeaking()
+	{
+		lock (locker)
+		{
+			var ahead = 0.0;
+			for (var i = sentence; i < sentences.Count && ahead < LOOKAHEAD / 2; i++)
+			{
+				if (!ready.TryGetValue(i, out var audio))
+					return true;
+				ahead += audio.Length / (double)SampleRate;
+			}
+			return false;
+		}
+	}
+
+	private static bool Charging() => UIKit.UIDevice.CurrentDevice.BatteryState is UIKit.UIDeviceBatteryState.Charging or UIKit.UIDeviceBatteryState.Full;
+
+	private float[] Convert(float[] samples, int rate) => rate == SampleRate ? samples : VoiceCache.Resample(samples, rate, SampleRate);
 
 	public int Read(Span<float> samples)
 	{
@@ -203,8 +305,11 @@ public sealed class LiveVoicedSource : IVoicedSource
 			{
 				old = voice;
 				voice = next;
+				cache = next.KeepsSpoken ? new VoiceCache(text, voiceId) : null;
+				building.Clear();
 				VoiceId = voiceId;
 				generation++;
+				AskOvernight();
 				foreach (var later in ready.Keys.Where(k => k > sentence).ToList())
 					ready.Remove(later);
 			}
@@ -215,8 +320,16 @@ public sealed class LiveVoicedSource : IVoicedSource
 		});
 	}
 
+	/// <summary>A slow voice: ask for the rest of the book to be spoken while the phone charges, from the place being heard.</summary>
+	private void AskOvernight()
+	{
+		if (cache is not null && textPath is { } path)
+			OvernightVoicing.Ask(new OvernightVoicing.Job(path, VoiceId, sentence < sentences.Count ? sentences[sentence].Start : 0));
+	}
+
 	public void Dispose()
 	{
+		AskOvernight();
 		disposed = true;
 		wake.Set();
 		lock (locker)

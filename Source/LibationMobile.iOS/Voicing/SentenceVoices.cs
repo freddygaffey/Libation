@@ -10,6 +10,9 @@ public interface ISentenceVoice : IDisposable
 {
 	int SampleRate { get; }
 	float[] Speak(string sentence);
+
+	/// <summary>Slower than listening: what it speaks is kept on disk (<see cref="VoiceCache"/>), and spoken ahead.</summary>
+	bool KeepsSpoken => false;
 }
 
 /// <summary>Apple's voices, through speechwarp's voice module. They render on the main thread; this waits from another.</summary>
@@ -51,6 +54,7 @@ public sealed class KokoroSentenceVoice(string voice) : ISentenceVoice
 	public static bool IsInstalled(string voice) => File.Exists(Path.Combine(Directory, "model_fp16.onnx")) && File.Exists(Path.Combine(Directory, "voices", voice + ".bin"));
 
 	public int SampleRate => KokoroEngine.SAMPLE_RATE;
+	public bool KeepsSpoken => true;
 
 	public float[] Speak(string sentence)
 	{

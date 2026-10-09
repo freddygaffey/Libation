@@ -165,8 +165,10 @@ public class VoicedLibrary
 		}
 		var textPath = Path.Combine(Folder(book), TEXT_FILE);
 		return new LocalBook(book.Id, textPath, book.Title, book.Author, book.VoiceName, book.Length, Cover(book), chapters.Chapters.ToList(),
-			OpenSource: () => voice.Open(File.ReadAllText(textPath), book.VoiceId, pace));
+			OpenSource: () => voice.Open(File.ReadAllText(textPath), book.VoiceId, pace, textPath));
 	}
+
+	public string TextPath(VoicedBook book) => Path.Combine(Folder(book), TEXT_FILE);
 
 	/// <summary>The cover made from the document's first page, if it had one.</summary>
 	public byte[]? Cover(VoicedBook book) => File.Exists(Path.Combine(Folder(book), "cover.png")) ? File.ReadAllBytes(Path.Combine(Folder(book), "cover.png")) : null;

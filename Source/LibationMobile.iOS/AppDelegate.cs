@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.iOS;
 using Foundation;
 using System;
+using System.Linq;
 using LibationMobile.Services;
 
 namespace LibationMobile.iOS;
@@ -23,6 +24,9 @@ public partial class AppDelegate : AvaloniaAppDelegate<App>
 		DocumentViewer.Platform = new AppleDocumentViewer();
 		ListeningContext.Platform = new AppleListeningContext();
 		VoicePrompt.Platform = new AppleVoicePrompt();
+		// Slow voices speak ahead to disk while the phone charges: with the book open, and overnight.
+		UIKit.UIDevice.CurrentDevice.BatteryMonitoringEnabled = true;
+		Voicing.OvernightVoicing.Register();
 		DocumentText.Pdf = new ApplePdfReader();
 		BookVoice.Platform = new AppleBookVoice();
 		AudioBackend.Route = AppleAudioRoute.Describe;
@@ -30,6 +34,16 @@ public partial class AppDelegate : AvaloniaAppDelegate<App>
 		FileTransfer.Platform = new AppleFileTransfer();
 		FileTransfer.BackgroundWork = new AppleBackgroundWork();
 #if DEBUG
+		// LIBATION_OVERNIGHT_TEST=SECONDS: overnight voicing of the newest voiced book in Heart, for that long, now.
+		if (Environment.GetEnvironmentVariable("LIBATION_OVERNIGHT_TEST") is { Length: > 0 } overnight)
+			System.Threading.Tasks.Task.Run(() =>
+			{
+				var voiced = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Voiced");
+				var text = System.IO.Directory.EnumerateFiles(voiced, "text.txt", System.IO.SearchOption.AllDirectories).OrderByDescending(System.IO.File.GetLastWriteTimeUtc).First();
+				Voicing.OvernightVoicing.Ask(new Voicing.OvernightVoicing.Job(text, "kokoro:af_heart", 0));
+				var done = Voicing.OvernightVoicing.VoiceAhead(default, TimeSpan.FromSeconds(int.Parse(overnight)));
+				Console.WriteLine($"LIBATION_TEST overnight: finished={done}");
+			});
 		// LIBATION_KOKORO_BENCH=SECONDS[:VOICE]: how fast Kokoro speaks on this device, writing nothing and playing nothing.
 		if (Environment.GetEnvironmentVariable("LIBATION_KOKORO_BENCH") is { Length: > 0 } bench)
 			System.Threading.Tasks.Task.Run(() => Kokoro.KokoroBench.Run(bench));
