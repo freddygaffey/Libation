@@ -554,37 +554,10 @@
 				<PathIcon Data="{StaticResource IconMoon}" Width="20" Height="20" Foreground="{StaticResource Dust}" />
 				<TextBlock Grid.Column="1" Text="How awake are you?" FontSize="16" TextWrapping="Wrap" />
 			</Grid>
-			<UniformGrid Columns="5">
-				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="0">
-					<StackPanel HorizontalAlignment="Center">
-						<TextBlock Text="0" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-						<TextBlock Text="asleep" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
-				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="1">
-					<StackPanel HorizontalAlignment="Center">
-						<TextBlock Text="1" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-						<TextBlock Text="drowsy" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
-				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="2">
-					<StackPanel HorizontalAlignment="Center">
-						<TextBlock Text="2" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-						<TextBlock Text="okay" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
-				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="3">
-					<StackPanel HorizontalAlignment="Center">
-						<TextBlock Text="3" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-						<TextBlock Text="alert" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
-				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="4">
-					<StackPanel HorizontalAlignment="Center">
-						<TextBlock Text="4" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-						<TextBlock Text="sharp" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
-					</StackPanel>
-				</Button>
+			<UniformGrid Columns="3">
+				<Button Classes="choice" Content="Sleepy" Command="{Binding RateAlertnessCommand}" CommandParameter="0" />
+				<Button Classes="choice" Content="Okay" Command="{Binding RateAlertnessCommand}" CommandParameter="1" />
+				<Button Classes="choice" Content="Sharp" Command="{Binding RateAlertnessCommand}" CommandParameter="2" />
 			</UniformGrid>
 			<Button Classes="quiet" Content="Skip" HorizontalAlignment="Right" Padding="10,4" Command="{Binding SkipAlertnessCommand}" />
 		</StackPanel>

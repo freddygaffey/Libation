@@ -44,11 +44,12 @@ public record SessionContext(int HourOfDay, string DayOfWeek, double? HoursSince
 	string? Plan, int BlocksDone, double? BookProgress, ListeningSettings Settings, string? Activity = null);
 
 /// <summary>
-/// A question at the start or end of a session, 0 to 4: at the start how alert (0 falling asleep, 4 wide awake), at the
-/// end how well it was followed (0 lost it, 4 every word). Kept even when unanswered, for the context.
+/// A question at the start or end of a session: at the start how alert, 0 sleepy, 1 okay, 2 sharp (words on screen, on a
+/// different scale so it is not taken for the other); at the end how well it was followed, 0 lost it to 4 all of it.
+/// Kept even when unanswered, for the context.
 /// </summary>
 /// <param name="Moment">"start" or "end".</param>
-/// <param name="Answer">0 to 4; null when skipped or not answered.</param>
+/// <param name="Answer">0 to 2 at the start, 0 to 4 at the end; null when skipped or not answered.</param>
 /// <param name="AnsweredBy">"screen", "voice", or "none".</param>
 public record SessionCheckIn(DateTimeOffset At, string BookId, string Title, string Moment, int? Answer, string AnsweredBy,
 	SessionContext Context);

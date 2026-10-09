@@ -32,7 +32,7 @@ public static class ResearchExport
 		"sessions: each listening session (bookSeconds heard, spentSeconds of real time, syllables heard, marks of position every 5 minutes). " +
 		"ratings: 'how well did you follow' 1 (lost) to 5 (every word) after a session, with the settings in force; since check-ins began, " +
 		"the end check-in's 0-4 answer plus one. " +
-		"checkIns: a question at the start (moment 'start': how alert, 0 falling asleep to 4 wide awake) and end (moment 'end': how well " +
+		"checkIns: a question at the start (moment 'start': how alert, 0 sleepy, 1 okay, 2 sharp) and end (moment 'end': how well " +
 		"followed, 0 lost to 4 every word) of each session, answered on screen or by voice, or not (answer absent), with the context: hour " +
 		"and day, hours since the last session, minutes listened, start/min/max speed, mean syllables a second heard, skips back, speed " +
 		"changes, audio route, mode and training plan, blocks done, progress through the book (0-1), the settings, and the motion activity. " +
