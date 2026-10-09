@@ -121,7 +121,7 @@
 					<Button Classes="quiet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,14"
 						Content="Choose a PDF, EPUB or text file" Command="{Binding PickDocumentCommand}" IsEnabled="{Binding !IsBusy}" />
 					<Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-						<TextBox Text="{Binding Url}" PlaceholderText="Or a web address of one" />
+						<TextBox Text="{Binding Url}" PlaceholderText="Or a web address of one" TextInputOptions.ContentType="Url" TextInputOptions.AutoCapitalization="False" TextInputOptions.ReturnKeyType="Go" />
 						<Button Grid.Column="1" Classes="quiet" Content="Get" Padding="14,8" Command="{Binding FetchUrlCommand}" IsEnabled="{Binding !IsBusy}" />
 					</Grid>
 					<TextBlock Classes="muted" Text="{Binding Message}" TextWrapping="Wrap" FontSize="13" IsVisible="{Binding HasMessage}" />

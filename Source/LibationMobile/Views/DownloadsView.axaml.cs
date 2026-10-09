@@ -41,7 +41,9 @@ public partial class DownloadsView : UserControl
 		if (files.Count == 0)
 			return null;
 		var file = files[0];
-		var inbox = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Inbox-voice");
+		if (DataContext is not MainViewModel vm)
+			return null;
+		var inbox = vm.Voice.TempDirectory;
 		Directory.CreateDirectory(inbox);
 		var name = file.Name is { Length: > 0 } n ? n : "document.pdf";
 		if (!Array.Exists(DocumentText.Extensions, x => name.EndsWith(x, StringComparison.OrdinalIgnoreCase)))

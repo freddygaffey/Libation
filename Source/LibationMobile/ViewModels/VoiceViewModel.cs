@@ -50,6 +50,9 @@ public partial class VoiceViewModel : ObservableObject
 
 	private readonly VoicedLibrary library;
 	private readonly string tempDirectory;
+
+	/// <summary>Where documents wait to be read: fetched ones, and copies of picked ones.</summary>
+	public string TempDirectory => tempDirectory;
 	private string? sourcePath;
 	private string source = "";
 

@@ -19,7 +19,9 @@ public partial class MainViewModel
 	private void StartVoiced(string dataDirectory)
 	{
 		voiced = new VoicedLibrary(dataDirectory);
-		Voice = new VoiceViewModel(voiced, Path.Combine(dataDirectory, "Inbox"));
+		// Documents fetched or picked wait in the temporary folder. Not Documents/Inbox: iOS keeps that for files other
+		// apps hand over, and an app may not write there.
+		Voice = new VoiceViewModel(voiced, Path.Combine(Path.GetTempPath(), "voice"));
 		Voice.BooksChanged += () =>
 		{
 			// A book added or removed changes the list; progress only changes its row.
