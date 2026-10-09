@@ -24,6 +24,7 @@ public partial class NowPlayingViewModel
 	private void LogEvent(string kind, double? value = null, string? detail = null)
 	{
 		NoteTouch(kind, detail);
+		NoteSessionEvent(kind, value);
 		Events?.Add(new ListeningEvent(DateTimeOffset.Now, Book.Id, kind, Math.Round(Position.TotalSeconds, 1), Math.Round(Speed, 2),
 			value is double v ? Math.Round(v, 2) : null, detail, AudioBackend.Route?.Invoke(), IsBlindMode));
 	}

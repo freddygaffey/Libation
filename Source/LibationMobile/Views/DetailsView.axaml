@@ -61,6 +61,8 @@
 							<StackPanel Margin="0,24,0,0">
 								<TextBlock Text="{Binding Name}" FontFamily="{StaticResource DisplayFont}" FontSize="20" TextWrapping="Wrap" Margin="24,0" />
 								<TextBlock Classes="muted" Text="{Binding CountText}" FontSize="13" Margin="24,2,24,8" />
+								<Button Classes="quiet" Content="{Binding DownloadText}" Margin="24,0,24,8" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
+									IsVisible="{Binding CanDownload}" Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).DownloadSeriesCommand}" CommandParameter="{Binding}" />
 								<ItemsControl ItemsSource="{Binding Rows}">
 									<ItemsControl.ItemTemplate>
 										<DataTemplate x:DataType="vm:SeriesRowViewModel">

@@ -28,13 +28,16 @@ public sealed class AppleMediaSession : IMediaSession
 	private bool wasPlayingWhenInterrupted;
 	private bool pendingPlay;
 
+	public DateTime LastButtonPress { get; private set; }
+
 	public AppleMediaSession()
 	{
 		var commands = MPRemoteCommandCenter.Shared;
-		Handle(commands.PlayCommand, RequestPlay);
-		Handle(commands.PauseCommand, RequestPause);
+		Handle(commands.PlayCommand, () => { LastButtonPress = DateTime.UtcNow; RequestPlay(); });
+		Handle(commands.PauseCommand, () => { LastButtonPress = DateTime.UtcNow; RequestPause(); });
 		Handle(commands.TogglePlayPauseCommand, () =>
 		{
+			LastButtonPress = DateTime.UtcNow;
 			// Before a book is loaded, toggling can only mean play.
 			if (TogglePlayPauseRequested is null)
 				RequestPlay();

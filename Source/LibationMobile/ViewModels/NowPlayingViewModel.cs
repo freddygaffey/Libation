@@ -262,6 +262,8 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		}
 		else
 		{
+			// A question being asked aloud stops when play is pressed.
+			voiceCancel?.Cancel();
 			// Ask Audible first (it notes what this device knew before playing), then start without waiting.
 			_ = SyncPositionAsync(whilePlaying: true);
 			try
@@ -420,6 +422,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 			sessionSyllables = 0;
 			StartMarks();
 			StartTraining();
+			StartCheckIns();
 		}
 		else if (!listening && sessionStarted is not null)
 			EndSession();
@@ -440,7 +443,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 
 	private void EndSession()
 	{
-		OfferFollowRating(sessionSpent, sessionSyllables);
+		OfferEndCheckIn(sessionSpent, sessionSyllables);
 		if (sessionStarted is DateTimeOffset began && sessionSpent >= ShortestLoggedSession)
 			LogActivity(began, DateTimeOffset.Now, "session");
 		var asleep = TakeFellAsleep();
@@ -471,6 +474,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		player.Pause();
 		settings.RemovePosition(Book.Id);
 		Update();
+		BookEnded?.Invoke();
 	}
 
 	internal static Bitmap? LoadCover(byte[]? bytes, int width)
@@ -500,6 +504,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		statusTimer?.Stop();
 		StopMediaSession();
 		EndSession();
+		EndCheckIns();
 		SavePosition();
 		PushPosition();
 		player.Dispose();

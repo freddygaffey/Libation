@@ -152,6 +152,18 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 		}
 	}
 
+	public bool PlayNextInSeries
+	{
+		get => settings.PlayNextInSeries;
+		set { settings.PlayNextInSeries = value; OnPropertyChanged(); }
+	}
+
+	public bool DownloadNextInSeries
+	{
+		get => settings.DownloadNextInSeries;
+		set { settings.DownloadNextInSeries = value; OnPropertyChanged(); }
+	}
+
 	#region Auto-pause when asleep
 
 	public bool AutoPauseAsleep
@@ -387,6 +399,39 @@ public partial class SettingsViewModel(MobileSettings settings, Action changed, 
 	{
 		get => settings.AskFollowRating;
 		set { settings.AskFollowRating = value; OnPropertyChanged(); }
+	}
+
+	public bool AskAlertness
+	{
+		get => settings.AskAlertness;
+		set { settings.AskAlertness = value; OnPropertyChanged(); }
+	}
+
+	/// <summary>Voice prompts need a platform that can listen; iOS for now.</summary>
+	public bool CanUseVoice => VoicePrompt.Platform is not null;
+
+	public bool VoicePrompts
+	{
+		get => settings.VoicePrompts;
+		set
+		{
+			settings.VoicePrompts = value;
+			OnPropertyChanged();
+			// Ask for the microphone now, while the listener is looking, not the first time a question is asked.
+			if (value && VoicePrompt.Platform is { } voice)
+				_ = AskVoiceAccessAsync(voice);
+			else
+				VoiceStatus = "";
+		}
+	}
+
+	[ObservableProperty]
+	private string voiceStatus = "";
+
+	private async System.Threading.Tasks.Task AskVoiceAccessAsync(IVoicePrompt voice)
+	{
+		var allowed = await voice.RequestAccessAsync();
+		VoiceStatus = allowed ? "" : "Libation needs the microphone and speech recognition to hear your answer. Allow them in the iPhone's Settings, under Libation.";
 	}
 
 	public bool ShowSyllableRate

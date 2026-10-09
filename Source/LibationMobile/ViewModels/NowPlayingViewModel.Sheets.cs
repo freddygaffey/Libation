@@ -109,6 +109,8 @@ public partial class NowPlayingViewModel
 		}
 		if (settings.UseHealthSleep)
 			parts.Add("Apple Health sleep");
+		if (UpNext is { } next)
+			parts.Add($"Next: {next}");
 		StatusLine = string.Join(" · ", parts);
 		OnPropertyChanged(nameof(SpeedChipText));
 		OnPropertyChanged(nameof(ModeChipText));

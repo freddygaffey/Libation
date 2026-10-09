@@ -17,7 +17,8 @@ public record ResearchFile(
 	IReadOnlyList<TrainingBlockLog> Blocks,
 	IReadOnlyList<ListeningEvent> Events,
 	IReadOnlyDictionary<string, double>? AudibleDailyMinutes,
-	IReadOnlyList<SpeedProfile> Profiles);
+	IReadOnlyList<SpeedProfile> Profiles,
+	IReadOnlyList<SessionCheckIn> CheckIns);
 
 /// <summary>
 /// The listener's research data as JSON for analysis or an AI: sessions, ratings, blind trials, training blocks, the
@@ -29,7 +30,12 @@ public static class ResearchExport
 		"Speed-listening research data from one listener, exported from Libation. Speeds are playback multiples (2 = twice as fast); " +
 		"syllablesPerSecond is measured from the audio and is what was heard (book rate times speed). " +
 		"sessions: each listening session (bookSeconds heard, spentSeconds of real time, syllables heard, marks of position every 5 minutes). " +
-		"ratings: 'how well did you follow' 1 (lost) to 5 (every word) after a session, with the settings in force. " +
+		"ratings: 'how well did you follow' 1 (lost) to 5 (every word) after a session, with the settings in force; since check-ins began, " +
+		"the end check-in's 0-4 answer plus one. " +
+		"checkIns: a question at the start (moment 'start': how alert, 0 falling asleep to 4 wide awake) and end (moment 'end': how well " +
+		"followed, 0 lost to 4 every word) of each session, answered on screen or by voice, or not (answer absent), with the context: hour " +
+		"and day, hours since the last session, minutes listened, start/min/max speed, mean syllables a second heard, skips back, speed " +
+		"changes, audio route, mode and training plan, blocks done, progress through the book (0-1), the settings, and the motion activity. " +
 		"trials: blind A/B comparisons of one setting (parameter) at two values, each part rated 1-5; preferred -1 first part, 1 second, 0 same. " +
 		"blocks: training session blocks (plan, kind: warm-up/push/recover/hold/step, and in blind training probe = untried speed, " +
 		"placebo = last speed repeated unannounced), with the rating if asked. " +
@@ -49,7 +55,8 @@ public static class ResearchExport
 
 	public static string ToJson(ListeningLog log, Experiments experiments, ListeningEvents events, AudibleStatsSnapshot? audible, IReadOnlyList<SpeedProfile> profiles)
 		=> JsonSerializer.Serialize(new ResearchFile(ABOUT, DateTimeOffset.Now, log.Sessions, experiments.Ratings, experiments.Trials,
-			experiments.Blocks, events.All(), audible?.DailyMs.ToDictionary(d => d.Key, d => Math.Round(d.Value / 60000, 1)), profiles),
+			experiments.Blocks, events.All(), audible?.DailyMs.ToDictionary(d => d.Key, d => Math.Round(d.Value / 60000, 1)), profiles,
+			experiments.CheckIns),
 			Context.ResearchFile);
 }
 

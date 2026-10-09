@@ -39,25 +39,6 @@ public partial class NowPlayingViewModel
 
 	public bool IsAskingFollow => FollowToRate is not null && TrialPart == 0;
 
-	/// <summary>Called as a session ends: ask about it if it was long enough.</summary>
-	private void OfferFollowRating(TimeSpan spent, double syllablesHeard)
-	{
-		if (Experiments is null || !settings.AskFollowRating || TrialPart != 0 || spent < RatedSessionLength)
-			return;
-		FollowToRate = CurrentListening(syllablesHeard > 0 ? syllablesHeard / spent.TotalSeconds : null);
-	}
-
-	[RelayCommand]
-	private void RateFollow(string score)
-	{
-		if (FollowToRate is { } rated && int.TryParse(score, out var follow))
-			Experiments?.Add(new FollowRating(DateTimeOffset.Now, Book.Id, Title, follow, rated));
-		FollowToRate = null;
-	}
-
-	[RelayCommand]
-	private void SkipFollow() => FollowToRate = null;
-
 	#endregion
 
 	#region Blind trials

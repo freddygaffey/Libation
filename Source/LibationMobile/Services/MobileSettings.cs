@@ -71,6 +71,10 @@ public class MobileSettings
 		public bool TrainingClimb { get; set; }
 		public bool ShowSyllableRate { get; set; } = true;
 		public bool AskFollowRating { get; set; } = true;
+		public bool AskAlertness { get; set; } = true;
+		public bool VoicePrompts { get; set; }
+		public bool PlayNextInSeries { get; set; } = true;
+		public bool DownloadNextInSeries { get; set; } = true;
 		public Dictionary<string, SpeedProfile> Profiles { get; set; } = new();
 		public string? ActiveProfile { get; set; }
 		/// <summary>Which set of defaults the saved values were made with, to move ones never changed to newer defaults.</summary>
@@ -542,6 +546,34 @@ public class MobileSettings
 	{
 		get { lock (locker) return state.AskFollowRating; }
 		set { lock (locker) { state.AskFollowRating = value; Save(); } }
+	}
+
+	/// <summary>At the start of a sitting (an hour or more since the last), ask how alert the listener is, 0 to 4.</summary>
+	public bool AskAlertness
+	{
+		get { lock (locker) return state.AskAlertness; }
+		set { lock (locker) { state.AskAlertness = value; Save(); } }
+	}
+
+	/// <summary>Pausing on headphones asks the end-of-session question aloud, and listens for a spoken 0 to 4.</summary>
+	public bool VoicePrompts
+	{
+		get { lock (locker) return state.VoicePrompts; }
+		set { lock (locker) { state.VoicePrompts = value; Save(); } }
+	}
+
+	/// <summary>When a book ends, carry on with the next in its series, if it is on the phone.</summary>
+	public bool PlayNextInSeries
+	{
+		get { lock (locker) return state.PlayNextInSeries; }
+		set { lock (locker) { state.PlayNextInSeries = value; Save(); } }
+	}
+
+	/// <summary>When a book in a series is opened, download the next one, so it is ready when this one ends.</summary>
+	public bool DownloadNextInSeries
+	{
+		get { lock (locker) return state.DownloadNextInSeries; }
+		set { lock (locker) { state.DownloadNextInSeries = value; Save(); } }
 	}
 
 	/// <summary>Show syllables a second under the speed in the player.</summary>

@@ -42,7 +42,11 @@ public partial class AudibleSeries(AudibleAccount account)
 		if (children.Count == 0)
 			return [];
 
-		var items = (await api.GetCatalogProductsAsync(children.Select(c => c.Asin!), BookGroups))
+		// The store answers for at most 50 books at a time; a long series with every edition listed has more.
+		var fetched = new List<Item>();
+		foreach (var batch in children.Select(c => c.Asin!).Chunk(50))
+			fetched.AddRange(await api.GetCatalogProductsAsync(batch, BookGroups));
+		var items = fetched
 			.Where(i => i.Asin is not null)
 			.GroupBy(i => i.Asin!)
 			.ToDictionary(g => g.Key, g => g.First());

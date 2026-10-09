@@ -514,15 +514,35 @@
 		IsVisible="{Binding IsAskingFollow}">
 		<StackPanel Spacing="10">
 			<TextBlock Text="How well did you follow that?" FontSize="16" />
-			<TextBlock Classes="muted" Text="1 lost it · 3 got the gist · 5 every word" FontSize="12" />
+			<TextBlock Classes="muted" Text="0 lost it · 2 got the gist · 4 every word" FontSize="12" />
 			<UniformGrid Columns="5">
+				<Button Classes="choice" Content="0" Command="{Binding RateFollowCommand}" CommandParameter="0" />
 				<Button Classes="choice" Content="1" Command="{Binding RateFollowCommand}" CommandParameter="1" />
 				<Button Classes="choice" Content="2" Command="{Binding RateFollowCommand}" CommandParameter="2" />
 				<Button Classes="choice" Content="3" Command="{Binding RateFollowCommand}" CommandParameter="3" />
 				<Button Classes="choice" Content="4" Command="{Binding RateFollowCommand}" CommandParameter="4" />
-				<Button Classes="choice" Content="5" Command="{Binding RateFollowCommand}" CommandParameter="5" />
 			</UniformGrid>
-			<Button Classes="quiet" Content="Skip" HorizontalAlignment="Right" Padding="10,4" Command="{Binding SkipFollowCommand}" />
+			<Grid ColumnDefinitions="*,Auto">
+				<TextBlock Classes="muted" Text="Listening for your answer…" FontSize="12" VerticalAlignment="Center" IsVisible="{Binding IsListeningForAnswer}" />
+				<Button Grid.Column="1" Classes="quiet" Content="Skip" Padding="10,4" Command="{Binding SkipFollowCommand}" />
+			</Grid>
+		</StackPanel>
+	</Border>
+	<!-- At the start of a sitting: how alert, for the trainer. -->
+	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
+		BorderBrush="{StaticResource Lamp}" BorderThickness="1"
+		IsVisible="{Binding IsAskingAlertness}">
+		<StackPanel Spacing="10">
+			<TextBlock Text="How alert are you?" FontSize="16" />
+			<TextBlock Classes="muted" Text="0 falling asleep · 2 so-so · 4 wide awake" FontSize="12" />
+			<UniformGrid Columns="5">
+				<Button Classes="choice" Content="0" Command="{Binding RateAlertnessCommand}" CommandParameter="0" />
+				<Button Classes="choice" Content="1" Command="{Binding RateAlertnessCommand}" CommandParameter="1" />
+				<Button Classes="choice" Content="2" Command="{Binding RateAlertnessCommand}" CommandParameter="2" />
+				<Button Classes="choice" Content="3" Command="{Binding RateAlertnessCommand}" CommandParameter="3" />
+				<Button Classes="choice" Content="4" Command="{Binding RateAlertnessCommand}" CommandParameter="4" />
+			</UniformGrid>
+			<Button Classes="quiet" Content="Skip" HorizontalAlignment="Right" Padding="10,4" Command="{Binding SkipAlertnessCommand}" />
 		</StackPanel>
 	</Border>
 	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"

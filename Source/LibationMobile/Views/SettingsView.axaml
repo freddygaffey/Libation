@@ -357,9 +357,24 @@
 				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
 					<StackPanel VerticalAlignment="Center">
 						<TextBlock Text="Ask how well I followed" FontSize="15" />
-						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="After a session of 5 minutes or more, one tap from 1 to 5. Saved with the speed, syllables a second and settings, for your own research on the stats page." />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="After a session of 5 minutes or more, one tap from 0 to 4. Saved with the speed, syllables a second, skips back, time of day and settings, for your own research on the stats page." />
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding AskFollowRating}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Ask how alert I am" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="At the start of a sitting, an hour or more since the last, one tap from 0 to 4. So training can learn how tiredness and time of day change what you can follow." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding AskAlertness}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12" IsVisible="{Binding CanUseVoice}">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Ask aloud when I pause on headphones" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13" Text="Pausing with the headphone button asks how well you followed, and listens for you to say a number from 0 to 4, or skip. Pressing play stops it." />
+						<TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource Lamp}" Text="{Binding VoiceStatus}" IsVisible="{Binding VoiceStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding VoicePrompts}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
 				<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
 					<StackPanel VerticalAlignment="Center">
@@ -637,6 +652,23 @@
 							Text="Better sound and larger files. Applies to books you download from now on." />
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding HighQualityDownloads}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<TextBlock Classes="section" Text="Series" />
+				<Grid ColumnDefinitions="*,Auto">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Play the next book" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="When a book ends, carry on with the next in its series that you own." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding PlayNextInSeries}" OnContent="" OffContent="" Margin="12,0,0,0" />
+				</Grid>
+				<Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+					<StackPanel VerticalAlignment="Center">
+						<TextBlock Text="Download the next book" FontSize="15" />
+						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+							Text="Opening a book in a series downloads the next one, so it is ready when this one ends. A series' details page can download all of it." />
+					</StackPanel>
+					<ToggleSwitch Grid.Column="1" IsChecked="{Binding DownloadNextInSeries}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>
 				</StackPanel>
 			</StackPanel>

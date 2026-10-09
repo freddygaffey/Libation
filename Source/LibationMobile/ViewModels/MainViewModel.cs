@@ -720,6 +720,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		try
 		{
 			NowPlaying = await NowPlayingViewModel.OpenAsync(await Library.ToLocalBookAsync(item), settings, annotations, localAnnotations, listeningLog);
+			QueueNextInSeries(NowPlaying, item);
 			if (showNowPlaying)
 				CurrentPage = Page.NowPlaying;
 			return true;

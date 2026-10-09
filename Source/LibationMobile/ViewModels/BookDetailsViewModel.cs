@@ -69,11 +69,27 @@ public partial class SeriesRowViewModel : ObservableObject
 	}
 }
 
-/// <summary>A series on the details page, with its books in order.</summary>
-public class SeriesSectionViewModel(string name, IReadOnlyList<SeriesRowViewModel> rows)
+/// <summary>A series on the details page, with its books in order, and a button to download the ones not on the phone.</summary>
+public partial class SeriesSectionViewModel : ObservableObject
 {
-	public string Name { get; } = name;
-	public IReadOnlyList<SeriesRowViewModel> Rows { get; } = rows;
+	public string Name { get; }
+	public IReadOnlyList<SeriesRowViewModel> Rows { get; }
+
+	public SeriesSectionViewModel(string name, IReadOnlyList<SeriesRowViewModel> rows)
+	{
+		Name = name;
+		Rows = rows;
+		foreach (var owned in rows.Select(r => r.Owned).OfType<BookItemViewModel>().Distinct())
+			owned.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(BookItemViewModel.State))
+				{
+					OnPropertyChanged(nameof(DownloadText));
+					OnPropertyChanged(nameof(CanDownload));
+				}
+			};
+	}
+
 	public string CountText
 	{
 		get
@@ -82,6 +98,18 @@ public class SeriesSectionViewModel(string name, IReadOnlyList<SeriesRowViewMode
 			return owned == Rows.Count ? $"{Rows.Count} books, all in your library" : $"{Rows.Count} books, {owned} in your library";
 		}
 	}
+
+	/// <summary>The listener's books in this series that are not on the phone, in reading order.</summary>
+	public IReadOnlyList<BookItemViewModel> ToDownload()
+		=> Rows.Select(r => r.Owned).OfType<BookItemViewModel>().Where(b => b.IsNotDownloaded).Distinct().ToList();
+
+	public bool CanDownload => ToDownload().Count > 0;
+
+	public string DownloadText => ToDownload().Count switch
+	{
+		1 => "Download the one not on this phone",
+		var n => $"Download the {n} not on this phone",
+	};
 }
 
 /// <summary>More about one book: what it is about, and the rest of its series.</summary>

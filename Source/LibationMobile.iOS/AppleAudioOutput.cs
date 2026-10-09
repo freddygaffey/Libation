@@ -34,17 +34,7 @@ public sealed class AppleAudioOutput : IAudioOutput
 		this.channels = channels;
 		buffer = new BufferedRender(render, sampleRate, channels, BufferAhead);
 
-		// Playback category: keeps playing with the screen locked and ignores the silent switch, like any audiobook app.
-		// Long-form audio is what audiobook and podcast apps declare: pressing play then takes AirPods over from a
-		// Mac or iPad they are connected to, and routes to the speaker the listener last chose for long listening.
-		var session = AVAudioSession.SharedInstance();
-		if (!session.SetCategory(AVAudioSessionCategory.Playback.GetConstant()!.ToString(), AVAudioSessionMode.SpokenAudio.GetConstant()!.ToString(),
-			AVAudioSessionRouteSharingPolicy.LongFormAudio, 0, out var error))
-		{
-			Console.WriteLine($"Long-form audio session refused ({error?.LocalizedDescription}), using plain playback");
-			session.SetCategory(AVAudioSessionCategory.Playback, AVAudioSessionCategoryOptions.AllowAirPlay | AVAudioSessionCategoryOptions.AllowBluetoothA2DP);
-			session.SetMode(AVAudioSessionMode.SpokenAudio, out _);
-		}
+		UsePlaybackSession();
 
 		format = new AVAudioFormat(sampleRate, (uint)channels);
 		sourceNode = new AVAudioSourceNode(format, Render);
@@ -66,6 +56,24 @@ public sealed class AppleAudioOutput : IAudioOutput
 				engine.Pause();
 			}
 		});
+	}
+
+	/// <summary>
+	/// Playback category: keeps playing with the screen locked and ignores the silent switch, like any audiobook app.
+	/// Long-form audio is what audiobook and podcast apps declare: pressing play then takes AirPods over from a Mac or
+	/// iPad they are connected to, and routes to the speaker the listener last chose for long listening. Also set back
+	/// after a voice prompt, which needs the microphone.
+	/// </summary>
+	public static void UsePlaybackSession()
+	{
+		var session = AVAudioSession.SharedInstance();
+		if (!session.SetCategory(AVAudioSessionCategory.Playback.GetConstant()!.ToString(), AVAudioSessionMode.SpokenAudio.GetConstant()!.ToString(),
+			AVAudioSessionRouteSharingPolicy.LongFormAudio, 0, out var error))
+		{
+			Console.WriteLine($"Long-form audio session refused ({error?.LocalizedDescription}), using plain playback");
+			session.SetCategory(AVAudioSessionCategory.Playback, AVAudioSessionCategoryOptions.AllowAirPlay | AVAudioSessionCategoryOptions.AllowBluetoothA2DP);
+			session.SetMode(AVAudioSessionMode.SpokenAudio, out _);
+		}
 	}
 
 	private void OnConfigurationChanged()

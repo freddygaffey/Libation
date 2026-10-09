@@ -23,6 +23,12 @@ public interface IMediaSession
 	/// <summary>Nothing is loaded any more.</summary>
 	void Clear();
 
+	/// <summary>
+	/// When play or pause last came from a button (headphones, lock screen, car), in UTC; not a call or headphones
+	/// going away. Tells a pause on the headphones from one in the app.
+	/// </summary>
+	DateTime LastButtonPress { get; }
+
 	/// <summary>Whether play was pressed before a book was loaded to receive it. Reading it clears it.</summary>
 	bool TakePendingPlay();
 

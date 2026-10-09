@@ -30,6 +30,29 @@ public record ExperimentTrial(DateTimeOffset At, string BookId, string Title, do
 public record TrainingBlockLog(DateTimeOffset At, string BookId, string Title, string Plan, string Kind, double Speed,
 	double? SyllablesPerSecond, int? Rating, bool Blind, string? Profile);
 
+/// <summary>
+/// The state of things as a session starts or ends, for the trainer to learn what helps: time of day, rest since the
+/// last session, how the session went (speeds, syllables a second, skips back) and the mode and settings in force.
+/// </summary>
+/// <param name="HoursSinceLastSession">Since the last session of any book ended; null for the first one.</param>
+/// <param name="Minutes">Minutes listened in the session; 0 at its start.</param>
+/// <param name="SkipsBack">Skips back in the session: a sign of something missed.</param>
+/// <param name="Mode">"normal", "training" or "blind".</param>
+/// <param name="Activity">What the listener was doing, from the phone's motion record, when known.</param>
+public record SessionContext(int HourOfDay, string DayOfWeek, double? HoursSinceLastSession, double Minutes, double StartSpeed,
+	double MinSpeed, double MaxSpeed, double? MeanSyllablesPerSecond, int SkipsBack, int SpeedChanges, string? Route, string Mode,
+	string? Plan, int BlocksDone, double? BookProgress, ListeningSettings Settings, string? Activity = null);
+
+/// <summary>
+/// A question at the start or end of a session, 0 to 4: at the start how alert (0 falling asleep, 4 wide awake), at the
+/// end how well it was followed (0 lost it, 4 every word). Kept even when unanswered, for the context.
+/// </summary>
+/// <param name="Moment">"start" or "end".</param>
+/// <param name="Answer">0 to 4; null when skipped or not answered.</param>
+/// <param name="AnsweredBy">"screen", "voice", or "none".</param>
+public record SessionCheckIn(DateTimeOffset At, string BookId, string Title, string Moment, int? Answer, string AnsweredBy,
+	SessionContext Context);
+
 /// <summary>A setting a trial can vary, and the values worth comparing.</summary>
 public record ExperimentParameter(string Key, string Name, double[] Values, Func<double, string> Describe);
 
@@ -60,6 +83,7 @@ public class Experiments
 		public List<FollowRating> Ratings { get; set; } = [];
 		public List<ExperimentTrial> Trials { get; set; } = [];
 		public List<TrainingBlockLog> Blocks { get; set; } = [];
+		public List<SessionCheckIn> CheckIns { get; set; } = [];
 	}
 
 	public Experiments(string dataDirectory)
@@ -87,6 +111,17 @@ public class Experiments
 		lock (locker)
 		{
 			store.Blocks.Add(block);
+			Save();
+		}
+	}
+
+	public IReadOnlyList<SessionCheckIn> CheckIns { get { lock (locker) return store.CheckIns.ToList(); } }
+
+	public void Add(SessionCheckIn checkIn)
+	{
+		lock (locker)
+		{
+			store.CheckIns.Add(checkIn);
 			Save();
 		}
 	}

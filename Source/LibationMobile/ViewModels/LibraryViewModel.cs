@@ -596,6 +596,40 @@ public partial class LibraryViewModel : ObservableObject
 
 	public BookItemViewModel? Find(string? asin) => allBooks.FirstOrDefault(b => b.Book.Asin == asin);
 
+	/// <summary>
+	/// The listener's next book in this one's series: the lowest numbered after it that they own and have not finished.
+	/// Null at the end of a series, or for a book in none. Read from the library, so it works offline.
+	/// </summary>
+	public BookItemViewModel? NextInSeries(BookItemViewModel item)
+	{
+		foreach (var membership in item.Book.Series ?? [])
+		{
+			if (SeriesNumber(membership.Sequence) is not double here)
+				continue;
+			var next = allBooks
+				.Where(b => b != item && b.IsNotFinished)
+				.Select(b => (Book: b, At: SeriesNumber(b.Book.Series?.FirstOrDefault(s => s.Id == membership.Id)?.Sequence)))
+				.Where(x => x.At > here)
+				.OrderBy(x => x.At)
+				// Two editions of one book: the one on the phone.
+				.ThenByDescending(x => x.Book.IsDownloaded)
+				.Select(x => x.Book)
+				.FirstOrDefault();
+			if (next is not null)
+				return next;
+		}
+		return null;
+	}
+
+	/// <summary>A book's place in its series as a number: "2" is 2, "2.5" is 2.5, and an omnibus "1-3" counts as 1.</summary>
+	internal static double? SeriesNumber(string? sequence)
+	{
+		if (string.IsNullOrWhiteSpace(sequence))
+			return null;
+		var digits = new string(sequence.Trim().TakeWhile(c => char.IsDigit(c) || c == '.').ToArray()).TrimEnd('.');
+		return double.TryParse(digits, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) ? number : null;
+	}
+
 	/// <summary>A book in the library with this title by this author: another edition of a store listing.</summary>
 	public BookItemViewModel? FindByTitle(string title, string authors)
 		=> allBooks.FirstOrDefault(b => string.Equals(b.Title, title, StringComparison.CurrentCultureIgnoreCase)
