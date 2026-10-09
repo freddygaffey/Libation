@@ -49,7 +49,8 @@ public sealed class AudioFilePlayer : IDisposable
 			{
 				// Frames handed to the speed changer but not yet heard, and its output queued in the device.
 				var unheard = stretcher.BufferedSourceFrames + (long)(output.BufferedFrames * stretcher.Speed);
-				return TimeSpan.FromSeconds(Math.Max(0, sourceFrame - unheard) / (double)source.SampleRate);
+				var frame = Math.Max(0, sourceFrame - unheard);
+				return source is ILiveSource live ? live.TimeAt(frame) : TimeSpan.FromSeconds(frame / (double)source.SampleRate);
 			}
 		}
 	}
@@ -147,6 +148,8 @@ public sealed class AudioFilePlayer : IDisposable
 						syllables.Write(decodeBuffer.AsSpan(0, decoded));
 						sourceFrame += decoded / source.Channels;
 					}
+					else if (source is ILiveSource { IsWaiting: true })
+						break; // Still being made: silence until it is, without ending.
 					else
 						sourceEnded = true;
 				}

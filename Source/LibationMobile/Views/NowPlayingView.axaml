@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:LibationMobile.ViewModels"
+             xmlns:services="using:LibationMobile.Services"
              xmlns:controls="using:LibationMobile.Controls"
              x:Class="LibationMobile.Views.NowPlayingView"
              x:DataType="vm:NowPlayingViewModel"
@@ -255,6 +256,17 @@
 						<TextBlock Text="Blind training" FontFamily="{StaticResource DisplayFont}" FontWeight="Light" FontSize="32" />
 						<TextBlock Classes="muted" Text="{Binding TrainingText}" FontSize="13" />
 					</StackPanel>
+					<!-- A book read aloud as it plays: its voice, changed from the next sentence. -->
+					<Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" IsVisible="{Binding IsVoiced}">
+						<TextBlock Text="Voice" FontSize="15" VerticalAlignment="Center" />
+						<ComboBox Grid.Column="1" ItemsSource="{Binding VoiceChoices}" SelectedItem="{Binding CurrentVoice}" HorizontalAlignment="Stretch">
+							<ComboBox.ItemTemplate>
+								<DataTemplate x:DataType="services:VoiceChoice">
+									<TextBlock Text="{Binding Label}" />
+								</DataTemplate>
+							</ComboBox.ItemTemplate>
+						</ComboBox>
+					</Grid>
 					<Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowsSpeed}">
 						<TextBlock Text="Syllables per second" FontSize="15" VerticalAlignment="Center" />
 						<ToggleSwitch Grid.Column="1" IsChecked="{Binding IsTargetRateOn, Mode=OneWay}" Command="{Binding ToggleTargetRateCommand}" OnContent="" OffContent="" />

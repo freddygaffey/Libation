@@ -48,6 +48,26 @@
 		</dict>
 	</array>
 	<!-- The home-screen widget's play and recent-book buttons open the app with these links (HomeWidget.LINK_SCHEME). -->
+	<!-- PDFs, EPUBs and text shared from Safari, Files or Mail open here, to be voiced. -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Document to voice</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.adobe.pdf</string>
+				<string>org.idpf.epub-container</string>
+				<string>public.plain-text</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

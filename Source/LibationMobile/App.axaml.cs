@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
+using LibationMobile.Services;
 using LibationMobile.ViewModels;
 using LibationMobile.Views;
 using System;
@@ -26,6 +28,11 @@ public partial class App : Application
 			{
 				if (e is ProtocolActivatedEventArgs { Uri: { } uri } && uri.Scheme == Services.HomeWidget.LINK_SCHEME)
 					Services.HomeWidget.Platform?.OpenLink(uri);
+				// A PDF, EPUB or text file shared with the app, as from Safari or Files: to be voiced.
+				else if (e is ProtocolActivatedEventArgs { Uri: { IsFile: true } file })
+					SharedDocuments.Receive(file.LocalPath);
+				else if (e is FileActivatedEventArgs { Files: { Count: > 0 } files } && files[0].TryGetLocalPath() is { } path)
+					SharedDocuments.Receive(path);
 			};
 		}
 

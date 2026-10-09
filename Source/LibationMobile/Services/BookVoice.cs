@@ -1,35 +1,46 @@
-using System;
+using AudioPlayer;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace LibationMobile.Services;
 
 /// <summary>A voice the phone can read with.</summary>
-/// <param name="Quality">"Premium", "Enhanced" or "Default".</param>
+/// <param name="Quality">"Premium", "Enhanced", "Eloquence" or "Default".</param>
 public record VoiceChoice(string Id, string Name, string Quality, string Language)
 {
 	public string Label => Quality == "Default" ? $"{Name} ({Language})" : $"{Name}, {Quality} ({Language})";
 }
 
 /// <summary>
-/// Reads text into audio files with the platform's own voices, at their normal pace; the player speeds the result up
-/// with speechwarp like any other book.
+/// Text read aloud as it plays, a little ahead of what is heard, by one of the phone's voices. The player speeds it up
+/// like any other book. Its timeline is the text's characters at a fixed pace, so places and chapters stay put
+/// whichever voice reads.
 /// </summary>
+public interface IVoicedSource : ILiveSource
+{
+	string VoiceId { get; }
+
+	/// <summary>Carry on in another voice from the sentence being heard.</summary>
+	void SetVoice(string voiceId);
+}
+
+/// <summary>The phone's voices, and text read aloud with them.</summary>
 public interface IBookVoice
 {
 	/// <summary>Voices for the language, best first.</summary>
 	IReadOnlyList<VoiceChoice> Voices(string language = "en");
 
-	/// <summary>Read the paragraphs, with a pause after each, into an audio file at <paramref name="path"/>. Returns its length.</summary>
-	Task<TimeSpan> RenderAsync(IReadOnlyList<string> paragraphs, string voiceId, string path, IProgress<double>? progress, CancellationToken token);
-
-	/// <summary>Join audio files, in order, into one at <paramref name="path"/>.</summary>
-	Task JoinAsync(IReadOnlyList<string> parts, string path, CancellationToken token);
+	/// <param name="secondsPerCharacter">The timeline's pace: a character is this long.</param>
+	IVoicedSource Open(string text, string voiceId, double secondsPerCharacter);
 }
 
 public static class BookVoice
 {
 	/// <summary>Set by the platform head. Null where books cannot be voiced.</summary>
 	public static IBookVoice? Platform { get; set; }
+
+	/// <summary>
+	/// The timeline's pace: about 17 characters a second, the phone's voices at their normal rate (Karen measured 18). Fixed, so a saved
+	/// place is the same character whatever the voice.
+	/// </summary>
+	public const double SECONDS_PER_CHARACTER = 1 / 17.0;
 }

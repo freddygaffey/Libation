@@ -271,8 +271,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		}
 
 		await Library.LoadAsync();
-		// Carry on voicing any book left unfinished when the app closed.
-		voiced.Start();
+		SharedDocuments.Handle(OpenSharedDocument);
 
 		// A book asked for on the widget or by Siri, which may be what started the app.
 		if (HomeWidget.Platform is { } widget)
@@ -291,7 +290,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			await LoadAsync(last, showNowPlaying: false);
 		else if (Podcasts.FindDownloaded(settings.LastBookId) is { } lastEpisode)
 			await LoadEpisodeAsync(lastEpisode, showNowPlaying: false);
-		else if (voiced.Find(settings.LastBookId) is { Ready: true } lastVoiced)
+		else if (voiced.Find(settings.LastBookId) is { } lastVoiced)
 			await LoadVoicedAsync(lastVoiced, showNowPlaying: false);
 	}
 
@@ -813,35 +812,52 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			case "tab" when parts.Length > 1:
 				ShowTabCommand.Execute(parts[1]);
 				break;
+			case "voicebench":
+				// How fast the newest voiced book is read aloud, without playing it: seconds of audio made a second.
+				if (voiced.Books.FirstOrDefault() is { } benchBook && BookVoice.Platform is { } benchVoice)
+				{
+					var local = voiced.ToLocalBook(benchBook, benchVoice);
+					var seconds = parts.Length > 1 && int.TryParse(parts[1], out var s) ? s : 60;
+					_ = Task.Run(async () =>
+					{
+						using var source = (IVoicedSource)local.OpenSource!();
+						var buffer = new float[4096];
+						long frames = 0;
+						var waits = 0;
+						var watch = System.Diagnostics.Stopwatch.StartNew();
+						while (watch.Elapsed.TotalSeconds < seconds)
+						{
+							var read = source.Read(buffer);
+							frames += read;
+							if (read < buffer.Length && source.IsWaiting)
+							{
+								waits++;
+								await Task.Delay(20);
+							}
+							if (watch.ElapsedMilliseconds / 10000 != (watch.ElapsedMilliseconds - 20) / 10000)
+								Console.WriteLine($"LIBATION_TEST voicebench: {watch.Elapsed.TotalSeconds:0}s, {frames / (double)source.SampleRate:0}s of audio ({frames / (double)source.SampleRate / watch.Elapsed.TotalSeconds:0.0}x), at {source.TimeAt(frames)}");
+						}
+						Console.WriteLine($"LIBATION_TEST voicebench: done, {frames / (double)source.SampleRate:0}s of audio in {watch.Elapsed.TotalSeconds:0}s = {frames / (double)source.SampleRate / watch.Elapsed.TotalSeconds:0.0}x real time, {waits} waits, timeline {source.TimeAt(frames)}");
+					});
+				}
+				break;
 			case "openvoiced":
-				// The newest voiced book that is ready, in the player, without playing.
-				if (voiced.Books.FirstOrDefault(b => b.Ready) is { } readyBook && await LoadVoicedAsync(readyBook, showNowPlaying: true))
-					Console.WriteLine($"LIBATION_TEST openvoiced: {readyBook.Title}, {NowPlaying!.Duration}, {readyBook.Chapters.Count} chapters");
+				// The newest voiced book, in the player, without playing.
+				if (voiced.Books.FirstOrDefault() is { } newestVoiced && await LoadVoicedAsync(newestVoiced, showNowPlaying: true))
+					Console.WriteLine($"LIBATION_TEST openvoiced: {newestVoiced.Title}, {NowPlaying!.Duration}, {newestVoiced.Chapters.Count} chapters");
 				break;
 			case "voice" when parts.Length > 1:
-				// "voice:/path/to/file.pdf" or "voice:https://…": voice it with the first voice, logging how it goes.
+				// "voice:/path/to/file.pdf" or "voice:https://…": add it with the first voice and open it, without playing.
 				{
 					var target = action["voice:".Length..];
 					var path = target.StartsWith("http") ? await VoicedLibrary.DownloadAsync(new Uri(target), Path.GetTempPath(), default) : target;
 					var content = DocumentText.Read(path);
 					Console.WriteLine($"LIBATION_TEST voice: '{content.Title}' by {content.Author ?? "?"}, {content.Chapters.Count} chapters, {content.Words} words");
-					foreach (var c in content.Chapters)
-						Console.WriteLine($"LIBATION_TEST voice:   {c.Title} ({DocumentText.CountWords(c.Text)} words): {c.Text[..Math.Min(80, c.Text.Length)].Replace("\n", " / ")}");
 					var voices = BookVoice.Platform?.Voices() ?? [];
-					Console.WriteLine($"LIBATION_TEST voice: {voices.Count} voices, first {voices.FirstOrDefault()?.Label}");
+					Console.WriteLine($"LIBATION_TEST voice: {voices.Count} voices: {string.Join(", ", voices.Select(v => v.Label))}");
 					var book = voiced.Add(content, target, content.Title ?? "Test", content.Author, voices[0]);
-					var watch = System.Diagnostics.Stopwatch.StartNew();
-					var lastDone = -1;
-					voiced.Changed += b =>
-					{
-						var done = b.Chapters.Count(c => c.Done);
-						if (b.Id != book.Id || done == lastDone && !b.Ready && b.Error is null)
-							return;
-						lastDone = done;
-						Console.WriteLine($"LIBATION_TEST voice: {watch.Elapsed.TotalSeconds:0.0}s, {done}/{b.Chapters.Count} chapters, {b.Chapters.Sum(c => c.Seconds):0}s of audio, ready={b.Ready}, error={b.Error}");
-					};
-					voiced.Start();
-					CurrentPage = Page.Downloads;
+					if (await LoadVoicedAsync(book, showNowPlaying: true))
+						Console.WriteLine($"LIBATION_TEST voice: opened, {NowPlaying!.Duration}");
 				}
 				break;
 			case "checkin" when parts.Length > 2 && Library.Find(parts[1]) is { IsDownloaded: true } checkInBook:

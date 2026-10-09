@@ -11,37 +11,23 @@ using System.Threading.Tasks;
 
 namespace LibationMobile.ViewModels;
 
-/// <summary>A voiced book in Downloads: reading, ready to play, or failed.</summary>
+/// <summary>A voiced book in Downloads.</summary>
 public partial class VoicedRowViewModel(VoicedBook book, VoicedLibrary library) : ObservableObject
 {
 	public VoicedBook Book { get; } = book;
 	public string Title => Book.Title;
-	public bool IsReady => Book.Ready;
-	public bool IsReading => !Book.Ready && Book.Error is null;
-	public bool HasFailed => Book.Error is not null;
-	public double Progress => library.Progress(Book);
+	public string StatusText => $"{Book.VoiceName} · {VoiceViewModel.Hours(Book.Length.TotalSeconds)}";
 
 	private Avalonia.Media.Imaging.Bitmap? cover;
 	public Avalonia.Media.Imaging.Bitmap? Cover => cover ??= NowPlayingViewModel.LoadCover(library.Cover(Book), 112);
 	public bool HasNoCover => Cover is null;
 
-	public string StatusText => Book.Error is { } error ? $"Failed: {error}"
-		: Book.Ready ? $"{Book.VoiceName} · {VoiceViewModel.Hours(Book.Chapters.Sum(c => c.Seconds))}"
-		: $"Voicing, {Progress:P0} · {Book.Chapters.Count(c => c.Done)} of {Book.Chapters.Count} chapters";
-
-	public void Refresh()
-	{
-		OnPropertyChanged(nameof(StatusText));
-		OnPropertyChanged(nameof(Progress));
-		OnPropertyChanged(nameof(IsReady));
-		OnPropertyChanged(nameof(IsReading));
-		OnPropertyChanged(nameof(HasFailed));
-	}
+	public void Refresh() => OnPropertyChanged(nameof(StatusText));
 }
 
 /// <summary>
-/// Making a book from a document: a PDF, EPUB or text file picked from Files or fetched from an address, read by one
-/// of the phone's voices at its normal pace. The player speeds it up like any other book.
+/// Making a book from a document: a PDF, EPUB or text file picked from Files, fetched from an address or shared from
+/// another app, read aloud as it plays by one of the phone's voices. The player speeds it up like any other book.
 /// </summary>
 public partial class VoiceViewModel : ObservableObject
 {
@@ -61,6 +47,9 @@ public partial class VoiceViewModel : ObservableObject
 
 	/// <summary>A voiced book was added or changed.</summary>
 	public event Action? BooksChanged;
+
+	/// <summary>A book was made: to be opened and played at once.</summary>
+	public event Action<VoicedBook>? Made;
 
 	public VoiceViewModel(VoicedLibrary library, string tempDirectory)
 	{
@@ -103,7 +92,7 @@ public partial class VoiceViewModel : ObservableObject
 	private VoiceChoice? voice;
 
 	public string ContentText => Content is { } c
-		? $"{c.Chapters.Count} chapters · {c.Words:N0} words · about {Hours(c.Words * 60.0 / WORDS_PER_MINUTE)} at 1×"
+		? $"{c.Chapters.Count} chapters · {c.Words:N0} words · about {Hours(c.Words * 60.0 / WORDS_PER_MINUTE)}"
 		: "";
 
 	[RelayCommand]
@@ -130,6 +119,21 @@ public partial class VoiceViewModel : ObservableObject
 		Url = "";
 		Title = Author = "";
 		sourcePath = null;
+	}
+
+	/// <summary>Open the sheet with a document already chosen, as one shared from another app.</summary>
+	public async Task OpenDocumentAsync(string path)
+	{
+		if (!IsOpen)
+			OpenCommand.Execute(null);
+		try
+		{
+			await LoadAsync(path, Path.GetFileName(path));
+		}
+		catch (Exception ex)
+		{
+			Message = ex.Message;
+		}
 	}
 
 	[RelayCommand]
@@ -201,11 +205,11 @@ public partial class VoiceViewModel : ObservableObject
 			Message = Voice is null ? "No voice is installed. Add one in Settings, Accessibility, Spoken Content, Voices." : null;
 			return;
 		}
-		library.Add(read, source, string.IsNullOrWhiteSpace(Title) ? read.Title ?? "Untitled" : Title.Trim(), Author, chosen);
-		library.Start();
+		var book = library.Add(read, source, string.IsNullOrWhiteSpace(Title) ? read.Title ?? "Untitled" : Title.Trim(), Author, chosen);
 		if (sourcePath is not null && sourcePath.StartsWith(tempDirectory, StringComparison.Ordinal))
 			File.Delete(sourcePath);
 		Close();
+		Made?.Invoke(book);
 	}
 
 	internal static string Hours(double seconds)

@@ -246,9 +246,11 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings, AudibleAnnotations? annotations = null, LocalAnnotations? localAnnotations = null, ListeningLog? log = null)
 	{
 		var chapters = book.Chapters ?? await AudioFileChapters.ReadAsync(book.Path);
-		var player = await Task.Run(() => new AudioFilePlayer(AudioBackend.OpenSource(book.Path), AudioBackend.CreateOutput, AudioBackend.CreateStretcher));
+		AudioPlayer.IPcmSource? source = null;
+		var player = await Task.Run(() => new AudioFilePlayer(source = book.OpenSource?.Invoke() ?? AudioBackend.OpenSource(book.Path),
+			AudioBackend.CreateOutput, AudioBackend.CreateStretcher));
 		settings.LastBookId = book.Id;
-		return new NowPlayingViewModel(book, player, chapters, settings, annotations, localAnnotations) { log = log };
+		return new NowPlayingViewModel(book, player, chapters, settings, annotations, localAnnotations) { log = log, voicedSource = source as IVoicedSource };
 	}
 
 	[RelayCommand]
