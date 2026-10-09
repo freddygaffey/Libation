@@ -23,6 +23,8 @@ public partial class AppDelegate : AvaloniaAppDelegate<App>
 		DocumentViewer.Platform = new AppleDocumentViewer();
 		ListeningContext.Platform = new AppleListeningContext();
 		VoicePrompt.Platform = new AppleVoicePrompt();
+		DocumentText.Pdf = new ApplePdfReader();
+		BookVoice.Platform = new AppleBookVoice();
 		AudioBackend.Route = AppleAudioRoute.Describe;
 		// Created at launch, so a download that finished while the app was closed is delivered.
 		FileTransfer.Platform = new AppleFileTransfer();

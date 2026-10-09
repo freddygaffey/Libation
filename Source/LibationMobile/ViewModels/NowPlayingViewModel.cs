@@ -245,7 +245,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 	/// <param name="localAnnotations">Bookmarks and clips saved on the device. Null plays without them.</param>
 	public static async Task<NowPlayingViewModel> OpenAsync(LocalBook book, MobileSettings settings, AudibleAnnotations? annotations = null, LocalAnnotations? localAnnotations = null, ListeningLog? log = null)
 	{
-		var chapters = await AudioFileChapters.ReadAsync(book.Path);
+		var chapters = book.Chapters ?? await AudioFileChapters.ReadAsync(book.Path);
 		var player = await Task.Run(() => new AudioFilePlayer(AudioBackend.OpenSource(book.Path), AudioBackend.CreateOutput, AudioBackend.CreateStretcher));
 		settings.LastBookId = book.Id;
 		return new NowPlayingViewModel(book, player, chapters, settings, annotations, localAnnotations) { log = log };

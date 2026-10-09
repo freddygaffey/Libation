@@ -244,6 +244,7 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		Podcasts.PlayRequested += row => _ = PlayEpisodeAsync(row);
 		Podcasts.DownloadsChanged += RefreshDownloads;
 		Podcasts.DownloadsChanged += RefreshPlayableBooks;
+		StartVoiced(dataDirectory);
 		Library.PropertyChanged += (_, e) =>
 		{
 			if (e.PropertyName != nameof(LibraryViewModel.Books))
@@ -270,6 +271,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 		}
 
 		await Library.LoadAsync();
+		// Carry on voicing any book left unfinished when the app closed.
+		voiced.Start();
 
 		// A book asked for on the widget or by Siri, which may be what started the app.
 		if (HomeWidget.Platform is { } widget)
@@ -288,6 +291,8 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			await LoadAsync(last, showNowPlaying: false);
 		else if (Podcasts.FindDownloaded(settings.LastBookId) is { } lastEpisode)
 			await LoadEpisodeAsync(lastEpisode, showNowPlaying: false);
+		else if (voiced.Find(settings.LastBookId) is { Ready: true } lastVoiced)
+			await LoadVoicedAsync(lastVoiced, showNowPlaying: false);
 	}
 
 	/// <summary>Shows a book in the player, and plays it if asked (Siri's "play Dune"); a recent book on the widget only opens.</summary>
@@ -652,6 +657,12 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			rows.Add(new DownloadsHeading(books.Count == 1 ? "1 audiobook" : $"{books.Count} audiobooks"));
 			rows.AddRange(books);
 		}
+		var voicedBooks = VoicedRows();
+		if (voicedBooks.Count > 0)
+		{
+			rows.Add(new DownloadsHeading(voicedBooks.Count == 1 ? "1 voiced book" : $"{voicedBooks.Count} voiced books"));
+			rows.AddRange(voicedBooks);
+		}
 		var episodes = Podcasts.DownloadedRows();
 		if (episodes.Count > 0)
 		{
@@ -788,6 +799,50 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				// "open:ID:speed" also opens a sheet: speed, profile, mode, sleep or more.
 				if (parts.Length > 2 && NowPlaying is { } openPlayer)
 					openPlayer.OpenSheetCommand.Execute(parts[2]);
+				break;
+			case "voicesheet":
+				// Downloads, with the voice sheet open: "voicesheet:ADDRESS" also fetches a document into it.
+				CurrentPage = Page.Downloads;
+				Voice.OpenCommand.Execute(null);
+				if (parts.Length > 1)
+				{
+					Voice.Url = action["voicesheet:".Length..];
+					await Voice.FetchUrlCommand.ExecuteAsync(null);
+				}
+				break;
+			case "tab" when parts.Length > 1:
+				ShowTabCommand.Execute(parts[1]);
+				break;
+			case "openvoiced":
+				// The newest voiced book that is ready, in the player, without playing.
+				if (voiced.Books.FirstOrDefault(b => b.Ready) is { } readyBook && await LoadVoicedAsync(readyBook, showNowPlaying: true))
+					Console.WriteLine($"LIBATION_TEST openvoiced: {readyBook.Title}, {NowPlaying!.Duration}, {readyBook.Chapters.Count} chapters");
+				break;
+			case "voice" when parts.Length > 1:
+				// "voice:/path/to/file.pdf" or "voice:https://…": voice it with the first voice, logging how it goes.
+				{
+					var target = action["voice:".Length..];
+					var path = target.StartsWith("http") ? await VoicedLibrary.DownloadAsync(new Uri(target), Path.GetTempPath(), default) : target;
+					var content = DocumentText.Read(path);
+					Console.WriteLine($"LIBATION_TEST voice: '{content.Title}' by {content.Author ?? "?"}, {content.Chapters.Count} chapters, {content.Words} words");
+					foreach (var c in content.Chapters)
+						Console.WriteLine($"LIBATION_TEST voice:   {c.Title} ({DocumentText.CountWords(c.Text)} words): {c.Text[..Math.Min(80, c.Text.Length)].Replace("\n", " / ")}");
+					var voices = BookVoice.Platform?.Voices() ?? [];
+					Console.WriteLine($"LIBATION_TEST voice: {voices.Count} voices, first {voices.FirstOrDefault()?.Label}");
+					var book = voiced.Add(content, target, content.Title ?? "Test", content.Author, voices[0]);
+					var watch = System.Diagnostics.Stopwatch.StartNew();
+					var lastDone = -1;
+					voiced.Changed += b =>
+					{
+						var done = b.Chapters.Count(c => c.Done);
+						if (b.Id != book.Id || done == lastDone && !b.Ready && b.Error is null)
+							return;
+						lastDone = done;
+						Console.WriteLine($"LIBATION_TEST voice: {watch.Elapsed.TotalSeconds:0.0}s, {done}/{b.Chapters.Count} chapters, {b.Chapters.Sum(c => c.Seconds):0}s of audio, ready={b.Ready}, error={b.Error}");
+					};
+					voiced.Start();
+					CurrentPage = Page.Downloads;
+				}
 				break;
 			case "checkin" when parts.Length > 2 && Library.Find(parts[1]) is { IsDownloaded: true } checkInBook:
 				// "checkin:ID:start" or "checkin:ID:end": shows that question's card, without playing.
