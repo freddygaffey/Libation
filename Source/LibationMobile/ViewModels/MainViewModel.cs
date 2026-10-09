@@ -789,6 +789,11 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				if (parts.Length > 2 && NowPlaying is { } openPlayer)
 					openPlayer.OpenSheetCommand.Execute(parts[2]);
 				break;
+			case "checkin" when parts.Length > 2 && Library.Find(parts[1]) is { IsDownloaded: true } checkInBook:
+				// "checkin:ID:start" or "checkin:ID:end": shows that question's card, without playing.
+				await LoadAsync(checkInBook, showNowPlaying: true);
+				NowPlaying?.ShowCheckInForTest(parts[2]);
+				break;
 			case "download" when parts.Length > 1 && Library.Find(parts[1]) is { IsNotDownloaded: true } downloadBook:
 				// Starts a download and logs its progress, to check it carries on with the app in the background.
 				downloadBook.PropertyChanged += (_, e) =>

@@ -135,7 +135,6 @@ public partial class NowPlayingViewModel
 			SpeedChipPrimary = SpeedText;
 			SpeedChipSecondary = heard is double h ? $"{h:0.0} syl/s" : "";
 		}
-		TargetSpeedText = heard is double ? $"{SpeedText} with this narrator, heard at {heard:0.0} syllables a second"
-			: $"{SpeedText} · measuring the narrator…";
+		TargetSpeedText = heard is double ? SpeedText : $"{SpeedText} · measuring…";
 	}
 }

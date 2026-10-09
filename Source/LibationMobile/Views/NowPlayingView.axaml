@@ -254,14 +254,9 @@
 					<StackPanel IsVisible="{Binding IsBlindMode}" Spacing="2" Margin="0,4,0,0">
 						<TextBlock Text="Blind training" FontFamily="{StaticResource DisplayFont}" FontWeight="Light" FontSize="32" />
 						<TextBlock Classes="muted" Text="{Binding TrainingText}" FontSize="13" />
-						<TextBlock Classes="muted" Text="The speed is hidden so the trainer can try speeds you would not pick. Switch modes below to see it." FontSize="11" TextWrapping="Wrap" />
 					</StackPanel>
 					<Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowsSpeed}">
-						<StackPanel VerticalAlignment="Center">
-							<TextBlock Text="Follow the narrator" FontSize="15" />
-							<TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-								Text="Set syllables a second instead of ×: slow narrators sped up more, fast ones less." />
-						</StackPanel>
+						<TextBlock Text="Syllables per second" FontSize="15" VerticalAlignment="Center" />
 						<ToggleSwitch Grid.Column="1" IsChecked="{Binding IsTargetRateOn, Mode=OneWay}" Command="{Binding ToggleTargetRateCommand}" OnContent="" OffContent="" />
 					</Grid>
 					<Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding ShowsTargetRate}">
@@ -328,7 +323,6 @@
 				<StackPanel Spacing="12" Margin="20,10,20,24">
 					<Border Width="40" Height="4" CornerRadius="2" Background="{StaticResource Hairline}" HorizontalAlignment="Center" />
 					<TextBlock Text="Profile" FontFamily="{StaticResource DisplayFont}" FontSize="22" />
-					<TextBlock Classes="muted" Text="Each profile sets how speech is sped up, scaled to the speed you choose." FontSize="12" TextWrapping="Wrap" />
 					<ItemsControl ItemsSource="{Binding Profiles}">
 						<ItemsControl.ItemTemplate>
 							<DataTemplate x:DataType="vm:ProfileChoice">
@@ -347,7 +341,7 @@
 						</ItemsControl.ItemTemplate>
 					</ItemsControl>
 					<TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding IsCustomProfile}"
-						Text="Custom in use: your own settings from Settings, Speed, Advanced." />
+						Text="Custom: your own settings." />
 				</StackPanel>
 			</ScrollViewer>
 		</Border>
@@ -363,8 +357,6 @@
 						<ToggleButton Content="Blind" IsChecked="{Binding IsBlindMode, Mode=OneWay}" Command="{Binding SetListeningModeCommand}" CommandParameter="blind" Padding="6,8" Margin="4,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
 					</UniformGrid>
 					<StackPanel Spacing="6" IsVisible="{Binding !IsNormalMode}">
-						<TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-							Text="Training: the plan sets the speed, shown. Blind: the speed is hidden everywhere, and some blocks try untested speeds or repeat the last one, to learn where your edge is." />
 						<TextBlock Text="Plan" FontSize="13" Foreground="{StaticResource Dust}" />
 						<UniformGrid Columns="4">
 							<ToggleButton Content="Ramp" IsChecked="{Binding IsPlanRamp, Mode=OneWay}" Command="{Binding SetPlanCommand}" CommandParameter="ramp" Padding="2,6" Margin="0,0,3,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="12" />
@@ -389,8 +381,7 @@
 					<Border Height="1" Background="{StaticResource Hairline}" />
 					<Button Classes="quiet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="8,8" Command="{Binding StartTrialCommand}" IsVisible="{Binding !IsTrialRunning}">
 						<StackPanel Spacing="1">
-							<TextBlock Text="Run a blind trial" FontSize="15" />
-							<TextBlock Classes="muted" Text="Two 2-minute parts with one setting changed, not shown. Rate each, then see which it was." FontSize="11" TextWrapping="Wrap" />
+							<TextBlock Text="Blind trial" FontSize="15" />
 						</StackPanel>
 					</Button>
 				</StackPanel>
@@ -401,7 +392,6 @@
 				<StackPanel Spacing="12" Margin="20,10,20,24">
 					<Border Width="40" Height="4" CornerRadius="2" Background="{StaticResource Hairline}" HorizontalAlignment="Center" />
 					<TextBlock Text="Sleep" FontFamily="{StaticResource DisplayFont}" FontSize="22" />
-					<TextBlock Classes="muted" Text="Pauses after this much listening. It fades over the last 10 seconds; a tap, a nod or a shake starts it again." FontSize="12" TextWrapping="Wrap" />
 					<UniformGrid Columns="4">
 						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="5 min" Command="{Binding SetSleepTimerCommand}" CommandParameter="5" />
 						<Button Classes="chip" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="10 min" Command="{Binding SetSleepTimerCommand}" CommandParameter="10" />
@@ -427,8 +417,7 @@
 					<Border Height="1" Background="{StaticResource Hairline}" />
 					<Grid ColumnDefinitions="*,Auto">
 						<StackPanel VerticalAlignment="Center">
-							<TextBlock Text="Pause when you fall asleep" FontSize="15" />
-							<TextBlock Classes="muted" Text="No touch for a while and you or the phone lying still: it fades, then pauses." FontSize="12" TextWrapping="Wrap" />
+							<TextBlock Text="Pause when asleep" FontSize="15" />
 						</StackPanel>
 						<ToggleSwitch Grid.Column="1" IsChecked="{Binding IsAutoPauseOn, Mode=OneWay}" Command="{Binding ToggleAutoPauseCommand}" OnContent="" OffContent="" Margin="12,0,0,0" />
 					</Grid>
@@ -513,14 +502,41 @@
 		BorderBrush="{StaticResource Lamp}" BorderThickness="1"
 		IsVisible="{Binding IsAskingFollow}">
 		<StackPanel Spacing="10">
-			<TextBlock Text="How well did you follow that?" FontSize="16" />
-			<TextBlock Classes="muted" Text="0 lost it · 2 got the gist · 4 every word" FontSize="12" />
+			<Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+				<PathIcon Data="{StaticResource IconChapters}" Width="20" Height="20" Foreground="{StaticResource Lamp}" />
+				<TextBlock Grid.Column="1" Text="How much did you follow?" FontSize="16" TextWrapping="Wrap" />
+			</Grid>
 			<UniformGrid Columns="5">
-				<Button Classes="choice" Content="0" Command="{Binding RateFollowCommand}" CommandParameter="0" />
-				<Button Classes="choice" Content="1" Command="{Binding RateFollowCommand}" CommandParameter="1" />
-				<Button Classes="choice" Content="2" Command="{Binding RateFollowCommand}" CommandParameter="2" />
-				<Button Classes="choice" Content="3" Command="{Binding RateFollowCommand}" CommandParameter="3" />
-				<Button Classes="choice" Content="4" Command="{Binding RateFollowCommand}" CommandParameter="4" />
+				<Button Classes="choice" Command="{Binding RateFollowCommand}" CommandParameter="0">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="0" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="lost" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="choice" Command="{Binding RateFollowCommand}" CommandParameter="1">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="1" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="bits" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="choice" Command="{Binding RateFollowCommand}" CommandParameter="2">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="2" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="gist" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="choice" Command="{Binding RateFollowCommand}" CommandParameter="3">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="3" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="most" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="choice" Command="{Binding RateFollowCommand}" CommandParameter="4">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="4" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="all" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
 			</UniformGrid>
 			<Grid ColumnDefinitions="*,Auto">
 				<TextBlock Classes="muted" Text="Listening for your answer…" FontSize="12" VerticalAlignment="Center" IsVisible="{Binding IsListeningForAnswer}" />
@@ -528,19 +544,47 @@
 			</Grid>
 		</StackPanel>
 	</Border>
-	<!-- At the start of a sitting: how alert, for the trainer. -->
-	<Border VerticalAlignment="Bottom" Margin="16,0,16,24" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
-		BorderBrush="{StaticResource Lamp}" BorderThickness="1"
+	<!-- At the start of a sitting: how alert, for the trainer. At the top and in another colour, so it is not taken
+	     for the question about following, which comes at the bottom. -->
+	<Border VerticalAlignment="Top" Margin="16,72,16,0" Padding="16,14" CornerRadius="12" Background="{StaticResource Slate}"
+		BorderBrush="{StaticResource Dust}" BorderThickness="1"
 		IsVisible="{Binding IsAskingAlertness}">
 		<StackPanel Spacing="10">
-			<TextBlock Text="How alert are you?" FontSize="16" />
-			<TextBlock Classes="muted" Text="0 falling asleep · 2 so-so · 4 wide awake" FontSize="12" />
+			<Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+				<PathIcon Data="{StaticResource IconMoon}" Width="20" Height="20" Foreground="{StaticResource Dust}" />
+				<TextBlock Grid.Column="1" Text="How awake are you?" FontSize="16" TextWrapping="Wrap" />
+			</Grid>
 			<UniformGrid Columns="5">
-				<Button Classes="choice" Content="0" Command="{Binding RateAlertnessCommand}" CommandParameter="0" />
-				<Button Classes="choice" Content="1" Command="{Binding RateAlertnessCommand}" CommandParameter="1" />
-				<Button Classes="choice" Content="2" Command="{Binding RateAlertnessCommand}" CommandParameter="2" />
-				<Button Classes="choice" Content="3" Command="{Binding RateAlertnessCommand}" CommandParameter="3" />
-				<Button Classes="choice" Content="4" Command="{Binding RateAlertnessCommand}" CommandParameter="4" />
+				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="0">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="0" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="asleep" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="1">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="1" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="drowsy" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="2">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="2" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="okay" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="3">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="3" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="alert" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Classes="choice" Command="{Binding RateAlertnessCommand}" CommandParameter="4">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="4" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+						<TextBlock Text="sharp" FontSize="11" Foreground="{StaticResource Dust}" HorizontalAlignment="Center" />
+					</StackPanel>
+				</Button>
 			</UniformGrid>
 			<Button Classes="quiet" Content="Skip" HorizontalAlignment="Right" Padding="10,4" Command="{Binding SkipAlertnessCommand}" />
 		</StackPanel>
@@ -572,7 +616,7 @@
 			<StackPanel Spacing="10" IsVisible="{Binding IsShowingTrialResult}">
 				<TextBlock Text="What you heard" FontSize="16" />
 				<TextBlock Text="{Binding TrialResult}" FontSize="13" TextWrapping="Wrap" />
-				<TextBlock Classes="muted" Text="Saved. Results build up on the stats page." FontSize="12" />
+				<TextBlock Classes="muted" Text="Saved." FontSize="12" />
 				<Button Classes="quiet" Content="Back to the book" HorizontalAlignment="Right" Padding="10,4" Command="{Binding FinishTrialCommand}" />
 			</StackPanel>
 		</Panel>
@@ -618,7 +662,7 @@
 		<StackPanel Grid.Row="1" Margin="24,32,24,0" Spacing="10" IsVisible="{Binding !HasAnnotations}">
 			<TextBlock Classes="bookTitle" Text="Nothing saved in this book yet" FontSize="18" />
 			<TextBlock Classes="muted" TextWrapping="Wrap"
-				Text="While listening, tap Bookmark to mark your place, or Clip to keep what you just heard. They are saved on this phone." />
+				Text="No bookmarks or clips yet." />
 		</StackPanel>
 		<ListBox Grid.Row="1" Classes="chapters" ItemsSource="{Binding Annotations}" Background="Transparent" IsVisible="{Binding HasAnnotations}">
 			<ListBox.ItemTemplate>
@@ -665,7 +709,7 @@
 		<StackPanel Grid.Row="1" Margin="24,32,24,0" Spacing="10" IsVisible="{Binding !HasHistory}">
 			<TextBlock Classes="bookTitle" Text="No listening yet" FontSize="18" />
 			<TextBlock Classes="muted" TextWrapping="Wrap"
-				Text="Each time you listen, this shows when and where in the book, with your place every 5 minutes. Tap a time to go back there." />
+				Text="No history yet." />
 		</StackPanel>
 		<ScrollViewer Grid.Row="1" IsVisible="{Binding HasHistory}">
 			<ItemsControl ItemsSource="{Binding History}" Margin="24,4,24,20">
@@ -738,7 +782,7 @@
 							Playhead="{Binding $parent[UserControl].((vm:NowPlayingViewModel)DataContext).ClipPreviewSeconds}" />
 					</Grid>
 				</Border>
-				<TextBlock Classes="muted" Text="Drag the ends to trim, or the middle to move the clip. Up to 45 seconds." FontSize="12" TextWrapping="Wrap" TextAlignment="Center" />
+				<TextBlock Classes="muted" Text="Drag to trim or move. Up to 45 s." FontSize="12" TextWrapping="Wrap" TextAlignment="Center" />
 
 				<!-- Fine adjustment, a tenth or half a second at a time. -->
 				<Grid ColumnDefinitions="*,*" ColumnSpacing="12">

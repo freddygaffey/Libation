@@ -19,7 +19,7 @@ public partial class NowPlayingViewModel
 	private static readonly TimeSpan NewSittingGap = TimeSpan.FromHours(1);
 	/// <summary>A pause this soon after a headphone button press came from it.</summary>
 	private static readonly TimeSpan ButtonPauseWindow = TimeSpan.FromSeconds(3);
-	private const string END_QUESTION = "How well did you follow that? Say a number from zero to four.";
+	private const string END_QUESTION = "How much did you follow? Zero to four.";
 
 	private sealed record PendingCheckIn(string Moment, DateTimeOffset At, SessionContext Context, Task<ActivityContext?>? Activity);
 
@@ -212,4 +212,15 @@ public partial class NowPlayingViewModel
 		Record(ref pendingStart, null, "none");
 		Record(ref pendingEnd, null, "none");
 	}
+
+#if DEBUG
+	/// <summary>Debug builds only: show a question's card, for a screenshot. Nothing is recorded.</summary>
+	internal void ShowCheckInForTest(string moment)
+	{
+		if (moment == "start")
+			IsAskingAlertness = true;
+		else
+			FollowToRate = CurrentListening();
+	}
+#endif
 }
