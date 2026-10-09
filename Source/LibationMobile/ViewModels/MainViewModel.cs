@@ -285,6 +285,11 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 			}
 		}
 
+#if DEBUG
+		// Tests on the real phone while another app plays: no book loaded, so nothing here touches the audio.
+		if (Environment.GetEnvironmentVariable("LIBATION_NO_RESTORE") is { Length: > 0 })
+			return;
+#endif
 		// Put the last book back in the mini player, paused, so one tap resumes it.
 		if (Library.Find(settings.LastBookId) is { IsDownloaded: true } last)
 			await LoadAsync(last, showNowPlaying: false);
@@ -799,6 +804,20 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				if (parts.Length > 2 && NowPlaying is { } openPlayer)
 					openPlayer.OpenSheetCommand.Execute(parts[2]);
 				break;
+			case "getvoices":
+				// Download the neural voices, then list every voice.
+				if (BookVoice.Platform is { } installer)
+				{
+					var lastReport = -1;
+					await installer.InstallNeuralVoicesAsync(new Progress<double>(p =>
+					{
+						if ((int)(p * 10) != lastReport)
+							Console.WriteLine($"LIBATION_TEST getvoices: {p:P0}");
+						lastReport = (int)(p * 10);
+					}), default);
+					Console.WriteLine($"LIBATION_TEST getvoices: {string.Join(", ", installer.Voices().Select(v => v.Label))}");
+				}
+				break;
 			case "voicesheet":
 				// Downloads, with the voice sheet open: "voicesheet:ADDRESS" also fetches a document into it.
 				CurrentPage = Page.Downloads;
@@ -814,13 +833,20 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				break;
 			case "voicebench":
 				// How fast the newest voiced book is read aloud, without playing it: seconds of audio made a second.
-				if (voiced.Books.FirstOrDefault() is { } benchBook && BookVoice.Platform is { } benchVoice)
+				if (BookVoice.Platform is { } benchVoice)
 				{
-					var local = voiced.ToLocalBook(benchBook, benchVoice);
+					var benchBook = voiced.Books.FirstOrDefault();
+					// "voicebench:SECONDS:VOICE", the voice as "kokoro:af_heart", "espeak:en-us" or Apple's identifier.
 					var seconds = parts.Length > 1 && int.TryParse(parts[1], out var s) ? s : 60;
+					var benchVoiceId = parts.Length > 2 ? string.Join(':', parts[2..]) : benchBook?.VoiceId ?? "espeak:en-us";
+					// The newest voiced book's text, or one put in Documents/Kokoro for testing.
+					var benchText = File.ReadAllText(benchBook is not null
+						? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Voiced", benchBook.Id, "text.txt")
+						: Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Kokoro", "text.txt"));
 					_ = Task.Run(async () =>
 					{
-						using var source = (IVoicedSource)local.OpenSource!();
+						using var source = benchVoice.Open(benchText, benchVoiceId, BookVoice.SECONDS_PER_CHARACTER);
+						Console.WriteLine($"LIBATION_TEST voicebench: {benchVoiceId}, {source.SampleRate} Hz");
 						var buffer = new float[4096];
 						long frames = 0;
 						var waits = 0;

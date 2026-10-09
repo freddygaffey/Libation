@@ -95,6 +95,31 @@ public partial class VoiceViewModel : ObservableObject
 		? $"{c.Chapters.Count} chapters · {c.Words:N0} words · about {Hours(c.Words * 60.0 / WORDS_PER_MINUTE)}"
 		: "";
 
+	public bool CanGetNeuralVoices => BookVoice.Platform is { HasNeuralVoices: false };
+
+	[ObservableProperty]
+	private string? neuralStatus;
+
+	/// <summary>Download the HSC library's neural voices (Kokoro), then list them.</summary>
+	[RelayCommand]
+	private async Task GetNeuralVoices()
+	{
+		if (BookVoice.Platform is not { } platform)
+			return;
+		try
+		{
+			await platform.InstallNeuralVoicesAsync(new Progress<double>(p => NeuralStatus = $"Downloading the voices, {p:P0}"), CancellationToken.None);
+			NeuralStatus = null;
+			Voices = platform.Voices();
+			Voice = Voices.FirstOrDefault();
+		}
+		catch (Exception ex)
+		{
+			NeuralStatus = $"The voices could not be downloaded: {ex.Message}";
+		}
+		OnPropertyChanged(nameof(CanGetNeuralVoices));
+	}
+
 	[RelayCommand]
 	private void Open()
 	{

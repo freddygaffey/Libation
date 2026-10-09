@@ -31,6 +31,12 @@ public interface IBookVoice
 
 	/// <param name="secondsPerCharacter">The timeline's pace: a character is this long.</param>
 	IVoicedSource Open(string text, string voiceId, double secondsPerCharacter);
+
+	/// <summary>Whether the neural voices (Kokoro, the HSC library's narrators) are on the phone.</summary>
+	bool HasNeuralVoices { get; }
+
+	/// <summary>Download the neural voices' model and voices, about 160 MB. Progress 0 to 1.</summary>
+	System.Threading.Tasks.Task InstallNeuralVoicesAsync(System.IProgress<double> progress, System.Threading.CancellationToken token);
 }
 
 public static class BookVoice

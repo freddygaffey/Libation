@@ -19,6 +19,8 @@
     <PackageReference Include="Avalonia.iOS" Version="12.1.2" />
     <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.0" />
     <PackageReference Include="Speechwarp.Voice" Version="0.3.7" />
+    <!-- Kokoro, the neural voices, runs on the phone through ONNX Runtime. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.2" />
   </ItemGroup>
 
   <!-- iOS plays through AVFoundation (see AudioBackend in AppDelegate), so SoundFlow's native libraries are not
@@ -64,6 +66,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LibationMobile\LibationMobile.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- eSpeak NG 1.52, built by Native/build-espeak.sh: words to phonemes for Kokoro, and the formant "Eloquence"
+         voices. Its English data is in Resources/espeak-ng-data. -->
+    <NativeReference Include="Native/espeak-ng.xcframework">
+      <Kind>Static</Kind>
+      <ForceLoad>True</ForceLoad>
+    </NativeReference>
   </ItemGroup>
 
   <ItemGroup>

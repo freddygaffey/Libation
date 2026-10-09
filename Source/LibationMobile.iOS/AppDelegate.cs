@@ -29,6 +29,11 @@ public partial class AppDelegate : AvaloniaAppDelegate<App>
 		// Created at launch, so a download that finished while the app was closed is delivered.
 		FileTransfer.Platform = new AppleFileTransfer();
 		FileTransfer.BackgroundWork = new AppleBackgroundWork();
+#if DEBUG
+		// LIBATION_KOKORO_BENCH=SECONDS[:VOICE]: how fast Kokoro speaks on this device, writing nothing and playing nothing.
+		if (Environment.GetEnvironmentVariable("LIBATION_KOKORO_BENCH") is { Length: > 0 } bench)
+			System.Threading.Tasks.Task.Run(() => Kokoro.KokoroBench.Run(bench));
+#endif
 		return base.CustomizeAppBuilder(builder).WithInterFont();
 	}
 

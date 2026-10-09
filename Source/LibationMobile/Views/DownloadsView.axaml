@@ -127,6 +127,10 @@
 						<TextBox Text="{Binding Title}" PlaceholderText="Title" />
 						<TextBox Text="{Binding Author}" PlaceholderText="Author" />
 						<TextBlock Text="Voice" FontSize="15" Margin="0,4,0,0" />
+						<Button Classes="quiet" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,10"
+							Content="Get the HSC voices (Kokoro, 160 MB)" Command="{Binding GetNeuralVoicesCommand}" IsVisible="{Binding CanGetNeuralVoices}" />
+						<TextBlock Classes="muted" Text="{Binding NeuralStatus}" FontSize="13" TextWrapping="Wrap"
+							IsVisible="{Binding NeuralStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
 						<ComboBox ItemsSource="{Binding Voices}" SelectedItem="{Binding Voice}" HorizontalAlignment="Stretch">
 							<ComboBox.ItemTemplate>
 								<DataTemplate x:DataType="services:VoiceChoice">
