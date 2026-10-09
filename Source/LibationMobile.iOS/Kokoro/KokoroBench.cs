@@ -30,15 +30,26 @@ public static class KokoroBench
 			using var engine = new KokoroEngine(dir, model, threads, accelerator);
 			Console.WriteLine($"LIBATION_TEST kokoro: {model}, {threads} threads, {accelerator}: loaded in {watch.ElapsedMilliseconds} ms, {Environment.ProcessorCount} cores");
 			watch.Restart();
-			double audio = 0;
+			// Several engines at once, each on its own paragraphs: does running in parallel speed it up?
+			var parallel = parts.Length > 5 ? int.Parse(parts[5]) : 1;
+			var engines = new[] { engine }.Concat(Enumerable.Range(1, parallel - 1).Select(_ => new KokoroEngine(dir, model, threads, accelerator))).ToList();
 			var paragraphs = text.Split("\n\n", StringSplitOptions.RemoveEmptyEntries);
-			foreach (var paragraph in paragraphs)
+			var next = -1;
+			var audioFrames = 0L;
+			watch.Restart();
+			var workers = engines.Select(e => System.Threading.Tasks.Task.Run(() =>
 			{
-				audio += engine.Speak(paragraph, voice).Length / (double)KokoroEngine.SAMPLE_RATE;
-				Console.WriteLine($"LIBATION_TEST kokoro: {watch.Elapsed.TotalSeconds:0}s, {audio:0}s of audio, {audio / watch.Elapsed.TotalSeconds:0.00}x real time");
-				if (watch.Elapsed.TotalSeconds > seconds)
-					break;
-			}
+				while (watch.Elapsed.TotalSeconds < seconds)
+				{
+					var i = System.Threading.Interlocked.Increment(ref next);
+					if (i >= paragraphs.Length)
+						break;
+					System.Threading.Interlocked.Add(ref audioFrames, e.Speak(paragraphs[i], voice).Length);
+				}
+			})).ToArray();
+			System.Threading.Tasks.Task.WaitAll(workers);
+			var audio = audioFrames / (double)KokoroEngine.SAMPLE_RATE;
+			Console.WriteLine($"LIBATION_TEST kokoro: {parallel} at once");
 			Console.WriteLine($"LIBATION_TEST kokoro: done, {audio / watch.Elapsed.TotalSeconds:0.00}x real time");
 		}
 		catch (Exception ex)

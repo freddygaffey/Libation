@@ -56,8 +56,11 @@ public sealed class KokoroSentenceVoice(string voice) : ISentenceVoice
 	public int SampleRate => KokoroEngine.SAMPLE_RATE;
 	public bool KeepsSpoken => true;
 
+	/// <summary>On the GPU where the app and phone can, which is faster; otherwise ONNX Runtime on the CPU.</summary>
 	public float[] Speak(string sentence)
 	{
+		if (KokoroGpu.IsAvailable(Directory))
+			return KokoroGpu.Speak(Directory, Path.Combine(Directory, "voices", voice + ".bin"), sentence, voice.StartsWith('b'));
 		lock (locker)
 		{
 			shared ??= new KokoroEngine(Directory);

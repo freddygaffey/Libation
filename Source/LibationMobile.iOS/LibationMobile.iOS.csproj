@@ -68,6 +68,9 @@
     <ProjectReference Include="..\LibationMobile\LibationMobile.csproj" />
   </ItemGroup>
 
+  <!-- Kokoro on the GPU (MLX), built by Native/build-kokoro-gpu.sh, for devices; without it Kokoro runs on the CPU. -->
+  <Import Project="Native/KokoroGPU.props" Condition="Exists('Native/KokoroGPU.props')" />
+
   <ItemGroup>
     <!-- eSpeak NG 1.52, built by Native/build-espeak.sh: words to phonemes for Kokoro, and the formant "Eloquence"
          voices. Its English data is in Resources/espeak-ng-data. -->
