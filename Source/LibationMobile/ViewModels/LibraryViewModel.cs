@@ -666,6 +666,8 @@ public partial class LibraryViewModel : ObservableObject
 
 	private void SetBooks(IReadOnlyList<CatalogBook> books)
 	{
+		// A book listed twice, as in a cache saved before repeats were dropped, is one book.
+		books = books.DistinctBy(b => b.Asin).ToList();
 		// Keep the existing row for a book, so a download in progress survives a sync.
 		var existing = allBooks.ToDictionary(b => b.Book.Asin);
 		allBooks = books

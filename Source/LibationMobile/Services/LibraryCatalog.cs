@@ -81,6 +81,8 @@ public class LibraryCatalog
 			.Where(i => i.Asin is not null && !i.IsSeriesParent)
 			.Select(ToCatalogBook)
 			.OrderByDescending(b => b.Purchased)
+			// Audible's pages can list a book twice, as one just bought; once is enough.
+			.DistinctBy(b => b.Asin)
 			.ToList();
 
 		var temp = catalogFile + ".tmp";
