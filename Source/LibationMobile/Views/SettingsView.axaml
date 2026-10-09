@@ -666,7 +666,7 @@
 					<StackPanel VerticalAlignment="Center">
 						<TextBlock Text="Download the next book" FontSize="15" />
 						<TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
-							Text="Opening a book in a series downloads the next one, so it is ready when this one ends. A series' details page can download all of it." />
+							Text="Within an hour's listening of the end of a book, download the next in its series, so it is ready. To get a whole series, use Download the whole series on a book's menu or details page." />
 					</StackPanel>
 					<ToggleSwitch Grid.Column="1" IsChecked="{Binding DownloadNextInSeries}" OnContent="" OffContent="" Margin="12,0,0,0" />
 				</Grid>

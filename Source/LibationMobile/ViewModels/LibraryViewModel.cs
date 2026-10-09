@@ -89,6 +89,7 @@ public partial class BookItemViewModel : ObservableObject
 	public bool HasProgress => Progress > 0;
 	public bool IsFinished => Progress >= 1;
 	public bool IsNotFinished => !IsFinished;
+	public bool IsInSeries => Book.Series is { Count: > 0 };
 
 	internal CancellationTokenSource? DownloadCancellation { get; set; }
 
@@ -619,6 +620,21 @@ public partial class LibraryViewModel : ObservableObject
 				return next;
 		}
 		return null;
+	}
+
+	/// <summary>The listener's books in this book's first series, in reading order, one edition of each place.</summary>
+	public IReadOnlyList<BookItemViewModel> SeriesOf(BookItemViewModel item)
+	{
+		if (item.Book.Series is not { Count: > 0 } memberships)
+			return [];
+		var id = memberships[0].Id;
+		return allBooks
+			.Select(b => (Book: b, At: SeriesNumber(b.Book.Series?.FirstOrDefault(s => s.Id == id)?.Sequence)))
+			.Where(x => x.At is not null)
+			.GroupBy(x => x.At)
+			.OrderBy(g => g.Key)
+			.Select(g => g.OrderByDescending(x => x.Book.IsDownloaded).First().Book)
+			.ToList();
 	}
 
 	/// <summary>A book's place in its series as a number: "2" is 2, "2.5" is 2.5, and an omnibus "1-3" counts as 1.</summary>

@@ -360,6 +360,7 @@ public partial class NowPlayingViewModel : ObservableObject, IDisposable
 		UpdateAnnotations();
 		UpdateSyllableRate();
 		TargetRateTick();
+		CheckNearingEnd();
 		CountListening();
 		SleepTick();
 		SleepTimerTick();

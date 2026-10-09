@@ -22,14 +22,34 @@ public partial class MainViewModel
 		}
 	}
 
-	/// <summary>A book has been opened: show what comes after it, and download that if asked to.</summary>
+	/// <summary>
+	/// Download every book of a series the listener owns and is not on the phone, in order, from a book's menu in the
+	/// library. Read from the library, so only books it knows to be in the series.
+	/// </summary>
+	[RelayCommand(AllowConcurrentExecutions = true)]
+	private async Task DownloadSeriesOf(BookItemViewModel item)
+	{
+		foreach (var book in Library.SeriesOf(item).Where(b => b.IsNotDownloaded).ToList())
+		{
+			if (book.IsNotDownloaded)
+				await Library.DownloadCommand.ExecuteAsync(book);
+		}
+	}
+
+	/// <summary>
+	/// A book has been opened: show what comes after it in its series. If the listener has asked for it, the next book is
+	/// downloaded once this one is within an hour's listening of its end.
+	/// </summary>
 	private void QueueNextInSeries(NowPlayingViewModel player, BookItemViewModel item)
 	{
 		var next = Library.NextInSeries(item);
 		player.UpNext = next is null ? null : Describe(next, item);
 		player.BookEnded += () => _ = PlayNextInSeriesAsync(item);
-		if (next is { IsNotDownloaded: true } && settings.DownloadNextInSeries)
-			_ = Library.DownloadCommand.ExecuteAsync(next);
+		player.NearingEnd += () =>
+		{
+			if (settings.DownloadNextInSeries && Library.NextInSeries(item) is { IsNotDownloaded: true } coming)
+				_ = Library.DownloadCommand.ExecuteAsync(coming);
+		};
 	}
 
 	/// <summary>The book just ended: carry on with the next in its series if it is here, or say why not.</summary>
