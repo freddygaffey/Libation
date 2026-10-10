@@ -804,6 +804,10 @@ public partial class MainViewModel : ObservableObject, ILoginChoiceEager
 				if (parts.Length > 2 && NowPlaying is { } openPlayer)
 					openPlayer.OpenSheetCommand.Execute(parts[2]);
 				break;
+			case "dedupevoiced":
+				Console.WriteLine($"LIBATION_TEST dedupevoiced: {voiced.RemoveDuplicates()} removed; left {string.Join(", ", voiced.Books.Select(b => $"{b.Title} ({b.VoiceName})"))}");
+				RefreshDownloads();
+				break;
 			case "audiblestats":
 				// Read only: Audible's own record of listening by day, the last fortnight.
 				{

@@ -122,11 +122,23 @@ public class VoicedLibrary
 		File.WriteAllText(Path.Combine(dir, TEXT_FILE), text.ToString());
 		if (content.Cover is { } cover)
 			File.WriteAllBytes(Path.Combine(dir, "cover.png"), cover);
+		// The same book made again replaces the copy made before.
+		foreach (var older in Books.Where(b => string.Equals(b.Title, book.Title, StringComparison.CurrentCultureIgnoreCase)).ToList())
+			Delete(older);
 		lock (locker)
 			books.Insert(0, book);
 		Save(book);
 		Changed?.Invoke(book);
 		return book;
+	}
+
+	/// <summary>Older copies of a book made more than once, before making it again replaced them. Returns how many went.</summary>
+	public int RemoveDuplicates()
+	{
+		var older = Books.GroupBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase).SelectMany(g => g.OrderByDescending(b => b.Added).Skip(1)).ToList();
+		foreach (var book in older)
+			Delete(book);
+		return older.Count;
 	}
 
 	public void Delete(VoicedBook book)

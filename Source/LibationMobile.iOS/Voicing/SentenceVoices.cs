@@ -60,7 +60,15 @@ public sealed class KokoroSentenceVoice(string voice) : ISentenceVoice
 	public float[] Speak(string sentence)
 	{
 		if (KokoroGpu.IsAvailable(Directory))
-			return KokoroGpu.Speak(Directory, Path.Combine(Directory, "voices", voice + ".bin"), sentence, voice.StartsWith('b'));
+		{
+			try
+			{
+				return KokoroGpu.Speak(Directory, Path.Combine(Directory, "voices", voice + ".bin"), sentence, voice.StartsWith('b'));
+			}
+			catch (KokoroGpu.GpuUnavailableException)
+			{
+			}
+		}
 		lock (locker)
 		{
 			shared ??= new KokoroEngine(Directory);

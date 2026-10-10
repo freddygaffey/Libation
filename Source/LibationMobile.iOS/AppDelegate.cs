@@ -27,6 +27,8 @@ public partial class AppDelegate : AvaloniaAppDelegate<App>
 		// Slow voices speak ahead to disk while the phone charges: with the book open, and overnight.
 		UIKit.UIDevice.CurrentDevice.BatteryMonitoringEnabled = true;
 		Voicing.OvernightVoicing.Register();
+		// The GPU only while on screen: iOS refuses it to apps in the background.
+		Kokoro.KokoroGpu.WatchAppState();
 		DocumentText.Pdf = new ApplePdfReader();
 		BookVoice.Platform = new AppleBookVoice();
 		AudioBackend.Route = AppleAudioRoute.Describe;
